@@ -1,0 +1,25 @@
+#Name of the program to compile
+Name = waveBem
+
+# The first denotes the dimension for which the program is to be
+# compiled:
+deal_II_dimension = 2
+
+# Co dimension of the problem, in case there are also secondary objects of 
+# different dimension respect to the above one
+deal_II_co_dimension = 1
+
+# The `debug-mode' variable works as in the small projects Makefile:
+debug-mode = on
+
+# The location of the deal.II Libs.
+D = $(DEAL_II_DIR)
+
+# Enable profiling of the application
+profiler = off
+
+# Link to external gsl libraries
+link_flags = -lgsl -lgslcblas -lsundials_ida -lsundials_nvecserial
+
+# Link to external gsl libraries
+compile_flags = 

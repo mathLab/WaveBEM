@@ -1,0 +1,128 @@
+set Mesh file name 2d               = ../../utilities/cosine.inp
+set Mesh file name 3d               = ../../utilities/wigleyBase.inp
+set Node displacement type          = semilagrangian
+set Output file name                = tokyoFrXXXX
+set Maximum number of steps         = 10000
+set Solution method                 = Direct
+set Dumping period		    = .3
+set Keep BEM in sync with geometry  = false
+set Refinement level on boat	    = 1
+set Remeshing period		    = .2
+set Restore from file               = 
+
+subsection Local Refinement
+  set Coarsening fraction    = 0
+  set Maximum number of dofs = 5000
+  set Refinement fraction    = .3
+end
+
+
+subsection Boundary Conditions ID Numbers
+  set Free Surface 1 ID = 5
+  set Free Surface 2 ID = 6
+  set Free Surface 3 ID = 0
+  set Wall Surface 1 ID = 3
+  set Wall Surface 2 ID = 4
+  set Wall Surface 3 ID = 0
+  set Inflow Surface 1 ID = 9
+  set Inflow Surface 2 ID = 10
+  set Inflow Surface 3 ID = 0
+  set Free Surface Edge On Boat ID = 20
+end
+
+subsection FMA Params
+  set FMA Truncation Order = 4
+end
+
+subsection IDA Solver Params
+  set Absolute error tolerance        = 1e-5
+  set Relative error tolerance        = 1e-4
+  set Final time                      = 40
+  set Initial step size               = 0.000005
+  set Initial time                    = 0
+  set Min step size                   = 0.0001
+  set Use iterative algorithm         = true
+  set Provide jacobian preconditioner = false
+  set Provide jacobian product        = false
+  set Seconds between each output     = .04
+  set Initial condition type	      = 0
+end
+
+
+subsection Octree Params
+  set Number of Octree Levels = 10
+end
+
+subsection Quadrature rules
+  set Quadrature order          = 2
+  set Quadrature type           = gauss
+  set Singular quadrature order = 3
+end
+
+subsection Solver
+  set Log frequency = 1
+  set Log history   = false
+  set Log result    = true
+  set Max steps     = 8000
+  set Tolerance     = 1.e-7
+end
+
+subsection Initial Wave Potential 2d
+  set Function constants  = 
+  set Function expression = 0
+  set Variable names      = x,y,t
+end
+
+subsection Initial Wave Potential 3d
+  set Function constants  = 
+  set Function expression = 0 
+  set Variable names      = x,y,z,t
+end
+
+subsection Initial Wave Shape 2d
+  set Function constants  = 
+  set Function expression = 0
+  set Variable names      = x,y,t
+end
+
+subsection Initial Wave Shape 3d
+  set Function constants  = 
+  set Function expression = 0 
+  set Variable names      = x,y,z,t
+end
+
+subsection Wind function 2d
+  set Function constants  = 
+  set Function expression = 0; 0
+  set Variable names      = x,y,t
+end
+
+subsection Wind function 3d
+  set Function constants  = k=0.004952272206 # sqrt(g l)/1000
+  set Function expression = XXXX*k*if(t < 1.5, t/1.5,1 ); 0; 0
+  set Variable names      = x,y,z,t
+end
+
+subsection Inflow Normal Potential Gradient 2d
+  set Function constants  = 
+  set Function expression = 0
+  set Variable names      = x,y,t
+end
+
+subsection Inflow Normal Potential Gradient 3d
+  set Function constants  = 
+  set Function expression = 0 
+  set Variable names      = x,y,z,t
+end
+
+subsection Initial Wave Normal Potential Gradient 2d
+  set Function constants  = 
+  set Function expression = 0
+  set Variable names      = x,y,t
+end
+
+subsection Initial Wave Normal Potential Gradient 3d
+  set Function constants  = 
+  set Function expression = 0 
+  set Variable names      = x,y,z,t
+end

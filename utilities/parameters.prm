@@ -1,0 +1,143 @@
+# Listing of Parameters
+# ---------------------
+set Extend solution on the -2,2 box = false
+set External refinement             = 5
+set Number of cycles                = 1 
+set Node displacement type          = semilagrangian
+set Mesh file name 3d              = ./utilities/cosine3d.inp
+set Mesh file name 2d              = ./utilities/cosine.inp
+set Output file name                = semilagrangian
+
+
+subsection ODE Solver Params
+  set Time integration type            = rk2
+  set Initial step size                = 4e-3
+  set Absolute error tolerance         = 1e-6
+  set Relative error tolerance         = 1e-8
+  set Initial time                     = 0
+  set Final time                       = 8e-3
+  set Maximum number of steps          = 5000
+end
+
+subsection FMA Params
+  set Number of Octree Levels          = 5
+  set FMA Truncation Order             = 3
+end
+
+
+subsection Free Surface Params
+  set Output files per second          = 250
+end
+
+subsection Initial Wave Shape 3d
+  # Any constant used inside the function which is not a variable name.
+  set Function constants  = 
+
+  # Separate vector valued expressions by ';' as ',' is used internally by the
+  # function parser.
+  set Function expression = if(z > -2 & abs(x) < 3.1415, 0.544*(cos(x)+1), 0)
+  #set Function expression = 0.544*cos(x)+1
+  # The name of the variables as they will be used in the function, separated
+  # by ','.
+  set Variable names      = x,y,z,t
+end
+
+
+
+subsection Initial Wave Shape 2d
+  # Any constant used inside the function which is not a variable name.
+  set Function constants  = 
+
+  # Separate vector valued expressions by ';' as ',' is used internally by the
+  # function parser.
+  set Function expression = if(y > -2 & abs(x) < 3.1415, 0.544*(cos(x)+1), 0)
+
+  # The name of the variables as they will be used in the function, separated
+  # by ','.
+  set Variable names      = x,y,t
+end
+
+subsection Initial Wave Potential 3d
+  # Any constant used inside the function which is not a variable name.
+  set Function constants  =
+
+  # Separate vector valued expressions by ';' as ',' is used internally by the
+  # function parser.
+  set Function expression = 0
+
+  # The name of the variables as they will be used in the function, separated
+  # by ','.
+  set Variable names      = x,y,z,t
+end
+
+subsection Initial Wave Potential 2d
+  # Any constant used inside the function which is not a variable name.
+  set Function constants  =
+
+  # Separate vector valued expressions by ';' as ',' is used internally by the
+  # function parser.
+  set Function expression = 0
+
+  # The name of the variables as they will be used in the function, separated
+  # by ','.
+  set Variable names      = x,y,t
+end
+
+subsection Exact solution 3d
+  # Any constant used inside the function which is not a variable name.
+  set Function constants  = 
+
+  # Separate vector valued expressions by ';' as ',' is used internally by the
+  # function parser.
+  set Function expression = x   # default: 0
+
+  # The name of the variables as they will be used in the function, separated
+  # by ','.
+  set Variable names      = x,y,z,t
+end
+
+
+subsection Quadrature rules
+  set Quadrature order          = 4
+  set Quadrature type           = gauss
+  set Singular quadrature order = 5
+end
+
+
+subsection Solver
+  set Log frequency = 1
+  set Log history   = false
+  set Log result    = true
+  set Max steps     = 1000
+  set Tolerance     = 1.e-10
+end
+
+
+subsection Wind function 2d
+  # Any constant used inside the function which is not a variable name.
+  set Function constants  = 
+
+  # Separate vector valued expressions by ';' as ',' is used internally by the
+  # function parser.
+  set Function expression =  1; 0  # default: 0; 0
+
+  # The name of the variables as they will be used in the function, separated
+  # by ','.
+  set Variable names      = x,y,t
+end
+
+
+subsection Wind function 3d
+  # Any constant used inside the function which is not a variable name.
+  set Function constants  = 
+
+  # Separate vector valued expressions by ';' as ',' is used internally by the
+  # function parser.
+  set Function expression = 1; 0; 0 # default: 0; 0; 0
+
+  # The name of the variables as they will be used in the function, separated
+  # by ','.
+  set Variable names      = x,y,z,t
+end
+
+
