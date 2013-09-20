@@ -1,0 +1,152 @@
+set Iges file name                  = ./utilities/goteborgExperiments.iges
+set Boat displacement (Kg)          = 0
+set Assigned sink (m)               = 0.010410
+set Assigned trim (rad)             = 0.0018850
+set Max aspect ratio                = 1.5
+set Front mesh inclination coeff    = 1.0
+set Back mesh inclination coeff     = 1.0
+set Back keel length                = 0.13
+set Front keel length               = 0.075
+set Middle keel length              = 0.5
+set Node displacement type          = semilagrangian
+set Output file name                = OPENSHIP/DTMB_Fr028_sink_trim
+set Maximum number of steps         = 10000
+set Solution method                 = Direct
+set Dumping period		    = .3
+set Keep BEM in sync with geometry  = false
+set Refinement level on boat	    = 1
+set Remeshing period		    = 0.8
+set Restore from file               = #PARAM_TESTS/goteborgIges_dump_1
+
+subsection Local Refinement
+  set Coarsening fraction    = .0
+  set Maximum number of dofs = 2000
+  set Refinement fraction    = .125
+end
+
+
+subsection Boundary Conditions ID Numbers
+  set Free Surface 1 ID = 5
+  set Free Surface 2 ID = 6
+  set Free Surface 3 ID = 0
+  set Wall Surface 1 ID = 3
+  set Wall Surface 2 ID = 4
+  set Wall Surface 3 ID = 0
+  set Inflow Surface 1 ID = 9
+  set Inflow Surface 2 ID = 10
+  set Inflow Surface 3 ID = 0
+  set Free Surface Edge On Boat ID = 20
+end
+
+subsection FMA Params
+  set FMA Truncation Order = 4
+end
+
+subsection IDA Solver Params
+  set Absolute error tolerance        = 1e-4
+  set Relative error tolerance        = 1e-5
+  set Final time                      = 60
+  set Initial step size               = 0.005
+  set Initial time                    = 0
+  set Min step size                   = 0.00001
+  set Use iterative algorithm         = true
+  set Provide jacobian preconditioner = true
+  set Provide jacobian product        = true
+  set Seconds between each output     = 0.1
+  set Initial condition type	      = 0 
+
+end
+
+subsection Newton Solver Params
+  set Linear solver kind                    = GMRES
+  set Provide jacobian product              = true
+  set Provide jacobian preconditioner       = true
+  set Relative nonlinear error tolerance    = 1e-5
+  set Relative linear error tolerance       = 1e-8
+end
+
+subsection Octree Params
+  set Number of Octree Levels = 10
+end
+
+subsection Quadrature rules
+  set Quadrature order          = 6
+  set Quadrature type           = gauss
+  set Singular quadrature order = 6
+end
+
+subsection Solver
+  set Log frequency = 1
+  set Log history   = false
+  set Log result    = true
+  set Max steps     = 8000
+  set Tolerance     = 1.e-7
+end
+
+subsection Initial Wave Potential 2d
+  set Function constants  = 
+  set Function expression = 0
+  set Variable names      = x,y,t
+end
+
+subsection Initial Wave Potential 3d
+  set Function constants  = 
+  set Function expression = 0 
+  set Variable names      = x,y,z,t
+end
+
+subsection Initial Wave Shape 2d
+  set Function constants  = 
+  set Function expression = 0
+  set Variable names      = x,y,t
+end
+
+subsection Initial Wave Shape 3d
+  set Function constants  = 
+  set Function expression = 0 #0.05*sin(x)
+  set Variable names      = x,y,z,t
+end
+
+subsection Wind function 2d
+  set Function constants  = 
+  set Function expression = 0; 0
+  set Variable names      = x,y,t
+end
+
+subsection Wind function 3d
+#  set Function constants  = k=0.004952272206 # sqrt(g l)/1000 wigley
+#  set Function constants  = k=0.034584 # sqrt(g l)/1000 series 60 full scale
+  set Function constants  = k=0.0074909 # sqrt(g l)/1000 goteborg
+#  set Function constants  = k=0.0084500 # sqrt(g l)/1000 kcs
+#  set Function constants  = k=0.0073569 # sqrt(g l)/1000 kvlcc2m
+#  set Function constants  = k=0.0092538 # sqrt(g l)/1000 comacina
+#  set Function constants  = k=0.009855315337 # sqrt(g l)/1000 vela enave
+#  set Function constants  = k=0.0049917 # sqrt(g l)/1000 test Hull
+#  set Function constants  = k=0.017298 # sqrt(g l)/1000 test Hull Full Scale
+  set Function expression = 0280*k*if(t < 5, 0.5*sin(3.141592654*(t)/5-3.141592654/2)+0.5, 1 ); 0; 0
+  set Variable names      = x,y,z,t
+end
+
+subsection Inflow Normal Potential Gradient 2d
+  set Function constants  = 
+  set Function expression = 0
+  set Variable names      = x,y,t
+end
+
+subsection Inflow Normal Potential Gradient 3d
+  set Function constants  = 
+  set Function expression = 0 
+  set Variable names      = x,y,z,t
+end
+
+subsection Initial Wave Normal Potential Gradient 2d
+  set Function constants  = 
+  set Function expression = 0
+  set Variable names      = x,y,t
+end
+
+subsection Initial Wave Normal Potential Gradient 3d
+  set Function constants  = 
+  set Function expression = 0 
+  set Variable names      = x,y,z,t
+end
