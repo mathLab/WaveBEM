@@ -421,6 +421,17 @@ private:
 
   Vector <double> break_wave_press;
 
+                              // this number sets the bottom limit of the
+                              // adaptive refinement. when set to 2.0, it
+                              // limits the refinements so that all the cells
+                              // have a higher diameter w/r to the min_diameter
+                              // cell of the initial mesh. if set to 1.0, it allows
+                              // cells to be refined to half of the initial min_diameter,
+                              // and so on. On the other side, a value of 4.0 means
+                              // that cells being 2 times bigger than initial min_diameter
+                              // won't be refined.
+  double adaptive_ref_limit;
+
 };
 
 #endif

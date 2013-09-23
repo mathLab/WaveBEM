@@ -138,6 +138,9 @@ void FreeSurface<dim>::declare_parameters(ParameterHandler &prm) {
   prm.declare_entry("Refinement fraction", ".3", 
                     Patterns::Double());
 
+  prm.declare_entry("Adaptive refinement limit", "2.0", 
+                    Patterns::Double());
+
   prm.leave_subsection();
   
   
@@ -206,6 +209,7 @@ void FreeSurface<dim>::parse_parameters(ParameterHandler &prm) {
   max_number_of_dofs = prm.get_integer("Maximum number of dofs");
   coarsening_fraction = prm.get_double("Coarsening fraction");
   refinement_fraction = prm.get_double("Refinement fraction");
+  adaptive_ref_limit = prm.get_double("Adaptive refinement limit");
 
   prm.leave_subsection();
   
@@ -828,22 +832,22 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
       else
 	for (cell_it elem=dh.begin_active(); elem!= dh.end();++elem)
 	  {
-            if (t<80.0)
-              {
-	      if(elem->diameter()/2.5 < comp_dom.min_diameter)
-                {
-	        elem->clear_refine_flag();
-                }
-              }
-            else
-              {
+            //if (t<80.0)
+            //  {
+	    //  if(elem->diameter()/2.5 < comp_dom.min_diameter)
+            //    {
+	    //    elem->clear_refine_flag();
+            //    }
+            //  }
+            //else
+            //  {
               //cout<<elem<<" ("<<elem->center()<<") --> "<<elem->diameter()/1.0<<" >< "<<comp_dom.min_diameter<<endl;
-              if(elem->diameter()/1.0 < comp_dom.min_diameter)
+              if(elem->diameter()/adaptive_ref_limit < comp_dom.min_diameter)
                 {
-                cout<<"*"<<endl;
+                //cout<<"*"<<endl;
 	        elem->clear_refine_flag();
                 }
-              }
+            //  }
             //if((elem->diameter()/2.0 < comp_dom.min_diameter) &&
             //   (elem->center()(0) > 1.70))
 	    //  elem->clear_refine_flag();
