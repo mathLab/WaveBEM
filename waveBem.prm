@@ -22,6 +22,7 @@ subsection Local Refinement
   set Coarsening fraction    = .0
   set Maximum number of dofs = 2000
   set Refinement fraction    = .125
+  set Adaptive refinement limit = 2.0
 end
 
 
@@ -57,13 +58,13 @@ subsection IDA Solver Params
 
 end
 
-subsection Newton Solver Params
-  set Linear solver kind                    = GMRES
-  set Provide jacobian product              = true
-  set Provide jacobian preconditioner       = true
-  set Relative nonlinear error tolerance    = 1e-5
-  set Relative linear error tolerance       = 1e-8
-end
+#subsection Newton Solver Params
+#  set Linear solver kind                    = GMRES
+#  set Provide jacobian product              = true
+#  set Provide jacobian preconditioner       = true
+#  set Relative nonlinear error tolerance    = 1e-5
+#  set Relative linear error tolerance       = 1e-8
+#end
 
 subsection Octree Params
   set Number of Octree Levels = 10
