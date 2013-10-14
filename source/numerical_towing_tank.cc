@@ -953,11 +953,11 @@ GridReordering<2,3>::reorder_cells (cells);
 
 triangulation.create_triangulation_compatibility(vertices, cells, subcelldata );
 
-
-  //std::ofstream logfile("meshResult.inp");
-  //GridOut grid_out;
-  //grid_out.write_ucd(triangulation, logfile);
-
+/*
+  std::ofstream logfile("meshResult.inp");
+  GridOut grid_out;
+  grid_out.write_ucd(triangulation, logfile);
+*/
 
 }
 
@@ -2247,15 +2247,22 @@ for (unsigned int i=0; i<dh.n_dofs(); ++i)
     {
     if ( (flags[i] & boat) &&
          (flags[i] & right_side) &&
-         ((flags[i] & edge)== 0) )
+         ((flags[i] & edge)== 0))
        {
        Point<3> intermediate_point_pos = ref_points[3*i] +
                                          Point<3>(smoothing_map_points(3*i),smoothing_map_points(3*i+1),smoothing_map_points(3*i+2));
+       bool succeed = 
        boat_model.boat_water_line_right->assigned_axis_projection_and_diff_forms(proj_node,
                                                                                  iges_normals[i],
                                                                                  iges_mean_curvatures[i],
                                                                                  intermediate_point_pos,
                                                                                  node_normals[i]);  // for projection in mesh normal direction
+       if (succeed == false)
+          boat_model.boat_surface_right->normal_projection_and_diff_forms(proj_node,
+                                                                          iges_normals[i],
+                                                                          iges_mean_curvatures[i],
+			                                                  intermediate_point_pos);  // for projection in normal direction
+
        for (unsigned int j=0; j<3; ++j)
            smoothing_map_points(3*i+j) = proj_node(j) - ref_points[3*i](j);
        }
@@ -2266,19 +2273,27 @@ for (unsigned int i=0; i<dh.n_dofs(); ++i)
     {
     if ( (flags[i] & boat) &&
          (flags[i] & left_side) &&
-         ((flags[i] & edge)== 0) )
+         ((flags[i] & edge)== 0))
        {
        Point<3> intermediate_point_pos = ref_points[3*i] +
                                          Point<3>(smoothing_map_points(3*i),smoothing_map_points(3*i+1),smoothing_map_points(3*i+2));
+       bool succeed = 
        boat_model.boat_water_line_left->assigned_axis_projection_and_diff_forms(proj_node,
                                                                                 iges_normals[i],
                                                                                 iges_mean_curvatures[i],
                                                                                 intermediate_point_pos,
                                                                                 node_normals[i]);  // for projection in mesh normal direction
+       if (succeed == false)
+          boat_model.boat_surface_left->normal_projection_and_diff_forms(proj_node,
+                                                                          iges_normals[i],
+                                                                          iges_mean_curvatures[i],
+			                                                  intermediate_point_pos);  // for projection in normal direction
+
        for (unsigned int j=0; j<3; ++j)
            smoothing_map_points(3*i+j) = proj_node(j) - ref_points[3*i](j);
        }
    }
+
 
                               // with all the normals and curvatures we assemble the vector
                               // used by the smoothing
@@ -2338,15 +2353,21 @@ for (unsigned int i=0; i<dh.n_dofs(); ++i)
     {
     if ( (flags[i] & boat) &&
          (flags[i] & right_side) &&
-         ((flags[i] & edge)== 0) )
+         ((flags[i] & edge)== 0))
        {
        Point<3> intermediate_point_pos = ref_points[3*i] +
                                          Point<3>(smoothing_map_points(3*i),smoothing_map_points(3*i+1),smoothing_map_points(3*i+2));
+       bool succeed = 
        boat_model.boat_water_line_right->assigned_axis_projection_and_diff_forms(proj_node,
                                                                                  iges_normals[i],
                                                                                  iges_mean_curvatures[i],
                                                                                  intermediate_point_pos,
                                                                                  node_normals[i]);  // for projection in mesh normal direction
+       if (succeed == false)
+          boat_model.boat_surface_right->normal_projection_and_diff_forms(proj_node,
+                                                                          iges_normals[i],
+                                                                          iges_mean_curvatures[i],
+			                                                  intermediate_point_pos);  // for projection in normal direction
        for (unsigned int j=0; j<3; ++j)
            smoothing_map_points(3*i+j) = proj_node(j) - ref_points[3*i](j);
        }
@@ -2357,15 +2378,22 @@ for (unsigned int i=0; i<dh.n_dofs(); ++i)
     {
     if ( (flags[i] & boat) &&
          (flags[i] & left_side) &&
-         ((flags[i] & edge)== 0) )
+         ((flags[i] & edge)== 0))
        {
        Point<3> intermediate_point_pos = ref_points[3*i] +
                                          Point<3>(smoothing_map_points(3*i),smoothing_map_points(3*i+1),smoothing_map_points(3*i+2));
+       bool succeed = 
        boat_model.boat_water_line_left->assigned_axis_projection_and_diff_forms(proj_node,
                                                                                 iges_normals[i],
                                                                                 iges_mean_curvatures[i],
                                                                                 intermediate_point_pos,
                                                                                 node_normals[i]);  // for projection in mesh normal direction
+       if (succeed == false)
+          boat_model.boat_surface_left->normal_projection_and_diff_forms(proj_node,
+                                                                          iges_normals[i],
+                                                                          iges_mean_curvatures[i],
+			                                                  intermediate_point_pos);  // for projection in normal direction
+
        for (unsigned int j=0; j<3; ++j)
            smoothing_map_points(3*i+j) = proj_node(j) - ref_points[3*i](j);
        }

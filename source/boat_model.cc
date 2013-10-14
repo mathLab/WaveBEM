@@ -254,7 +254,7 @@ void BoatModel::start_iges_model(std::string igesFileName,
      BRepBuilderAPI_GTransform left_vert_transl(refl_sh_copy, vert_translation);
      refl_sh = left_vert_transl.Shape();
      }
-
+/*
      Point<3> hs_force = compute_hydrostatic_force(0.0);
      Point<3> hs_moment = compute_hydrostatic_moment(0.0);
 
@@ -277,7 +277,7 @@ void BoatModel::start_iges_model(std::string igesFileName,
      sh = right_transf.Shape();
      BRepBuilderAPI_GTransform left_transf(refl_sh, Tcomp);
      refl_sh = left_transf.Shape();
-   
+*/   
 
 
      cout<<"The hull has been placed in the correct position"<<endl;
@@ -296,7 +296,7 @@ Standard_Boolean OK = ICW.Write ("shape.igs");
 				   //here we extract the keel edge from the hull shape
   keel_edge = extract_xz_edges(sh,1e-4,30);
 				   //here we extract the transom edge from the right hull shape
-  right_transom_edge = extract_transom_edges(sh,1,1e-4);
+  right_transom_edge = extract_transom_edges(sh,6,1e-4);
                                    //here we extract the transom edge from the right hull shape
                                    //by applying
                                    //to the right water line the y mirroring transformation
@@ -315,7 +315,7 @@ Standard_Boolean OK = ICW.Write ("keel.igs");
 */
 				   //here we extract the undisturbed right water line from
                                    //the hull shape
-  intersect_plane(sh,right_undist_water_line,0.0,0.0,1.0,0.0,1e-3); // 1e-2 tolerance for comacina
+  intersect_plane(sh,right_undist_water_line,0.0,0.0,1.0,0.0,1e-2); // 1e-2 tolerance for comacina
 				   //here we extract the undisturbed left water line from
                                    //the hull shape by applying
                                    //to the right water line the y mirroring transformation
@@ -473,8 +473,8 @@ Standard_Boolean OK = ICW.Write ("keel.igs");
   boat_surface_right = new NormalProjection<2>(sh);
   boat_surface_left = new NormalProjection<2>(refl_sh);
 				   //we define the hull surface y direction projections 
-  boat_water_line_right = new AxisProjection(sh, Point<3>(0,1,0),1e-7,1e-3*boatWetLength);
-  boat_water_line_left = new AxisProjection(refl_sh, Point<3>(0,-1,0),1e-7,1e-3*boatWetLength);
+  boat_water_line_right = new AxisProjection(sh, Point<3>(0,1,0),1e-7,1e-2*boatWetLength);
+  boat_water_line_left = new AxisProjection(refl_sh, Point<3>(0,-1,0),1e-7,1e-2*boatWetLength);
 				   //we define the corresponding waterline arclength and projection 
   water_line_right = new ArclengthProjection(right_undist_water_line,1e-5*boatWetLength);
   water_line_left = new ArclengthProjection(left_undist_water_line,1e-5*boatWetLength);

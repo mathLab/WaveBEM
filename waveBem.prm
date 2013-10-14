@@ -1,15 +1,15 @@
-set Iges file name                  = ./utilities/goteborgExperiments.iges
+set Iges file name                  = ./utilities/carena_macolino.iges
 set Boat displacement (Kg)          = 0
-set Assigned sink (m)               = 0.010410
-set Assigned trim (rad)             = 0.0018850
+set Assigned sink (m)               = 0.0
+set Assigned trim (rad)             = 0.0
 set Max aspect ratio                = 1.5
 set Front mesh inclination coeff    = 1.0
 set Back mesh inclination coeff     = 1.0
-set Back keel length                = 0.13
-set Front keel length               = 0.075
+set Back keel length                = 0.055556
+set Front keel length               = 0.1
 set Middle keel length              = 0.5
 set Node displacement type          = semilagrangian
-set Output file name                = OPENSHIP/DTMB_Fr028_sink_trim
+set Output file name                = OPENSHIP/idroscalo_first_test
 set Maximum number of steps         = 10000
 set Solution method                 = Direct
 set Dumping period		    = .3
@@ -117,14 +117,15 @@ end
 subsection Wind function 3d
 #  set Function constants  = k=0.004952272206 # sqrt(g l)/1000 wigley
 #  set Function constants  = k=0.034584 # sqrt(g l)/1000 series 60 full scale
-  set Function constants  = k=0.0074909 # sqrt(g l)/1000 goteborg
+#  set Function constants  = k=0.0074909 # sqrt(g l)/1000 goteborg
 #  set Function constants  = k=0.0084500 # sqrt(g l)/1000 kcs
 #  set Function constants  = k=0.0073569 # sqrt(g l)/1000 kvlcc2m
 #  set Function constants  = k=0.0092538 # sqrt(g l)/1000 comacina
 #  set Function constants  = k=0.009855315337 # sqrt(g l)/1000 vela enave
 #  set Function constants  = k=0.0049917 # sqrt(g l)/1000 test Hull
 #  set Function constants  = k=0.017298 # sqrt(g l)/1000 test Hull Full Scale
-  set Function expression = 0280*k*if(t < 5, 0.5*sin(3.141592654*(t)/5-3.141592654/2)+0.5, 1 ); 0; 0
+  set Function constants  = k=0.025966 # sqrt(g l)/1000 Macolino Full Scale
+  set Function expression = 0297*k*if(t < 5, 0.5*sin(3.141592654*(t)/5-3.141592654/2)+0.5, 1 ); 0; 0
   set Variable names      = x,y,z,t
 end
 
