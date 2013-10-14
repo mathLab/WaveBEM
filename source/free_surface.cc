@@ -1058,8 +1058,8 @@ cout<<"First save "<<endl;
           solution(i) = comp_dom.map_points(i);
           }
 cout<<"Second save "<<endl;
-      std::string filename2 = ( "postRemesh2.vtu" );
-      output_results(filename2, t, solution, solution_dot);
+      std::string filename20 = ( "postRemesh2.vtu" );
+      output_results(filename20, t, solution, solution_dot);
 
       // in particular we must get the position of the nodes (in terms of curvilinear length)
       // on the smoothing lines, and the corresponding potential and horizontal velcoity values, in order to
