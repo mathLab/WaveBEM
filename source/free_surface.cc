@@ -38,6 +38,12 @@
 #include "../include/restart_nonlinear_problem_alg.h"
 #include "newton_solver.h"
 
+#include <GeomPlate_BuildPlateSurface.hxx>
+#include <GeomPlate_PointConstraint.hxx>
+#include <GeomPlate_MakeApprox.hxx>
+#include <Geom_Surface.hxx>
+#include <BRepBuilderAPI_MakeFace.hxx>
+#include <GeomPlate_Surface.hxx>
 
 typedef Sacado::Fad::DFad<double> fad_double;
 
@@ -1040,6 +1046,9 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
           comp_dom.map_points(i) = solution(i);
           //cout<<"* "<<i<<" "<<comp_dom.map_points(i)<<endl;
           }
+cout<<"First save "<<endl;
+      std::string filename2 = ( "postRemesh1.vtu" );
+      output_results(filename2, t, solution, solution_dot);
 
       comp_dom.evaluate_ref_surf_distances(nodes_ref_surf_dist,false);
       comp_dom.map_points -= nodes_ref_surf_dist;
@@ -1048,7 +1057,9 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
           {
           solution(i) = comp_dom.map_points(i);
           }
-
+cout<<"Second save "<<endl;
+      std::string filename2 = ( "postRemesh2.vtu" );
+      output_results(filename2, t, solution, solution_dot);
 
       // in particular we must get the position of the nodes (in terms of curvilinear length)
       // on the smoothing lines, and the corresponding potential and horizontal velcoity values, in order to
@@ -1102,8 +1113,7 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
              }
           }
 
-      std::string filename2 = ( "postRemesh.vtu" );
-      output_results(filename2, t, solution, solution_dot);
+
 
       make_edges_conformal(solution, solution_dot, t, step_number, h);
       make_edges_conformal(solution, solution_dot, t, step_number, h);
@@ -1139,8 +1149,8 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
       last_remesh_time = t;
       comp_dom.old_map_points = comp_dom.map_points;
       prepare_restart(t, solution, solution_dot,true);
-      std::string filename3 = ( "postPostRemesh.vtu" );
-      output_results(filename3, t, solution, solution_dot);
+      //std::string filename3 = ( "postPostRemesh.vtu" );
+      //output_results(filename3, t, solution, solution_dot);
 //*/
 
      // we have to compute the reference transom wet surface with the new mesh here
@@ -1690,8 +1700,8 @@ std::cout<<"Restoring mesh conformity..."<<std::endl;
              }
           }
 
-      std::string filename2 = ( "postPostPostRemesh.vtu" );
-      output_results(filename2, t, solution, solution_dot);
+      //std::string filename2 = ( "postPostPostRemesh.vtu" );
+      //output_results(filename2, t, solution, solution_dot);
 
 std::cout<<"...Done restoring mesh conformity"<<std::endl;
 }
@@ -2680,8 +2690,8 @@ for (unsigned int k=3; k<7; ++k)
       }
 //*/
 
-     std::string filename1 = ( "post_restart_mesh.vtu" );
-     output_results(filename1, t, y, yp);
+     //std::string filename1 = ( "post_restart_mesh.vtu" );
+     //output_results(filename1, t, y, yp);
 
    
      // these lines test the jacobian of the DAE system
@@ -2985,14 +2995,14 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
     static double old_time = -1000;
     dst = 0;
 
-
+/*
     if (t != old_time)
        {
        //comp_dom.old_map_points = comp_dom.map_points;
        std::string filename1 = ( "new_ts_mesh.vtu" );
        output_results(filename1, t, src_yy, src_yp);
        }
-
+*/
     bool new_time_step = false;
     if (t != old_time) 
     {
@@ -3023,8 +3033,8 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
 
   //if(old_time < t) 
    // {
-    std::string filename1 = ( "mesh.vtu" );
-    output_results(filename1, t, src_yy, src_yp);
+    //std::string filename1 = ( "mesh.vtu" );
+    //output_results(filename1, t, src_yy, src_yp);
   //  }
   
   
@@ -6005,6 +6015,55 @@ void FreeSurface<dim>::output_results(const std::string filename,
   
   dataout.write_vtu(file);
   }
+/*
+Standard_Integer NbPointConstraint=1;
+// Initialize a BuildPlateSurface
+GeomPlate_BuildPlateSurface BPSurf(4,15,4);
+// Point constraints
+for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
+    {
+    if (comp_dom.flags[i] & water)
+       {
+       Handle(GeomPlate_PointConstraint) PCont= new GeomPlate_PointConstraint(Pnt(comp_dom.support_points[i]),0);
+       BPSurf.Add(PCont);
+       }
+    }
+// Compute the Plate surface
+BPSurf.Perform();
+
+
+
+// Approximation of the Plate surface
+Standard_Integer MaxSeg=100;
+Standard_Integer MaxDegree=8;
+Standard_Integer CritOrder=0;
+Standard_Real dmax,Tol;
+Handle(GeomPlate_Surface) PSurf = BPSurf.Surface();
+//dmax = Max(0.0001,10*BPSurf.G0Error());
+dmax = 0.00001;
+Tol=0.00001;
+GeomPlate_MakeApprox
+Mapp(PSurf,Tol,MaxSeg,MaxDegree,dmax,CritOrder);
+Handle (Geom_Surface) Surf (Mapp.Surface());
+// create a face corresponding to the approximated Plate Surface
+Standard_Real Umin, Umax, Vmin, Vmax;
+PSurf->Bounds( Umin, Umax, Vmin, Vmax);
+BRepBuilderAPI_MakeFace MF(Surf,Umin, Umax, Vmin, Vmax,1e-4);
+
+TopoDS_Shape cut_edge;
+intersect_plane(MF,cut_edge,1.0,0.0,0.0,-2.32422);
+// These lines can be used to dump the surface on an .igs file
+
+IGESControl_Controller::Init();
+IGESControl_Writer ICW ("MM", 0);
+Standard_Boolean ok = ICW.AddShape (MF);
+ICW.AddShape (cut_edge);
+//Standard_Boolean ok = ICW.AddShape (Pnt(comp_dom.support_points[0]));
+ICW.ComputeModel();
+Standard_Boolean OK = ICW.Write ("free_surf.igs");
+*/
+
+
    
 
 }
