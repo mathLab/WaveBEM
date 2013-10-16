@@ -141,7 +141,7 @@ void NumericalTowingTank::refine_and_resize()
   full_mesh_treatment();
 // anisotropic refinement
   remove_mesh_anisotropy(tria);
-  refine_global_on_boat(2);
+  refine_global_on_boat(init_global_boat_refs);
 
   Vector<double> positions(vector_dh.n_dofs());
   std::vector< Point<3> > normals(vector_dh.n_dofs()/3);
@@ -159,7 +159,7 @@ void NumericalTowingTank::refine_and_resize()
 
   Point<3> projection;
 
-  for (unsigned int k=0; k<2; ++k)
+  for (unsigned int k=0; k<init_adaptive_boat_refs; ++k)
       {
       estimated_error_per_cell.reinit(tria.n_active_cells());    
       QGauss<1> quad(2);
@@ -172,7 +172,7 @@ void NumericalTowingTank::refine_and_resize()
 
       GridRefinement::refine_and_coarsen_fixed_fraction	(tria,
                                                          estimated_error_per_cell,
-                                                         0.2,
+                                                         init_adaptive_boat_refs_fraction,
 							 0.0,
 							 5000);
 
@@ -235,7 +235,8 @@ void NumericalTowingTank::read_domain ()
                               assigned_trim,
                               back_keel_length, 
                               front_keel_length,
-                              middle_keel_length);
+                              middle_keel_length,
+                              number_of_transom_edges);
   //boat_model.start_iges_model(iges_file_name,1.0/1000.0,boat_displacement,assigned_sink,assigned_trim,0.068979, 0.075, .5); //con kcs.iges
   //boat_model.start_iges_model(iges_file_name, 1.0/1000.0,boat_displacement,assigned_sink,assigned_trim,0.13, 0.05, .5); //con goteborg.iges
   //boat_model.start_iges_model(iges_file_name, 1.0/1000.0,boat_displacement,assigned_sink,assigned_trim,0.13, .05, .47); //con goteborgLow.iges
@@ -423,6 +424,14 @@ void NumericalTowingTank::declare_parameters (ParameterHandler &prm)
   prm.declare_entry("Front keel length","0.05",Patterns::Double());
 
   prm.declare_entry("Middle keel length","0.5",Patterns::Double());
+
+  prm.declare_entry("Number of boat initial uniform refinements", "2", Patterns::Integer());
+
+  prm.declare_entry("Number of boat initial curvature based refinements", "0", Patterns::Integer());
+
+  prm.declare_entry("Initial curvature based refinements fraction","0.2",Patterns::Double());
+
+  prm.declare_entry("Number of transom edges", "1", Patterns::Integer());
 }
 
   
@@ -453,6 +462,13 @@ void NumericalTowingTank::parse_parameters (ParameterHandler &prm)
 
   middle_keel_length = prm.get_double("Middle keel length");
 
+  init_global_boat_refs = prm.get_integer("Number of boat initial uniform refinements");
+
+  init_adaptive_boat_refs = prm.get_integer("Number of boat initial curvature based refinements");
+
+  init_adaptive_boat_refs_fraction = prm.get_double("Initial curvature based refinements fraction");
+
+  number_of_transom_edges = prm.get_integer("Number of transom edges");
 }
 
 
