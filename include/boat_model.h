@@ -30,7 +30,8 @@ class BoatModel{
                           double assigned_trim,
 			  double back_keel_length=0.1,
 			  double front_keel_length=0.05,
-			  double middle_keel_length=.47);
+			  double middle_keel_length=.47,
+                          unsigned int number_of_transom_edges=1);
 
     TopoDS_Shape ReverseFaceOrientation(const TopoDS_Shape& shape,
                                         const TopoDS_Face& face);

@@ -332,7 +332,16 @@ double front_keel_length;
                                    // built on the hull (in % of the total immersed length of the keel, starting form
                                    // the fore perpendicular)
 double middle_keel_length;
-
+                                   // number of edges composing the transom stern (temporary)
+unsigned int number_of_transom_edges;
+                                   // number of uniform refinements on the boat surface requested for the initial mesh
+unsigned int init_global_boat_refs;
+                                   // number of non uniform (curvature based) refinements on the boat surface requested
+                                   // for the initial mesh
+unsigned int init_adaptive_boat_refs;
+                                   // fraction of boat cells to be refined per each cycle in the initial curvature
+                                   // based refinement
+double init_adaptive_boat_refs_fraction;
 
 };
 
