@@ -1046,9 +1046,9 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
           comp_dom.map_points(i) = solution(i);
           //cout<<"* "<<i<<" "<<comp_dom.map_points(i)<<endl;
           }
-cout<<"First save "<<endl;
-      std::string filename2 = ( "postRemesh1.vtu" );
-      output_results(filename2, t, solution, solution_dot);
+//cout<<"First save "<<endl;
+//      std::string filename2 = ( "postRemesh1.vtu" );
+//      output_results(filename2, t, solution, solution_dot);
 
       comp_dom.evaluate_ref_surf_distances(nodes_ref_surf_dist,false);
       comp_dom.map_points -= nodes_ref_surf_dist;
@@ -1057,9 +1057,9 @@ cout<<"First save "<<endl;
           {
           solution(i) = comp_dom.map_points(i);
           }
-cout<<"Second save "<<endl;
-      std::string filename20 = ( "postRemesh2.vtu" );
-      output_results(filename20, t, solution, solution_dot);
+//cout<<"Second save "<<endl;
+//      std::string filename20 = ( "postRemesh2.vtu" );
+//      output_results(filename20, t, solution, solution_dot);
 
       // in particular we must get the position of the nodes (in terms of curvilinear length)
       // on the smoothing lines, and the corresponding potential and horizontal velcoity values, in order to

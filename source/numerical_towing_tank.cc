@@ -161,7 +161,9 @@ void NumericalTowingTank::refine_and_resize()
 
   for (unsigned int k=0; k<init_adaptive_boat_refs; ++k)
       {
+      std::cout<<"Adaptive refinement cycle "<<k+1<<" of "<<init_adaptive_boat_refs<<std::endl;
       estimated_error_per_cell.reinit(tria.n_active_cells());    
+      /*
       QGauss<1> quad(2);
 
       KellyErrorEstimator<2,3>::estimate (vector_dh,
@@ -169,6 +171,55 @@ void NumericalTowingTank::refine_and_resize()
 					  FunctionMap<3>::type(),
 					  positions,
 					  estimated_error_per_cell);
+
+      */
+      QGauss<2> quad(1);
+
+      FEValues<2,3> fe_v(*mapping, fe, quad,
+	                 update_values | update_cell_normal_vectors | update_quadrature_points | 
+		         update_JxW_values);
+
+      const unsigned int n_q_points = fe_v.n_quadrature_points;
+      unsigned int cell_count = 0; 
+      cell_it
+      cell = dh.begin_active(),
+      endc = dh.end();
+   
+      for (; cell!=endc; ++cell)
+          {
+          fe_v.reinit (cell);
+          const std::vector<Point<3> > &node_normals = fe_v.get_normal_vectors();
+          const std::vector<Point<3> > &quadrature_points = fe_v.get_quadrature_points();
+          if ((cell->material_id() == wall_sur_ID1 ||
+               cell->material_id() == wall_sur_ID2 ||
+               cell->material_id() == wall_sur_ID3 ) )
+             {
+             Point<3> proj_node;
+             if (quadrature_points[0](1) > 0) //right side
+                {
+                boat_model.boat_water_line_right->assigned_axis_projection(proj_node,
+                                                                           quadrature_points[0],
+                                                                           node_normals[0]);  // for projection in mesh normal direction
+                cout<<cell<<"  center:"<<quadrature_points[0]<<" normal: " <<node_normals[0]<<endl;
+                cout<<"Projection: "<<proj_node<<" distance: "<<proj_node.distance(quadrature_points[0])<<endl;
+                cout<<endl;
+                estimated_error_per_cell(cell_count) = proj_node.distance(quadrature_points[0]);
+                }
+             else  // left side
+                {
+                boat_model.boat_water_line_left->assigned_axis_projection(proj_node,
+                                                                           quadrature_points[0],
+                                                                           node_normals[0]);  // for projection in mesh normal direction
+                cout<<cell<<"  center:"<<quadrature_points[0]<<" normal: " <<node_normals[0]<<endl;
+                cout<<"Projection: "<<proj_node<<" distance: "<<proj_node.distance(quadrature_points[0])<<endl;
+                cout<<endl;
+                estimated_error_per_cell(cell_count) = proj_node.distance(quadrature_points[0]);
+                }
+             }
+          ++cell_count;
+          }
+
+
 
       GridRefinement::refine_and_coarsen_fixed_fraction	(tria,
                                                          estimated_error_per_cell,
@@ -2862,6 +2913,7 @@ void NumericalTowingTank::refine_global_on_boat(const unsigned int num_refinemen
 {
 for (unsigned int i=0; i<num_refinements;++i)
     {
+    std::cout<<"Uniform boat refinement cycle "<<i+1<<" of "<<num_refinements<<std::endl;
     tria_it cell = tria.begin_active(), endc = tria.end();
     for (cell=tria.begin_active(); cell!= endc;++cell)
         {
