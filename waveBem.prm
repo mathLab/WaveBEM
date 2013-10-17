@@ -10,7 +10,7 @@ set Front keel length               = 0.1
 set Middle keel length              = 0.5
 set Number of transom edges         = 6
 set Number of boat initial uniform refinements = 2
-set Number of boat initial curvature based refinements = 2
+set Number of boat initial curvature based refinements = 4
 set Initial curvature based refinements fraction = 0.2
 set Node displacement type          = semilagrangian
 set Output file name                = OPENSHIP/idroscalo_first_test
@@ -26,7 +26,7 @@ subsection Local Refinement
   set Coarsening fraction    = .0
   set Maximum number of dofs = 2000
   set Refinement fraction    = .125
-  set Adaptive refinement limit = 2.0
+  set Adaptive refinement limit = 4.0
 end
 
 

@@ -200,9 +200,9 @@ void NumericalTowingTank::refine_and_resize()
                 boat_model.boat_water_line_right->assigned_axis_projection(proj_node,
                                                                            quadrature_points[0],
                                                                            node_normals[0]);  // for projection in mesh normal direction
-                cout<<cell<<"  center:"<<quadrature_points[0]<<" normal: " <<node_normals[0]<<endl;
-                cout<<"Projection: "<<proj_node<<" distance: "<<proj_node.distance(quadrature_points[0])<<endl;
-                cout<<endl;
+                //cout<<cell<<"  center:"<<quadrature_points[0]<<" normal: " <<node_normals[0]<<endl;
+                //cout<<"Projection: "<<proj_node<<" distance: "<<proj_node.distance(quadrature_points[0])<<endl;
+                //cout<<endl;
                 estimated_error_per_cell(cell_count) = proj_node.distance(quadrature_points[0]);
                 }
              else  // left side
@@ -210,9 +210,9 @@ void NumericalTowingTank::refine_and_resize()
                 boat_model.boat_water_line_left->assigned_axis_projection(proj_node,
                                                                            quadrature_points[0],
                                                                            node_normals[0]);  // for projection in mesh normal direction
-                cout<<cell<<"  center:"<<quadrature_points[0]<<" normal: " <<node_normals[0]<<endl;
-                cout<<"Projection: "<<proj_node<<" distance: "<<proj_node.distance(quadrature_points[0])<<endl;
-                cout<<endl;
+                //cout<<cell<<"  center:"<<quadrature_points[0]<<" normal: " <<node_normals[0]<<endl;
+                //cout<<"Projection: "<<proj_node<<" distance: "<<proj_node.distance(quadrature_points[0])<<endl;
+                //cout<<endl;
                 estimated_error_per_cell(cell_count) = proj_node.distance(quadrature_points[0]);
                 }
              }
