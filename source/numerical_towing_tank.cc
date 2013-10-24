@@ -789,8 +789,8 @@ else
 
 Lx_boat = boat_model.boatWetLength;
 Lx_domain = Lx_boat*12.0;
-Ly_domain = 16.0; //Lx_boat*4.0;
-Lz_domain = 7.0; //Lx_boat*2.0;
+Ly_domain = Lx_boat*4.0;
+Lz_domain = Lx_boat*2.0;
 
 vertices.resize(84);
       
@@ -2698,7 +2698,7 @@ double tol=1e-7;
 	          for (std::set<tria_it>::iterator jt=edge_cells.begin(); jt != edge_cells.end(); ++jt)       
 	               for (unsigned int d=0; d<GeometryInfo<2>::faces_per_cell; ++d)
 		           if ((*jt)->face(d)->at_boundary())
-		              if ( parent_face_center.distance((*jt)->face(d)->center()) < tol)
+		              if ( parent_face_center.distance(((*jt)->face(d)->vertex(0)+(*jt)->face(d)->vertex(1))/2) < tol)
                                  {
                                  // if we are on wall or free surf, use isotropic refinement
                                  if ( (*jt)->material_id() == free_sur_ID1 ||
