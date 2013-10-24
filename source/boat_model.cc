@@ -282,6 +282,7 @@ void BoatModel::start_iges_model(std::string igesFileName,
 
 
      cout<<"The hull has been placed in the correct position"<<endl;
+     Point<3> hs_force = compute_hydrostatic_force(0.0);
                                    //now the boat is in the correct position 
 // These lines can be used to dump the keel edge (or other shapes) on an .igs file
 
