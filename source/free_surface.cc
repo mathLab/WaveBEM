@@ -1721,9 +1721,10 @@ std::cout<<"Preparing interpolated solution for restart"<<std::endl;
 residual(t,res,y,yp);
 setup_jacobian_prec(t,y,yp,0.0);
 
-  // first of all, all yp is to be set to zero: at restarts all is idle  
+  // first of all, all yp for coordinates is to be set to zero: at restarts all is idle  
   if (restart_flag)
-     yp = 0;
+     for (unsigned int i=0; i<comp_dom.vector_dh.n_dofs(); ++i)
+         yp(i) = 0;
 
   const VectorView<double> nodes_positions(comp_dom.vector_dh.n_dofs(),y.begin());
   const VectorView<double> nodes_velocities(comp_dom.vector_dh.n_dofs(),yp.begin());
@@ -3175,8 +3176,8 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
             //                                                                                   comp_dom.support_points[i],
             //                                                                                   direction);  // hor normal dir projection
             comp_dom.boat_model.boat_water_line_right->axis_projection_and_diff_forms(proj_node,
-                                                                                      iges_normal,
-                                                                                      iges_curvature,
+                                                                                      comp_dom.iges_normals[i],
+                                                                                      comp_dom.iges_mean_curvatures[i],
                                                                                       comp_dom.support_points[i]);  // y axis projection
             working_map_points(3*i) = comp_dom.old_map_points(3*i); // x of the node must not change
             //working_map_points(3*i) = proj_node(0) - comp_dom.ref_points[3*i](0);
@@ -3188,6 +3189,14 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
             jacobian_matrix.add(3*i+1,3*i+2,comp_dom.iges_normals[i](2)/comp_dom.iges_normals[i](1));
             jacobian_matrix.add(3*i+1,3*i,comp_dom.iges_normals[i](0)/comp_dom.iges_normals[i](1));
             //cout<<3*i+1<<"   "<<working_map_points(3*i+1)-comp_dom.map_points(3*i+1)<<"   ("<<iges_normal<<")"<<endl;
+
+                        // we're doing this thing on the water side, but the iges_normal and iges_mean curvature belong to the boat side
+            std::set<unsigned int> duplicates = comp_dom.double_nodes_set[i];
+            for (std::set<unsigned int>::iterator pos = duplicates.begin(); pos !=duplicates.end(); pos++)
+                {
+	        comp_dom.iges_normals[*pos] = comp_dom.iges_normals[i];
+                comp_dom.iges_mean_curvatures[*pos] = comp_dom.iges_mean_curvatures[i];
+                }
             }              
          }
 
@@ -3212,8 +3221,8 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
             //                                                                                  comp_dom.support_points[i],
             //                                                                                  direction);  // hor normal dir projection
             comp_dom.boat_model.boat_water_line_left->axis_projection_and_diff_forms(proj_node,
-                                                                                     iges_normal,
-                                                                                     iges_curvature,
+                                                                                     comp_dom.iges_normals[i],
+                                                                                     comp_dom.iges_mean_curvatures[i],
                                                                                      comp_dom.support_points[i]);  // y axis projection
             working_map_points(3*i) = comp_dom.old_map_points(3*i); // x of the node must not change
             //working_map_points(3*i) = proj_node(0) - comp_dom.ref_points[3*i](0);      
@@ -3225,6 +3234,14 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
             jacobian_matrix.add(3*i+1,3*i+2,comp_dom.iges_normals[i](2)/comp_dom.iges_normals[i](1));
             jacobian_matrix.add(3*i+1,3*i,comp_dom.iges_normals[i](0)/comp_dom.iges_normals[i](1));
             //cout<<i<<"   "<<temp_src(3*i+1)<<"   ("<<comp_dom.iges_normals[i]<<")"<<endl;
+
+            // we're doing this thing on the water side, but the iges_normal and iges_mean curvature belong to the boat side
+            std::set<unsigned int> duplicates = comp_dom.double_nodes_set[i];
+            for (std::set<unsigned int>::iterator pos = duplicates.begin(); pos !=duplicates.end(); pos++)
+                {
+	        comp_dom.iges_normals[*pos] = comp_dom.iges_normals[i];
+                comp_dom.iges_mean_curvatures[*pos] = comp_dom.iges_mean_curvatures[i];
+                }
             }              
          }
 
@@ -3312,7 +3329,7 @@ for (unsigned int k=3; k<7; ++k)
             //cout<<i<<" (edges_tangents) "<<comp_dom.edges_tangents(3*i)<<","<<comp_dom.edges_tangents(3*i+1)<<","<<comp_dom.edges_tangents(3*i+2)<<endl;
             }              
          }
-std::cout<<"here 3"<<std::endl;
+
      // this cycle hooks the boat and far field double nodes
      // to their water twins that have been moved
      for (unsigned int i=0; i<comp_dom.vector_dh.n_dofs(); ++i)
@@ -5315,6 +5332,25 @@ void FreeSurface<dim>::compute_potential_gradients(Vector<double> &complete_pote
    vector_direct.vmult(complete_potential_gradients,complete_gradient_sys_rhs);
    vector_constraints.distribute(complete_potential_gradients);
 
+   for (unsigned int i=0; i<comp_dom.vector_dh.n_dofs(); ++i)
+       {
+       std::set <unsigned int> doubles = comp_dom.vector_double_nodes_set[i];
+       if ( doubles.size() > 1 )
+          {
+          double average = 0.0;
+          for (std::set<unsigned int>::iterator pos=doubles.begin(); pos != doubles.end(); ++pos)
+              {
+              average += complete_potential_gradients(*pos);
+              }
+          average /= doubles.size();
+          for (std::set<unsigned int>::iterator pos=doubles.begin(); pos != doubles.end(); ++pos)
+              {
+              complete_potential_gradients(*pos) = average;
+              }
+          }
+       }
+
+   vector_constraints.distribute(complete_potential_gradients);
 }
 
 
@@ -5323,13 +5359,13 @@ void FreeSurface<dim>::compute_potential_gradients(Vector<double> &complete_pote
 
 
 template <int dim>
-void FreeSurface<dim>::compute_pressure(Vector<double> & pressure,
+void FreeSurface<dim>::compute_pressure(Vector<double> & pressure, 
+                                        Vector<double> & comp_1, Vector<double> & comp_2, Vector<double> & comp_3, Vector<double> & comp_4, 
                                         const double t,
                                         const Vector<double> & solution,
                                         const Vector<double> & solution_dot)
 {
 
-	
    std::cout<<"Computing pressure... "<<std::endl;
 
    double g = 9.81;
@@ -5337,6 +5373,21 @@ void FreeSurface<dim>::compute_pressure(Vector<double> & pressure,
 
    comp_dom.update_support_points();
    pressure.reinit(comp_dom.dh.n_dofs());
+
+
+   comp_1.reinit(comp_dom.dh.n_dofs());
+   comp_2.reinit(comp_dom.dh.n_dofs());
+   comp_3.reinit(comp_dom.dh.n_dofs());
+   comp_4.reinit(comp_dom.dh.n_dofs());
+   Vector<double> rhs_comp_1(comp_dom.dh.n_dofs());
+   Vector<double> rhs_comp_2(comp_dom.dh.n_dofs());
+   Vector<double> rhs_comp_3(comp_dom.dh.n_dofs());
+   Vector<double> rhs_comp_4(comp_dom.dh.n_dofs());
+   rhs_comp_1 = 0;
+   rhs_comp_2 = 0;
+   rhs_comp_3 = 0;
+   rhs_comp_4 = 0;
+
    DphiDt_sys_rhs.reinit (comp_dom.dh.n_dofs());
    DphiDt_sys_matrix.reinit(DphiDt_sparsity_pattern); 
 
@@ -5369,6 +5420,11 @@ void FreeSurface<dim>::compute_pressure(Vector<double> & pressure,
 
    FullMatrix<double>   local_DphiDt_matrix (DphiDt_dofs_per_cell, DphiDt_dofs_per_cell);
    Vector<double>       local_DphiDt_rhs (DphiDt_dofs_per_cell);
+
+   Vector<double>       local_DphiDt_rhs_comp_1 (DphiDt_dofs_per_cell);
+   Vector<double>       local_DphiDt_rhs_comp_2 (DphiDt_dofs_per_cell);
+   Vector<double>       local_DphiDt_rhs_comp_3 (DphiDt_dofs_per_cell);
+   Vector<double>       local_DphiDt_rhs_comp_4 (DphiDt_dofs_per_cell);
       
    std::vector< Tensor<1,dim> > DphiDt_phi_surf_grads(DphiDt_n_q_points);
    std::vector<double> DphiDt_phi_norm_grads(DphiDt_n_q_points);
@@ -5381,13 +5437,19 @@ void FreeSurface<dim>::compute_pressure(Vector<double> & pressure,
    cell_it
    cell = comp_dom.dh.begin_active(),
    endc = comp_dom.dh.end();
-
+   Point<dim> press_force_test_1;
+   Point<dim> press_force_test_2;
    
    for (; cell!=endc; ++cell)
      {
      fe_v.reinit(cell);
      local_DphiDt_rhs = 0;
      local_DphiDt_matrix = 0;
+
+     local_DphiDt_rhs_comp_1 = 0;
+     local_DphiDt_rhs_comp_2 = 0;
+     local_DphiDt_rhs_comp_3 = 0;
+     local_DphiDt_rhs_comp_4 = 0;
 
      fe_v.get_function_grads((const Vector<double>&)phi, DphiDt_phi_surf_grads);
      fe_v.get_function_values((const Vector<double>&)dphi_dn, DphiDt_phi_norm_grads);
@@ -5429,7 +5491,11 @@ void FreeSurface<dim>::compute_pressure(Vector<double> & pressure,
 	double press = rho*((Vinf)*(Vinf))/2 -
                        rho*((gradient+Vinf)*(gradient+Vinf))/2 -
                        rho*g*DphiDt_node_positions[q](dim-1) -
-                       rho*(DphiDt_DphiDt_values[q]-node_vel_vect*gradient);	
+                       rho*(DphiDt_DphiDt_values[q]-node_vel_vect*gradient);
+        double press2 = -rho*((Vinf)*(gradient)) 
+                        -rho*((gradient)*(gradient))/2 
+                        -rho*g*DphiDt_node_positions[q](dim-1) 
+                        -rho*(DphiDt_DphiDt_values[q]-node_vel_vect*gradient);	
         /*std::cout<<"cell "<<cell<<"  node "<<q<<std::endl;
         std::cout<<"press "<<press<<std::endl;
         std::cout<<"term1 "<<rho*((Vinf)*(Vinf))/2<<std::endl;
@@ -5447,8 +5513,27 @@ void FreeSurface<dim>::compute_pressure(Vector<double> & pressure,
             local_DphiDt_rhs(i) +=   (fe_v.shape_value (i, q)) *
                                      (press) *
                                      fe_v.JxW(q);
+            local_DphiDt_rhs_comp_1(i) +=   (fe_v.shape_value (i, q)) *
+                                     (rho*((Vinf)*(Vinf))/2) *
+                                     fe_v.JxW(q);
+            local_DphiDt_rhs_comp_2(i) +=   (fe_v.shape_value (i, q)) *
+                                     (-rho*((gradient+Vinf)*(gradient+Vinf))/2) *
+                                     fe_v.JxW(q);
+            local_DphiDt_rhs_comp_3(i) +=   (fe_v.shape_value (i, q)) *
+                                     (-rho*g*DphiDt_node_positions[q](dim-1)) *
+                                     fe_v.JxW(q);
+            local_DphiDt_rhs_comp_4(i) +=   (fe_v.shape_value (i, q)) *
+                                     (-rho*(DphiDt_DphiDt_values[q]-node_vel_vect*phi_surf_grad)) *
+                                     fe_v.JxW(q);
+            
             }
-
+       if ((cell->material_id() == comp_dom.wall_sur_ID1 ||
+            cell->material_id() == comp_dom.wall_sur_ID2 ||
+            cell->material_id() == comp_dom.wall_sur_ID3 ))
+          {
+          press_force_test_1 += press*DphiDt_node_normals[q]*fe_v.JxW(q);
+          press_force_test_2 += press2*DphiDt_node_normals[q]*fe_v.JxW(q);
+          }
        }
 
     cell->get_dof_indices (DphiDt_local_dof_indices);
@@ -5458,6 +5543,24 @@ void FreeSurface<dim>::compute_pressure(Vector<double> & pressure,
 	DphiDt_local_dof_indices,
 	DphiDt_sys_matrix,
 	DphiDt_sys_rhs);
+
+     constraints.distribute_local_to_global
+       (local_DphiDt_rhs_comp_1,
+	DphiDt_local_dof_indices,
+	rhs_comp_1);
+     constraints.distribute_local_to_global
+       (local_DphiDt_rhs_comp_2,
+	DphiDt_local_dof_indices,
+	rhs_comp_2);
+     constraints.distribute_local_to_global
+       (local_DphiDt_rhs_comp_3,
+	DphiDt_local_dof_indices,
+	rhs_comp_3);
+     constraints.distribute_local_to_global
+       (local_DphiDt_rhs_comp_4,
+	DphiDt_local_dof_indices,
+	rhs_comp_4);
+
      
 
     }
@@ -5468,6 +5571,51 @@ void FreeSurface<dim>::compute_pressure(Vector<double> & pressure,
    pressure_direct.vmult(pressure, DphiDt_sys_rhs);
    constraints.distribute(pressure);
 
+   pressure_direct.vmult(comp_1, rhs_comp_1);
+   constraints.distribute(comp_1);
+   pressure_direct.vmult(comp_2, rhs_comp_2);
+   constraints.distribute(comp_2);
+   pressure_direct.vmult(comp_3, rhs_comp_3);
+   constraints.distribute(comp_3);
+   pressure_direct.vmult(comp_4, rhs_comp_4);
+   constraints.distribute(comp_4);
+
+
+   Vector<double> complete_potential_gradients(comp_dom.vector_dh.n_dofs()); 
+   compute_potential_gradients(complete_potential_gradients,phi,dphi_dn);
+ 
+
+   wind.set_time(t);
+   Vector<double> instantVelValue(dim);
+   Point<dim> zzero(0,0,0);
+   wind.vector_value(zzero,instantVelValue);
+   Point<3> V_inf(instantVelValue(0),
+                  instantVelValue(1),
+                  instantVelValue(2));
+
+   for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
+       {
+       Point<3> gradient(complete_potential_gradients(3*i),
+                         complete_potential_gradients(3*i+1),
+                         complete_potential_gradients(3*i+2));
+       Point<3> v(node_vels(3*i),node_vels(3*i+1),node_vels(3*i+2));
+       pressure(i) = 0.5*rho*V_inf*V_inf -
+                     0.5*rho*(V_inf+gradient)*(V_inf+gradient) -
+                     rho*g*comp_dom.support_points[i](2) -
+                     rho*(DphiDt(i)-v*gradient);
+       }
+
+   // preparing iges normal vectors vector for pressure computation
+   Vector<double> iges_normals_x_values(comp_dom.dh.n_dofs());
+   Vector<double> iges_normals_y_values(comp_dom.dh.n_dofs());
+   Vector<double> iges_normals_z_values(comp_dom.dh.n_dofs());
+   for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
+       {
+       iges_normals_x_values(i) = comp_dom.iges_normals[i](0);
+       iges_normals_y_values(i) = comp_dom.iges_normals[i](1);
+       iges_normals_z_values(i) = comp_dom.iges_normals[i](2);
+       }
+
 
    // pressure force computation
    Point<dim> press_force;
@@ -5477,6 +5625,9 @@ void FreeSurface<dim>::compute_pressure(Vector<double> & pressure,
    endc = comp_dom.dh.end();
 
    std::vector<double> pressure_quad_values(DphiDt_n_q_points);
+   std::vector<double> n_x_quad_values(DphiDt_n_q_points);
+   std::vector<double> n_y_quad_values(DphiDt_n_q_points);
+   std::vector<double> n_z_quad_values(DphiDt_n_q_points);
 
    for (; cell!=endc; ++cell)
        {
@@ -5486,10 +5637,15 @@ void FreeSurface<dim>::compute_pressure(Vector<double> & pressure,
           {
           fe_v.reinit(cell);
           fe_v.get_function_values(pressure, pressure_quad_values);
+          fe_v.get_function_values(iges_normals_x_values, n_x_quad_values);
+          fe_v.get_function_values(iges_normals_y_values, n_y_quad_values);
+          fe_v.get_function_values(iges_normals_z_values, n_z_quad_values);
+
           const std::vector<Point<dim> > &DphiDt_node_normals = fe_v.get_normal_vectors();
           for (unsigned int q=0; q<DphiDt_n_q_points; ++q)
             {
-            Point<dim> local_press_force = pressure_quad_values[q]*DphiDt_node_normals[q];
+            Point<3> normal(n_x_quad_values[q],n_y_quad_values[q],n_z_quad_values[q]);
+            Point<dim> local_press_force = pressure_quad_values[q]*normal;
             press_force += (local_press_force) * fe_v.JxW(q);
             wet_surface += 1.0 * fe_v.JxW(q);
             }
@@ -5909,7 +6065,7 @@ void FreeSurface<dim>::compute_pressure(Vector<double> & pressure,
      myfile.open (press_filename.c_str());
   else
      myfile.open (press_filename.c_str(),ios::app);
-  myfile << t <<" "<<press_force<<" "<<transom_press_force<<" "<<visc_force<<" "<<break_press_force<<" "<<wet_surface+transom_wet_surface<<" \n";
+  myfile << t <<" "<<press_force<<" "<<transom_press_force<<" "<<visc_force<<" "<<break_press_force<<" "<<wet_surface+transom_wet_surface<<" "<<press_force_test_1<<" "<<press_force_test_2<<" \n";
   myfile.close();
 
   std::cout<<"Total Force: "<<press_force-transom_press_force+visc_force+break_press_force<<std::endl;
@@ -5981,7 +6137,22 @@ void FreeSurface<dim>::output_results(const std::string filename,
       }
 
   Vector<double> pressure(comp_dom.dh.n_dofs()); 
-  compute_pressure(pressure,t,solution,solution_dot);
+  Vector<double> comp_1(comp_dom.dh.n_dofs());
+  Vector<double> comp_2(comp_dom.dh.n_dofs());
+  Vector<double> comp_3(comp_dom.dh.n_dofs());
+  Vector<double> comp_4(comp_dom.dh.n_dofs());
+  compute_pressure(pressure,comp_1,comp_2,comp_3,comp_4,t,solution,solution_dot);
+
+   // preparing iges normal vectors vector for pressure computation
+   Vector<double> iges_normals_x_values(comp_dom.dh.n_dofs());
+   Vector<double> iges_normals_y_values(comp_dom.dh.n_dofs());
+   Vector<double> iges_normals_z_values(comp_dom.dh.n_dofs());
+   for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
+       {
+       iges_normals_x_values(i) = comp_dom.iges_normals[i](0);
+       iges_normals_y_values(i) = comp_dom.iges_normals[i](1);
+       iges_normals_z_values(i) = comp_dom.iges_normals[i](2);
+       }
 
   {
   DataOut<dim-1, DoFHandler<dim-1, dim> > dataout;
@@ -6002,9 +6173,13 @@ void FreeSurface<dim>::output_results(const std::string filename,
   //cout<<"####### "<<break_wave_press.size()<<endl;
   //cout<<"#-----# "<<nodes_vel_z.size()<<endl;
   dataout.add_data_vector(break_wave_press, "break_wave_press");
-  //dataout.add_data_vector(eta_grad_x, "eta_grad_x");
-  //dataout.add_data_vector(eta_grad_y, "eta_grad_y");
-  //dataout.add_data_vector(eta_grad_z, "eta_grad_z");
+  dataout.add_data_vector(comp_1, "comp_1");
+  dataout.add_data_vector(comp_2, "comp_2");
+  dataout.add_data_vector(comp_3, "comp_3");
+  dataout.add_data_vector(comp_4, "comp_4");
+  dataout.add_data_vector(iges_normals_x_values, "iges_normals_x");
+  dataout.add_data_vector(iges_normals_y_values, "iges_normals_y");
+  dataout.add_data_vector(iges_normals_z_values, "iges_normals_z");
   //dataout.add_data_vector(DphiDt_sys_solution_2, "damping");
 
   dataout.build_patches(*comp_dom.mapping,

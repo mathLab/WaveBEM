@@ -254,7 +254,8 @@ public:
   void compute_keel_smoothing(Vector<double> & smoothing);
 
     
-  void compute_pressure(Vector<double> & pressure,
+  void compute_pressure(Vector<double> & pressure, 
+                        Vector<double> & comp_1, Vector<double> & comp_2, Vector<double> & comp_3, Vector<double> & comp_4, 
 			  const double t,
 			  const Vector<double> & solution,
 			  const Vector<double> & solution_dot);
