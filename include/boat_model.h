@@ -64,6 +64,8 @@ class BoatModel{
     Point<3> PointCenterTransom;
 				     // this is the wet length of the boat
     double boatWetLength;
+				     // this is the wet surface of the boat
+    double boatWetSurface;
 				     // this is the whole geometric model of the boat (right side)
     TopoDS_Shape sh;
 				     // this is the whole geometric model of the boat (left side)

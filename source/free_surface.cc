@@ -6055,7 +6055,7 @@ void FreeSurface<dim>::compute_pressure(Vector<double> & pressure,
   double Re_l = fmax(1e-5,Vinf*comp_dom.Lx_boat/1.307e-6);
   //double Cd = 1.3282/sqrt(Re_l); // for flat plate
   double Cd = 0.075/(pow(log10(Re_l)-2., 2));
-  double viscous_drag = 0.5*rho*Vinf*Vinf*wet_surface*Cd;
+  double viscous_drag = 0.5*rho*Vinf*Vinf*comp_dom.boat_model.boatWetSurface*Cd;
   Point<3> visc_force(viscous_drag,0.0,0.0);
 
   std::string press_filename = ( output_file_name + "_force.txt" );
