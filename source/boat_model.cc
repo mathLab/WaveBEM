@@ -682,6 +682,7 @@ Point<3> BoatModel::compute_hydrostatic_force(const double &sink)
 
 
       cout<<"Current hydrostatic force: "<<hydrostatic_force<<"   Current wet surface: "<<wet_surface<<endl;
+      boatWetSurface = wet_surface;
       return hydrostatic_force;
 }
 
