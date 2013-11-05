@@ -2228,12 +2228,12 @@ for (unsigned int i=0; i<dh.n_dofs(); ++i)
        for (unsigned int j=0; j<2; ++j)
            smoothing_map_points(3*i+j) = proj_node(j) - ref_points[3*i](j);
        // we're doing this thing on the water side, but the iges_normal and iges_mean curvature belong to the boat side
-       //std::set<unsigned int> duplicates = double_nodes_set[i];
-       //for (std::set<unsigned int>::iterator pos = duplicates.begin(); pos !=duplicates.end(); pos++)
-       //    {
-	//   iges_normals[*pos] = iges_normals[i];
-        //   iges_mean_curvatures[*pos] = iges_mean_curvatures[i];
-        //   }
+       std::set<unsigned int> duplicates = double_nodes_set[i];
+       for (std::set<unsigned int>::iterator pos = duplicates.begin(); pos !=duplicates.end(); pos++)
+           {
+	   iges_normals[*pos] = iges_normals[i];
+           iges_mean_curvatures[*pos] = iges_mean_curvatures[i];
+           }
        //iges_normals[i] = Point<3>(0.0,0.0,0.0);
        //iges_mean_curvatures[i] = 0;
        }
@@ -2274,12 +2274,12 @@ for (unsigned int i=0; i<dh.n_dofs(); ++i)
        for (unsigned int j=0; j<2; ++j)
            smoothing_map_points(3*i+j) = proj_node(j) - ref_points[3*i](j);
        // we're doing this thing on the water side, but the iges_normal and iges_mean curvature belong to the boat side
-       //std::set<unsigned int> duplicates = double_nodes_set[i];
-       //for (std::set<unsigned int>::iterator pos = duplicates.begin(); pos !=duplicates.end(); pos++)
-       //    {
-	//   iges_normals[*pos] = iges_normals[i];
-        //   iges_mean_curvatures[*pos] = iges_mean_curvatures[i];
-        //   }
+       std::set<unsigned int> duplicates = double_nodes_set[i];
+       for (std::set<unsigned int>::iterator pos = duplicates.begin(); pos !=duplicates.end(); pos++)
+           {
+	   iges_normals[*pos] = iges_normals[i];
+           iges_mean_curvatures[*pos] = iges_mean_curvatures[i];
+           }
        //iges_normals[i] = Point<3>(0.0,0.0,0.0);
        //iges_mean_curvatures[i] = 0;
        }
@@ -2465,7 +2465,7 @@ for (unsigned int i=0; i<dh.n_dofs(); ++i)
            smoothing_map_points(3*i+j) = proj_node(j) - ref_points[3*i](j);
        }
    }
-/*                           // we also need to compute the normals and curvatures on the
+                           // we also need to compute the normals and curvatures on the
                            // keel nodes (right and left side)
 for (unsigned int i=0; i<dh.n_dofs(); ++i)
     {
@@ -2494,7 +2494,7 @@ for (unsigned int i=0; i<dh.n_dofs(); ++i)
                                                                       intermediate_point_pos);  // for projection in surface normal direction
        }
     }
-*/
+//*/
 vector_constraints.distribute(smoothing_map_points);
 distances = smoothing_map_points;
 
