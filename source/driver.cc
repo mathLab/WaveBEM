@@ -69,7 +69,7 @@ void Driver<dim>::run()
      res.reinit(free_surface.n_dofs());
    }
 
- //free_surface.prepare_restart(0, y, yp);
+ free_surface.prepare_restart(0, y, yp);
  //computational_domain.generate_octree_blocking();
 
  dae_time_int.start_ode(y, yp, maxNumSteps);

@@ -76,6 +76,7 @@
 #include <GeomConvert_CompCurveToBSplineCurve.hxx>
 #include <GeomLProp_SLProps.hxx>
 #include <BRepTools_ReShape.hxx>
+#include <BRepBuilderAPI_MakePolygon.hxx>
 
 #include <deal.II/grid/grid_reordering.h>
 #include <deal.II/grid/grid_tools.h>
@@ -477,6 +478,20 @@ Standard_Boolean OK = ICW.Write ("keel.igs");
 				   //we define the hull surface y direction projections 
   boat_water_line_right = new AxisProjection(sh, Point<3>(0,1,0),1e-7,1e-2*boatWetLength);
   boat_water_line_left = new AxisProjection(refl_sh, Point<3>(0,-1,0),1e-7,1e-2*boatWetLength);
+				   //we define the projection on undisturbed free surface 
+  //gp_Pln xy_plane(0.,0.,1.,0.);
+  double xdim = 20*boatWetLength, ydim = 20*boatWetLength;   
+  BRepBuilderAPI_MakePolygon polygon;
+  polygon.Add(gp_Pnt(-xdim, -ydim, 0));
+  polygon.Add(gp_Pnt(xdim, -ydim, 0));
+  polygon.Add(gp_Pnt(xdim, ydim, 0));
+  polygon.Add(gp_Pnt(-xdim, ydim, 0));     
+  polygon.Close();
+
+  TopoDS_Wire wire = polygon.Wire();               
+  BRepBuilderAPI_MakeFace faceBuilder(wire);
+  undisturbed_water_surface_face = faceBuilder.Face();  
+  undist_water_surf = new AxisProjection(undisturbed_water_surface_face, Point<3>(0,0,-1),1e-7,1e-3*boatWetLength);
 				   //we define the corresponding waterline arclength and projection 
   water_line_right = new ArclengthProjection(right_undist_water_line,1e-5*boatWetLength);
   water_line_left = new ArclengthProjection(left_undist_water_line,1e-5*boatWetLength);
@@ -514,7 +529,7 @@ Standard_Boolean OK = ICW.Write ("keel.igs");
 
 Point<3> BoatModel::compute_hydrostatic_force(const double &sink)
 {
-  double rho = 998.1;
+  double rho = 1025.1;
   double g = 9.81;  
 
   double z_zero = sink;
@@ -689,7 +704,7 @@ Point<3> BoatModel::compute_hydrostatic_force(const double &sink)
 
 Point<3> BoatModel::compute_hydrostatic_moment(const double &sink)
 {
-  double rho = 998.1;
+  double rho = 1025.1;
   double g = 9.81;  
 
   double z_zero = sink;

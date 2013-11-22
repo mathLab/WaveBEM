@@ -330,8 +330,8 @@ void NumericalTowingTank::read_domain ()
           }
       }
 */
-  //tria.set_boundary(3, *boat_model.boat_surface_right);
-  //tria.set_boundary(4, *boat_model.boat_surface_left);
+  tria.set_boundary(5, *boat_model.undist_water_surf);
+  tria.set_boundary(6, *boat_model.undist_water_surf);
   //tria.set_boundary(21, *boat_model.boat_surface_right);
   tria.set_boundary(21, *boat_model.water_line_right); //tria.set_boundary(21, *boat_model.boat_water_line_right);
   //tria.set_boundary(23, *boat_model.boat_surface_right);
@@ -362,11 +362,12 @@ void NumericalTowingTank::read_domain ()
   tria.set_boundary(35, *boat_model.boat_keel);
   if (boat_model.is_transom)
      {
-     tria.set_boundary(40, *boat_model.wake_line_left);
-     tria.set_boundary(41, *boat_model.wake_line_right);
+     tria.set_boundary(40, *boat_model.boat_transom_left);
+     tria.set_boundary(41, *boat_model.boat_transom_right);
      }
-  //coarse_tria.set_boundary(3, *boat_model.boat_surface_right);
-  //coarse_tria.set_boundary(4, *boat_model.boat_surface_left);
+
+  coarse_tria.set_boundary(5, *boat_model.undist_water_surf);
+  coarse_tria.set_boundary(6, *boat_model.undist_water_surf);
   //coarse_tria.set_boundary(21, *boat_model.boat_surface_right);
   coarse_tria.set_boundary(21, *boat_model.water_line_right); //coarse_tria.set_boundary(21, *boat_model.boat_water_line_right);
   //coarse_tria.set_boundary(23, *boat_model.boat_surface_right);
@@ -397,8 +398,8 @@ void NumericalTowingTank::read_domain ()
   coarse_tria.set_boundary(35, *boat_model.boat_keel);
   if (boat_model.is_transom)
      {
-     coarse_tria.set_boundary(40, *boat_model.wake_line_left);
-     coarse_tria.set_boundary(41, *boat_model.wake_line_right);
+     coarse_tria.set_boundary(40, *boat_model.boat_transom_left);
+     coarse_tria.set_boundary(41, *boat_model.boat_transom_right);
      }
 }
 
@@ -554,7 +555,7 @@ Lx_domain = Lx_boat*12.0;
 Ly_domain = Lx_boat*4.0;
 Lz_domain = Lx_boat*2.0;
 
-vertices.resize(85);
+vertices.resize(88);
       
 vertices[0](0)=-Lx_domain/2; vertices[0](1)=-Ly_domain/2 ; vertices[0](2)=0;
 vertices[1](0)=-Lx_domain/2; vertices[1](1)=-Ly_domain/2; vertices[1](2)=-Lz_domain;
@@ -595,7 +596,7 @@ vertices[35](0)=-Lx_domain/2; vertices[35](1)=-Ly_domain/2; vertices[35](2)=0;
 vertices[36](0)=a*PointFrontTop(0); vertices[36](1)=-Ly_domain/2; vertices[36](2)=0;
 vertices[37](0)=b*PointLeftTransom(0); vertices[37](1)=-Ly_domain/2; vertices[37](2)=0;
 vertices[38](0)=Lx_domain/2; vertices[38](1)=-Ly_domain/2; vertices[38](2)=0;
-vertices[39](0)=Lx_domain/2; vertices[39](1)=0; vertices[39](2)=0;
+vertices[39](0)=Lx_domain/2; vertices[39](1)=-Ly_domain/4; vertices[39](2)=0;
 vertices[40](0)=0; vertices[40](1)=-PointMidTop(1); vertices[40](2)=0;
 vertices[41](0)=0; vertices[41](1)=-Ly_domain/2; vertices[41](2)=0;
 vertices[42](0)=Lx_domain/2; vertices[42](1)=Ly_domain/2; vertices[42](2)=0;
@@ -641,8 +642,11 @@ vertices[81](0)=Lx_domain/2; vertices[81](1)=0; vertices[81](2)=-Lz_domain;
 vertices[82](0)=Lx_domain/2; vertices[82](1)=Ly_domain/2; vertices[82](2)=-Lz_domain;
 vertices[83](0)=Lx_domain/2; vertices[83](1)=Ly_domain/2; vertices[83](2)=0;
 vertices[84](0)=PointRightTransom(0); vertices[84](1)=PointRightTransom(1); vertices[84](2)=0;
+vertices[85](0)=Lx_domain/2; vertices[85](1)=Ly_domain/4; vertices[85](2)=0;
+vertices[86](0)=Lx_domain/2; vertices[86](1)=0; vertices[86](2)=0;
+vertices[87](0)=PointCenterTransom(0); vertices[87](1)=0; vertices[87](2)=PointCenterTransom(2);
 
-cells.resize(32);
+cells.resize(34);
 
 cells[0].vertices[0]=0; cells[0].vertices[1]=1; cells[0].vertices[2]=8; cells[0].vertices[3]=5;
 cells[1].vertices[0]=5; cells[1].vertices[1] =8; cells[1].vertices[2] =7; cells[1].vertices[3]=9;
@@ -660,7 +664,7 @@ cells[12].vertices[0]=34; cells[12].vertices[1] =35; cells[12].vertices[2] =36; 
 cells[13].vertices[0]=33; cells[13].vertices[1] =36; cells[13].vertices[2] =41; cells[13].vertices[3]=40;
 cells[14].vertices[0]=40; cells[14].vertices[1] =41; cells[14].vertices[2] =37; cells[14].vertices[3]=32;
 cells[15].vertices[0]=32; cells[15].vertices[1] =37; cells[15].vertices[2] =38; cells[15].vertices[3]=39;
-cells[16].vertices[0]=39; cells[16].vertices[1] =42; cells[16].vertices[2] =43; cells[16].vertices[3]=84;
+cells[16].vertices[0]=85; cells[16].vertices[1] =42; cells[16].vertices[2] =43; cells[16].vertices[3]=84;
 cells[17].vertices[0]=84; cells[17].vertices[1] =43; cells[17].vertices[2] =47; cells[17].vertices[3]=46;
 cells[18].vertices[0]=46; cells[18].vertices[1] =47; cells[18].vertices[2] =44; cells[18].vertices[3]=33;
 cells[19].vertices[0]=33; cells[19].vertices[1] =44; cells[19].vertices[2] =45; cells[19].vertices[3]=34;
@@ -675,7 +679,9 @@ cells[27].vertices[0]=64; cells[27].vertices[1] =59; cells[27].vertices[2] =60; 
 cells[28].vertices[0]=69; cells[28].vertices[1] =68; cells[28].vertices[2] =70; cells[28].vertices[3]=71;
 cells[29].vertices[0]=72; cells[29].vertices[1] =73; cells[29].vertices[2] =74; cells[29].vertices[3]=75;
 cells[30].vertices[0]=77; cells[30].vertices[1] =76; cells[30].vertices[2] =78; cells[30].vertices[3]=79;
-cells[31].vertices[0]=80; cells[31].vertices[1] =81; cells[31].vertices[2] =82; cells[31].vertices[3]=83;//*/
+cells[31].vertices[0]=80; cells[31].vertices[1] =81; cells[31].vertices[2] =82; cells[31].vertices[3]=83;
+cells[32].vertices[0]=87; cells[32].vertices[1] =32; cells[32].vertices[2] =39; cells[32].vertices[3]=86;
+cells[33].vertices[0]=86; cells[33].vertices[1] =85; cells[33].vertices[2] =84; cells[33].vertices[3]=87;//*/
 
 cells[0].material_id = 1;
 cells[1].material_id = 1;
@@ -708,7 +714,9 @@ cells[27].material_id = 8;
 cells[28].material_id = 9;
 cells[29].material_id = 10;
 cells[30].material_id = 11;
-cells[31].material_id = 12;//*/
+cells[31].material_id = 12;
+cells[32].material_id = 5;
+cells[33].material_id = 6;//*/
 
 // waterline (on water) rear left
 subcelldata.boundary_lines.push_back (CellData<1>());
@@ -766,22 +774,23 @@ subcelldata.boundary_lines.back().material_id = 31;
 subcelldata.boundary_lines.push_back (CellData<1>());
 subcelldata.boundary_lines.back().vertices[0] = 25; subcelldata.boundary_lines.back().vertices[1] = 23;
 subcelldata.boundary_lines.back().material_id = 36;
-//rear part of the keel (region needed for keel smoothing) left
+//rear part of the keel / transom edge on boat (region needed for keel smoothing) left
 subcelldata.boundary_lines.push_back (CellData<1>());
 subcelldata.boundary_lines.back().vertices[0] = 26; subcelldata.boundary_lines.back().vertices[1] = 28;
 subcelldata.boundary_lines.back().material_id = 32;
-//rear part of the keel (region needed for keel smoothing) right
+//rear part of the keel / transom edge on boat (region needed for keel smoothing) right
 subcelldata.boundary_lines.push_back (CellData<1>());
 subcelldata.boundary_lines.back().vertices[0] = 23; subcelldata.boundary_lines.back().vertices[1] = 21;
 subcelldata.boundary_lines.back().material_id = 37;
-//wake line left
+//transom edge on water left
 subcelldata.boundary_lines.push_back (CellData<1>());
-subcelldata.boundary_lines.back().vertices[0] = 32; subcelldata.boundary_lines.back().vertices[1] = 39;
+subcelldata.boundary_lines.back().vertices[0] = 32; subcelldata.boundary_lines.back().vertices[1] = 87;
 subcelldata.boundary_lines.back().material_id = 40;
-//wake line right
+//transom edge on water right
 subcelldata.boundary_lines.push_back (CellData<1>());
-subcelldata.boundary_lines.back().vertices[0] = 84; subcelldata.boundary_lines.back().vertices[1] = 39;
+subcelldata.boundary_lines.back().vertices[0] = 84; subcelldata.boundary_lines.back().vertices[1] = 87;
 subcelldata.boundary_lines.back().material_id = 41;
+
 }
 
 else
@@ -1020,11 +1029,11 @@ GridReordering<2,3>::reorder_cells (cells);
 
 triangulation.create_triangulation_compatibility(vertices, cells, subcelldata );
 
-/*
+
   std::ofstream logfile("meshResult.inp");
   GridOut grid_out;
   grid_out.write_ucd(triangulation, logfile);
-*/
+//*/
 
 }
 
@@ -1217,66 +1226,13 @@ std::vector<unsigned int> vector_local_dof_indices (vector_fe.dofs_per_cell);
 
   }
 
-  boat_edge_cells.clear();
-  water_edge_cells.clear();
-  boat_to_water_edge_cells.clear();
-  water_to_boat_edge_cells.clear();
-  {
-    tria_it
-      cell = tria.begin_active(),
-      endc = tria.end();
 
-    for(; cell != endc; ++cell)
-      {
-	if ((cell->material_id() == free_sur_ID1 ||
-	     cell->material_id() == free_sur_ID2 ||
-	     cell->material_id() == free_sur_ID3 ))
-	  {
-	    if ( cell->at_boundary() )
-	      for(unsigned int f=0; f<GeometryInfo<2>::faces_per_cell; ++f)
-		if( cell->face(f)->boundary_indicator() == 26 ||
-                    cell->face(f)->boundary_indicator() == 27 ||
-                    cell->face(f)->boundary_indicator() == 28 ||
-                    cell->face(f)->boundary_indicator() == 29 )
-		  water_edge_cells.insert(cell);
-	  }
-	
-	else if ((cell->material_id() == wall_sur_ID1 ||
-		  cell->material_id() == wall_sur_ID2 ||
-		  cell->material_id() == wall_sur_ID3 ))
-	  {
-	    if ( cell->at_boundary() )
-	      for(unsigned int f=0; f<GeometryInfo<2>::faces_per_cell; ++f)
-		if( cell->face(f)->boundary_indicator() == 21 ||
-                    cell->face(f)->boundary_indicator() == 22 ||
-                    cell->face(f)->boundary_indicator() == 23 ||
-                    cell->face(f)->boundary_indicator() == 24 )
-		  boat_edge_cells.insert(cell);
-	  }
-      }
-//cout<<"wtf "<<boat_to_water_edge_cells.size()<<endl;
-    for( std::set<tria_it>::iterator it=boat_edge_cells.begin();
-	 it != boat_edge_cells.end(); ++it)
-      {//cout<<*it<<" "<<(*it)->center()<<endl;
-	for( std::set<tria_it>::iterator jt=water_edge_cells.begin();
-	     jt != water_edge_cells.end(); ++jt) 
-	  for(unsigned int f=0; f<GeometryInfo<2>::faces_per_cell; ++f)
-	    if((*it)->face(f)->at_boundary())
-	      for(unsigned int d=0; d<GeometryInfo<2>::faces_per_cell; ++d)
-		if( (*jt)->face(d)->at_boundary())
-		  if( (*it)->face(f)->center().distance((*jt)->face(d)->center()) < tol)
-                    {
-                    boat_to_water_edge_cells[*it] = *jt;
-                    water_to_boat_edge_cells[*jt] = *it;
-                    //cout<<*it<<" "<<*jt<<endl;
-                    }
-      }
 
   
     //for( std::map<tria_it, tria_it>::iterator it=boat_to_water_edge_cells.begin();
     //	it != boat_to_water_edge_cells.end(); ++it)
     //std::cout << it->first << " -> " << it->second << std::endl;
-  }
+  //}
 //*/
 
 
@@ -1291,31 +1247,6 @@ std::vector<unsigned int> vector_local_dof_indices (vector_fe.dofs_per_cell);
 
 
 
-/*
-  for (unsigned int i=0; i<dh.n_dofs();++i)
-      {
-      if (*(double_nodes_set[i].begin()) == i)
-         {
-         //cout<<i<<"--> "<<*(double_nodes_set[i].begin())<<endl;
-         flags[i] |= master;
-         }
-      else
-         flags[i] |= slave; 
-      }
-  for (unsigned int i=0; i<vector_dh.n_dofs();++i)
-      {
-      if (*(vector_double_nodes_set[i].begin()) == i)
-         {
-         vector_flags[i] |= master;
-         //cout<<i<<" master--> "<<*(vector_double_nodes_set[i].begin())<<endl;
-         }
-      else
-         {
-         vector_flags[i] |= slave;
-         //cout<<i<<" slave --> "<<*(vector_double_nodes_set[i].begin())<<endl;
-         } 
-      }
-*/
   unsigned int cell_id=0;
   std::vector<unsigned int> vector_face_dofs(vector_fe.dofs_per_face);
   //std::vector<unsigned int> face_dofs(fe.dofs_per_face);
@@ -1343,7 +1274,6 @@ std::vector<unsigned int> vector_local_dof_indices (vector_fe.dofs_per_cell);
 	  flags[dofs[j]] |= right_side;
 	for(unsigned int j=0; j<vector_fe.dofs_per_cell; ++j)
 	  vector_flags[vector_dofs[j]] |= right_side;
-	//cell_flags[cell_id] |= right;
       }
     else
       {
@@ -1351,8 +1281,8 @@ std::vector<unsigned int> vector_local_dof_indices (vector_fe.dofs_per_cell);
 	  flags[dofs[j]] |= left_side;
 	for(unsigned int j=0; j<vector_fe.dofs_per_cell; ++j)
 	  vector_flags[vector_dofs[j]] |= left_side;
-	//cell_flags[cell_id] |= left;
-      }				     // Free surface
+      }
+				     // Free surface
     if ((cell->material_id() == free_sur_ID1 ||
 	 cell->material_id() == free_sur_ID2 )) 
       {
@@ -1360,8 +1290,8 @@ std::vector<unsigned int> vector_local_dof_indices (vector_fe.dofs_per_cell);
 	  flags[dofs[j]] |= water;
 	for(unsigned int j=0; j<vector_fe.dofs_per_cell; ++j)
 	  vector_flags[vector_dofs[j]] |= water;
-	//cell_flags[cell_id] |= water;
-      }
+
+      }				     // boat surface
     else if ((cell->material_id() == wall_sur_ID1 ||
 	      cell->material_id() == wall_sur_ID2 ))
       {
@@ -1369,7 +1299,6 @@ std::vector<unsigned int> vector_local_dof_indices (vector_fe.dofs_per_cell);
 	  flags[dofs[j]] |= boat;
 	for(unsigned int j=0; j<vector_fe.dofs_per_cell; ++j)
 	  vector_flags[vector_dofs[j]] |= boat;
-	//cell_flags[cell_id] |= boat;
       }
     else if ((cell->material_id() == inflow_sur_ID1 ||
 	      cell->material_id() == inflow_sur_ID2 ))
@@ -1378,7 +1307,6 @@ std::vector<unsigned int> vector_local_dof_indices (vector_fe.dofs_per_cell);
 	  flags[dofs[j]] |= inflow;
 	for(unsigned int j=0; j<vector_fe.dofs_per_cell; ++j)
 	  vector_flags[vector_dofs[j]] |= inflow;
-	//cell_flags[cell_id] |= inflow;
       }
     else
       {
@@ -1386,7 +1314,6 @@ std::vector<unsigned int> vector_local_dof_indices (vector_fe.dofs_per_cell);
 	  flags[dofs[j]] |= walls;
 	for(unsigned int j=0; j<vector_fe.dofs_per_cell; ++j)
 	  vector_flags[vector_dofs[j]] |= walls;
-	//cell_flags[cell_id] |= walls;
       }
     
       
@@ -1399,10 +1326,8 @@ std::vector<unsigned int> vector_local_dof_indices (vector_fe.dofs_per_cell);
 	    flags[face_dofs[k]] |= edge;
 	  for(unsigned int k=0; k<vector_face_dofs.size(); ++k)
 	    vector_flags[vector_face_dofs[k]] |= edge;
-	  //cell_flags[cell_id] |= edge;
 	}
     }
-//unsigned int z = 0;
   				   // Now set the relationships...
     for(unsigned int i=0; i<dh.n_dofs(); ++i)
     {
@@ -1420,8 +1345,6 @@ std::vector<unsigned int> vector_local_dof_indices (vector_fe.dofs_per_cell);
             if(flags[i] & boat)
                 {
 		flags[i] |= keel;
-                //std::cout<<i<<" "<<std::endl;
-                //z++;
                 }
             }
 	  else if (flags[*it] & inflow)
@@ -1432,8 +1355,7 @@ std::vector<unsigned int> vector_local_dof_indices (vector_fe.dofs_per_cell);
 	    flags[i] |= near_walls;
 	}
     }
-  
-//z = 0;
+
   				   // Now set the relationships...
     for(unsigned int i=0; i<vector_dh.n_dofs(); ++i)
     {
@@ -1483,6 +1405,43 @@ std::vector<unsigned int> vector_local_dof_indices (vector_fe.dofs_per_cell);
 
   if (boat_model.is_transom)
      {
+
+     // parameters for rear left water line smoothing
+     unsigned int left_boat_transom_point_id = 0;     
+     unsigned int right_boat_transom_point_id = 0;     
+     unsigned int left_water_transom_point_id = 0;     
+     unsigned int right_water_transom_point_id = 0;     
+
+     unsigned int point_id_left = find_point_id(boat_model.PointLeftTransom, ref_points);
+     unsigned int point_id_right = find_point_id(boat_model.PointRightTransom, ref_points);
+     std::set<unsigned int> duplicates = double_nodes_set[point_id_left]; 
+     for (std::set<unsigned int>::iterator pos = duplicates.begin(); pos !=duplicates.end(); pos++)
+         {
+         //cout<<i<<" mpid"<<*pos<<"  is in?"<<boundary_dofs[i][3*(*pos)]<<endl;
+         if ( flags[*pos] & water)
+	    {
+            left_water_transom_point_id = *pos;
+            }
+         else
+	    {
+            left_boat_transom_point_id = *pos;
+            }          
+         }
+     duplicates = double_nodes_set[point_id_right];
+     for (std::set<unsigned int>::iterator pos = duplicates.begin(); pos !=duplicates.end(); pos++)
+         {
+         //cout<<i<<" mpid"<<*pos<<"  is in?"<<boundary_dofs[i][3*(*pos)]<<endl;
+         if ( flags[*pos] & water)
+	    {
+            right_water_transom_point_id = *pos;
+            }
+         else
+	    {
+            right_boat_transom_point_id = *pos;
+            }          
+         } 
+
+
      std::vector<unsigned int> face_dofs(fe.dofs_per_face);
      for (cell=dh.begin_active(); cell!= endc;++cell)
          {
@@ -1490,50 +1449,41 @@ std::vector<unsigned int> vector_local_dof_indices (vector_fe.dofs_per_cell);
             {
             for (unsigned int j = 0; j < GeometryInfo<2>::faces_per_cell; j++)
                 {
-                if ((cell->face(j)->boundary_indicator() == 40))
+                if ((cell->face(j)->boundary_indicator() == 40) ||
+                    (cell->face(j)->boundary_indicator() == 41)   )
 	           {
                    cell->face(j)->get_dof_indices(face_dofs); 
                    for (unsigned int k=0; k<fe.dofs_per_face; ++k)
-                       {   
-	               flags[face_dofs[k]] |= master;
-                       for (unsigned int p=0;p<3;++p)
-                           vector_flags[3*face_dofs[k]+p] |= master;
+                       {
+                       if ( (right_water_transom_point_id != face_dofs[k]) &&
+                            (left_water_transom_point_id != face_dofs[k]) ) 
+                          {  
+	                  flags[face_dofs[k]] |= transom_on_water;
+                          for (unsigned int p=0;p<3;++p)
+                              vector_flags[3*face_dofs[k]+p] |= transom_on_water;
+                          }
                        }
                    }
-                else if ((cell->face(j)->boundary_indicator() == 41))
+                else if ((cell->face(j)->boundary_indicator() == 37) ||
+                         (cell->face(j)->boundary_indicator() == 32)   )
                    {
                    cell->face(j)->get_dof_indices(face_dofs); 
                    for (unsigned int k=0; k<fe.dofs_per_face; ++k)   
-                       {  
-	               flags[face_dofs[k]] |= slave;
-                       for (unsigned int p=0;p<3;++p)
-                           vector_flags[3*face_dofs[k]+p] |= slave;
+                       {
+                       if ( (right_boat_transom_point_id != face_dofs[k]) &&
+                            (left_boat_transom_point_id != face_dofs[k]) ) 
+                          {
+	                  flags[face_dofs[k]] |= transom_on_boat;
+                          for (unsigned int p=0;p<3;++p)
+                              vector_flags[3*face_dofs[k]+p] |= transom_on_boat;
+                          }
                        }
                    }
                 }
             }
 
          }
-     for (unsigned int i=0; i<dh.n_dofs();++i)
-         {
-         if ( (flags[i] & slave) &&
-              ((flags[i] & master) || (flags[i] & near_boat))  )
-            {
-            flags[i] ^= slave;
-            for (unsigned int p=0;p<3;++p)
-                vector_flags[3*i+p] ^= slave;
-            }
-         }
-     for (unsigned int i=0; i<dh.n_dofs();++i)
-         {
-         if ( (flags[i] & slave) &&
-              (double_nodes_set[i].size() != 2)   )
-            {
-            flags[i] ^= slave;
-            for (unsigned int p=0;p<3;++p)
-                vector_flags[3*i+p] ^= slave;
-            }
-         }
+
      }
 
 
@@ -1640,7 +1590,7 @@ void NumericalTowingTank::initialize_smoother()
   on_curve_option[3] = false;
 
   // parameters for front left water line smoothing
-  base_points[4]   = Point<3>(boat_model.PointMidTop(0),-boat_model.PointMidTop(1),boat_model.PointMidTop(0));
+  base_points[4]   = Point<3>(boat_model.PointMidTop(0),-boat_model.PointMidTop(1),boat_model.PointMidTop(2));
   moving_points[4] = boat_model.PointFrontTop;
   curves[4] = boat_model.left_undisturbed_waterline_curve;
   boundary_ids[4] = 27;
@@ -1654,7 +1604,7 @@ void NumericalTowingTank::initialize_smoother()
   on_curve_option[5] = false;
 
   // parameters for rear left water line smoothing
-  base_points[6]   = Point<3>(boat_model.PointMidTop(0),-boat_model.PointMidTop(1),boat_model.PointMidTop(0));
+  base_points[6]   = Point<3>(boat_model.PointMidTop(0),-boat_model.PointMidTop(1),boat_model.PointMidTop(2));
   moving_points[6] = moving_points[1];
   curves[6] = boat_model.left_undisturbed_waterline_curve;
   boundary_ids[6] = 29;
@@ -1983,6 +1933,7 @@ for (unsigned int i=0; i<dh.n_dofs(); ++i)
     if ( (flags[i] & water) &&
          (flags[i] & near_boat) &&
          (flags[i] & right_side) &&
+         !(flags[i] & transom_on_water) &&
          (moving_point_ids[3] != i) &&
          (moving_point_ids[4] != i) &&
          (moving_point_ids[5] != i) &&
@@ -2008,6 +1959,7 @@ for (unsigned int i=0; i<dh.n_dofs(); ++i)
     if ( (flags[i] & water) &&
          (flags[i] & near_boat) &&
          (flags[i] & left_side) &&
+         !(flags[i] & transom_on_water) &&
          (moving_point_ids[3] != i) &&
          (moving_point_ids[4] != i) &&
          (moving_point_ids[5] != i) &&
@@ -2198,6 +2150,7 @@ for (unsigned int i=0; i<dh.n_dofs(); ++i)
     if ( (flags[i] & water) &&
          (flags[i] & near_boat) &&
          (flags[i] & right_side) &&
+         !(flags[i] & transom_on_water) &&
          (moving_point_ids[3] != i) &&
          (moving_point_ids[4] != i) &&
          (moving_point_ids[5] != i) &&
@@ -2247,6 +2200,7 @@ for (unsigned int i=0; i<dh.n_dofs(); ++i)
     if ( (flags[i] & water) &&
          (flags[i] & near_boat) &&
          (flags[i] & left_side)  &&
+         !(flags[i] & transom_on_water) &&
          (moving_point_ids[3] != i) &&
          (moving_point_ids[4] != i) &&
          (moving_point_ids[5] != i) &&
