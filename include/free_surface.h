@@ -422,6 +422,8 @@ private:
 
   Vector <double> break_wave_press;
 
+  Vector <double> transom_pressure_patch; // temporary
+
                               // this number sets the bottom limit of the
                               // adaptive refinement. when set to 2.0, it
                               // limits the refinements so that all the cells

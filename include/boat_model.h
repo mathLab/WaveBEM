@@ -80,6 +80,9 @@ class BoatModel{
     TopoDS_Shape right_undist_water_line;
 				     // this is the undisturbed left water line
     TopoDS_Shape left_undist_water_line;
+				     // this is the undisturbed left water surface
+    TopoDS_Shape undisturbed_water_surface_face; 
+
 				     // surface normal projector on boat surface right side
     OpenCascade::NormalProjection<2> *boat_surface_right;
 				     // surface normal projector on boat surface left side
@@ -88,6 +91,8 @@ class BoatModel{
     OpenCascade::AxisProjection *boat_water_line_right;
 				     // y-axis direction projector on boat surface left side
     OpenCascade::AxisProjection *boat_water_line_left;
+				     // z-axis direction projector on undisturbed free surface
+    OpenCascade::AxisProjection *undist_water_surf;
 				     // arclength projection on keel
     OpenCascade::ArclengthProjection *boat_keel;
 				     // normal projection on keel

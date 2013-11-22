@@ -267,6 +267,7 @@ void FreeSurface<dim>::reinit() {
   bem_dphi_dn.reinit(comp_dom.dh.n_dofs());
   temp_src.reinit(comp_dom.vector_dh.n_dofs());
   break_wave_press.reinit(comp_dom.dh.n_dofs());
+  
                                       // we initialize the rhs evaluations counter
   rhs_evaluations_counter = 0;
 } 
@@ -398,6 +399,7 @@ void FreeSurface<dim>::initial_conditions(Vector<double> &dst) {
    DphiDt_sys_solution_2.reinit (comp_dom.dh.n_dofs());
    DphiDt_sys_solution_3.reinit (comp_dom.dh.n_dofs());
    break_wave_press.reinit (comp_dom.dh.n_dofs());
+   
    vector_sys_solution.reinit (comp_dom.vector_dh.n_dofs());
    vector_sys_solution_2.reinit (comp_dom.vector_dh.n_dofs());
 
@@ -1023,6 +1025,7 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
       bem_dphi_dn.reinit(comp_dom.dh.n_dofs());
       temp_src.reinit(comp_dom.vector_dh.n_dofs());
       break_wave_press.reinit(comp_dom.dh.n_dofs());
+      
 
       bem.reinit();
       
@@ -1616,6 +1619,7 @@ std::cout<<"Restoring mesh conformity..."<<std::endl;
       bem_dphi_dn.reinit(comp_dom.dh.n_dofs());
       temp_src.reinit(comp_dom.vector_dh.n_dofs());
       break_wave_press.reinit(comp_dom.dh.n_dofs());
+      
 
       bem.reinit();
 
@@ -1732,10 +1736,13 @@ setup_jacobian_prec(t,y,yp,0.0);
   const VectorView<double> phi_time_derivs(comp_dom.dh.n_dofs(),yp.begin()+comp_dom.vector_dh.n_dofs());
   const VectorView<double> dphi_dn(comp_dom.dh.n_dofs(),y.begin()+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs());
   const VectorView<double> dphi_dn_time_derivs(comp_dom.dh.n_dofs(),yp.begin()+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs());
-  
-  //for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
-  //       cout<<3*i<<" "<<nodes_velocities(3*i)<<" "<<nodes_velocities(3*i+1)<<" "<<nodes_velocities(3*i+2)<<endl;
 
+//  for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
+//         cout<<i<<"  Poss: "<<" "<<nodes_positions(3*i)<<" "<<nodes_positions(3*i+1)<<" "<<nodes_positions(3*i+2)<<endl;  
+//  for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
+//         cout<<i<<"  Vels: "<<" "<<nodes_velocities(3*i)<<" "<<nodes_velocities(3*i+1)<<" "<<nodes_velocities(3*i+2)<<endl;
+//  for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
+//         cout<<i<<"  Pot: "<<" "<<phi(i)<<"  Pod_dot: "<<phi_time_derivs(i)<<"  dphi_dn: "<<dphi_dn(i)<<endl;
   // TO BE REMOVED
   DphiDt_sys_rhs.reinit (comp_dom.dh.n_dofs()); 
   DphiDt_sys_rhs_2.reinit (comp_dom.dh.n_dofs());
@@ -1786,7 +1793,7 @@ setup_jacobian_prec(t,y,yp,0.0);
       if ( !(comp_dom.flags[i] & near_boat) &&
            (comp_dom.flags[i] & water) &&
            (comp_dom.flags[i] & edge) &&
-           !(comp_dom.flags[i] & slave) &&
+           !(comp_dom.flags[i] & transom_on_water) &&
            (!constraints.is_constrained(i)))
          {
          working_map_points(3*i) = comp_dom.old_map_points(3*i);
@@ -1799,7 +1806,16 @@ setup_jacobian_prec(t,y,yp,0.0);
          working_map_points(3*i) = comp_dom.old_map_points(3*i);
          working_map_points(3*i+1) = comp_dom.old_map_points(3*i+1);
          working_map_points(3*i+2) = comp_dom.old_map_points(3*i+2);
-         }         
+         }
+      else if ((comp_dom.flags[i] & transom_on_water) )
+         {
+         working_map_points(3*i) = comp_dom.old_map_points(3*i);
+         working_map_points(3*i+1) = comp_dom.old_map_points(3*i+1);
+         working_map_points(3*i+2) = comp_dom.old_map_points(3*i+2);
+         jacobian_matrix.add(3*i,3*i,1.0);
+         jacobian_matrix.add(3*i+1,3*i+1,1.0);
+         jacobian_matrix.add(3*i+2,3*i+2,1.0);
+         }          
       }
 
   // blending factor is needed to avoid that right after restart
@@ -1828,6 +1844,7 @@ setup_jacobian_prec(t,y,yp,0.0);
          if ( (comp_dom.flags[i] & water) &&
               (comp_dom.flags[i] & near_boat) &&
               (comp_dom.flags[i] & right_side) &&
+              !(comp_dom.flags[i] & transom_on_water) &&
               (comp_dom.moving_point_ids[3] != i) &&
               (comp_dom.moving_point_ids[4] != i) &&
               (comp_dom.moving_point_ids[5] != i) &&
@@ -1853,6 +1870,7 @@ setup_jacobian_prec(t,y,yp,0.0);
          if ( (comp_dom.flags[i] & water) &&
               (comp_dom.flags[i] & near_boat) &&
               (comp_dom.flags[i] & left_side) &&
+              !(comp_dom.flags[i] & transom_on_water) &&
               (comp_dom.moving_point_ids[3] != i) &&
               (comp_dom.moving_point_ids[4] != i) &&
               (comp_dom.moving_point_ids[5] != i) &&
@@ -1915,6 +1933,7 @@ for (unsigned int k=3; k<7; ++k)
                    curve->D1(t,P,V1);
                    }
                 }
+            /*
             // here temporarily for kcs hull tests
             if (minDistance > 0.5*comp_dom.boat_model.boatWetLength)
                {
@@ -1941,7 +1960,7 @@ for (unsigned int k=3; k<7; ++k)
                   }
                cout<<"New part two: "<<dP<<" | "<<V1.X()<<" "<<V1.Y()<<" "<<V1.Z()<<" | "<<dP0<<endl;
                }
-
+            */
             //cout<<k<<"("<<i<<") ---> ("<<dP0<<") vs ("<<dP<<")"<<endl;
             working_map_points(3*i) = dP(0)-comp_dom.ref_points[3*i](0);
             working_map_points(3*i+1) = dP(1)-comp_dom.ref_points[3*i](1);
@@ -1959,8 +1978,7 @@ for (unsigned int k=3; k<7; ++k)
      for (unsigned int i=0; i<comp_dom.vector_dh.n_dofs(); ++i)
          {
          if ( (comp_dom.vector_flags[i] & water) &&
-              (comp_dom.vector_flags[i] & edge) &&
-              !(comp_dom.vector_flags[i] & slave) )
+              (comp_dom.vector_flags[i] & edge)  )
             {
             std::set<unsigned int> duplicates = comp_dom.vector_double_nodes_set[i];
             duplicates.erase(i); 
@@ -2002,6 +2020,7 @@ for (unsigned int k=3; k<7; ++k)
       {
       if ( (comp_dom.flags[i] & water) &&
            (comp_dom.flags[i] & near_boat) &&
+           !(comp_dom.flags[i] & transom_on_water) &&
            (comp_dom.moving_point_ids[3] != i) &&
            (comp_dom.moving_point_ids[4] != i) &&
            (comp_dom.moving_point_ids[5] != i) &&
@@ -2116,20 +2135,20 @@ for (unsigned int k=3; k<7; ++k)
   cell = comp_dom.dh.begin_active(),
   endc = comp_dom.dh.end();
 
-  std::vector<fad_double> coors(3*dofs_per_cell);
-  std::vector<fad_double> phis(dofs_per_cell);
-  std::vector<fad_double> dphi_dns(dofs_per_cell);
-  std::vector<fad_double> coors_dot(3*dofs_per_cell);
-  std::vector<fad_double> phis_dot(dofs_per_cell);
-  std::vector<fad_double> dphi_dns_dot(dofs_per_cell);
-  std::vector<fad_double> x_displs(dofs_per_cell);
-  std::vector<fad_double> y_displs(dofs_per_cell);
+  std::vector<fad_double> coors(3*dofs_per_cell,0.0);
+  std::vector<fad_double> phis(dofs_per_cell,0.0);
+  std::vector<fad_double> dphi_dns(dofs_per_cell,0.0);
+  std::vector<fad_double> coors_dot(3*dofs_per_cell,0.0);
+  std::vector<fad_double> phis_dot(dofs_per_cell,0.0);
+  std::vector<fad_double> dphi_dns_dot(dofs_per_cell,0.0);
+  std::vector<fad_double> x_displs(dofs_per_cell,0.0);
+  std::vector<fad_double> y_displs(dofs_per_cell,0.0);
   
-  std::vector<fad_double> loc_eta_res(dofs_per_cell);
-  std::vector<fad_double> loc_phi_res(dofs_per_cell);
-  std::vector<fad_double> loc_dphi_dn_res(dofs_per_cell);
-  std::vector<fad_double> loc_x_smooth_res(dofs_per_cell);
-  std::vector<fad_double> loc_y_smooth_res(dofs_per_cell);
+  std::vector<fad_double> loc_eta_res(dofs_per_cell,0.0);
+  std::vector<fad_double> loc_phi_res(dofs_per_cell,0.0);
+  std::vector<fad_double> loc_dphi_dn_res(dofs_per_cell,0.0);
+  std::vector<fad_double> loc_x_smooth_res(dofs_per_cell,0.0);
+  std::vector<fad_double> loc_y_smooth_res(dofs_per_cell,0.0);
  
   std::vector< std::vector<fad_double> > loc_stiffness_matrix(dofs_per_cell,std::vector<fad_double>(dofs_per_cell));
   std::vector< std::vector<fad_double> > loc_mass_matrix(dofs_per_cell,std::vector<fad_double>(dofs_per_cell));
@@ -2138,6 +2157,10 @@ for (unsigned int k=3; k<7; ++k)
 
   std::vector<unsigned int> local_dof_indices(dofs_per_cell);
    
+
+  //for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
+  //       cout<<i<<"  VelsAgain: "<<" "<<nodes_velocities(3*i)<<" "<<nodes_velocities(3*i+1)<<" "<<nodes_velocities(3*i+2)<<endl;
+
   for (; cell!=endc; ++cell)
       {
       //if (cell->material_id() == comp_dom.free_sur_ID1 ||
@@ -2148,7 +2171,7 @@ for (unsigned int k=3; k<7; ++k)
       //    cell->material_id() == comp_dom.wall_sur_ID3 )
          {
          //std::cout<<std::endl;
-         //std::cout<<"Cell: "<<cell<<std::endl;
+         //std::cout<<"Cell: "<<cell<<"  Center: "<<cell->center()<<" --- "<<dofs_per_cell<<std::endl;
 
          local_DphiDt_matrix = 0;
          local_DphiDt_matrix_2 = 0;
@@ -2174,13 +2197,18 @@ for (unsigned int k=3; k<7; ++k)
              }
 
          for (unsigned int i=0; i<dofs_per_cell; ++i)
+             {
              for (unsigned int j=0; j<3; ++j)
                  {
+                 //cout<<3*local_dof_indices[i]+j<<endl;
                  coors[3*i+j] = comp_dom.support_points[local_dof_indices[i]](j);
                  coors[3*i+j].diff(3*i+j,10*dofs_per_cell);
                  coors_dot[3*i+j] = nodes_velocities(3*local_dof_indices[i]+j);
                  coors_dot[3*i+j].diff(3*i+j+5*dofs_per_cell,10*dofs_per_cell);
+                 //std::cout<<i<<"-------> "<<coors_dot[3*i+j].val()<<" vs "<<nodes_velocities(3*local_dof_indices[i]+j)<<endl;
                  }
+             //std::cout<<i<<"-------> "<<coors_dot[3*i].val()<<" "<<coors_dot[3*i+1].val()<<" "<<coors_dot[3*i+2].val()<<" "<<endl;
+             }
          for (unsigned int i=0; i<dofs_per_cell; ++i)
              {
              phis[i] = phi(local_dof_indices[i]);
@@ -2243,7 +2271,7 @@ for (unsigned int k=3; k<7; ++k)
                  q_z_dot += fad_double(ref_fe_v.shape_value(i,q))*coors_dot[3*i+2];
                  q_eta +=  fad_double(ref_fe_v.shape_value(i,q))*coors[3*i+2];
                  //std::cout<<i<<"-------> "<<u_deriv_pos<<" "<<v_deriv_pos<<" "<<u_deriv_phi<<" "<<v_deriv_phi<<endl;
-                 //std::cout<<i<<"-------> "<<coors[3*i]<<" "<<coors[3*i+1]<<" "<<coors[3*i+2]<<" "<<endl;
+                 //std::cout<<i<<"-------> "<<coors[3*i].val()<<" "<<coors[3*i+1]<<" "<<coors[3*i+2]<<" "<<endl;
                  }
              Point<3,fad_double> q_normal(u_deriv_pos(1)*v_deriv_pos(2)-u_deriv_pos(2)*v_deriv_pos(1),
                                           u_deriv_pos(2)*v_deriv_pos(0)-u_deriv_pos(0)*v_deriv_pos(2),
@@ -2286,10 +2314,12 @@ for (unsigned int k=3; k<7; ++k)
              phi_dot_rhs_fun[q] = phi_grad*phi_grad/2 - g*q_eta + phi_surf_grad_corrected*(q_nodes_vel-fluid_vel[q]);
              q_JxW[q] = q_jac_det*ref_fe_v.JxW(q);
 
-             //cout<<q<<" fvel("<<fluid_vel[q]<<")  fvel_norm="<<fluid_vel_norm<<"   q_JxW="<<q_JxW[q]<<endl;
+             //cout<<q<<" fvel("<<fluid_vel[q].val()<<")  fvel_norm="<<fluid_vel_norm<<"   q_JxW="<<q_JxW[q]<<endl;
              //cout<<q<<" erhs("<<eta_dot_rhs_fun[q]<<")  prhs("<<phi_dot_rhs_fun[q]<<")"<<endl;
              //cout<<q<<" phi_grad("<<phi_grad<<")  phi_surf_grad("<<phi_surf_grad<<")"<<endl;
-             //cout<<q<<"   "<<phi_dot_rhs_fun[q].val()<<endl;//" "<<phi_dot_rhs_fun[q].val()<<endl;
+            // cout<<q<<"   "<<phi_dot_rhs_fun[q].val()<<endl;//" "<<phi_dot_rhs_fun[q].val()<<endl;
+             //cout<<q<<"   "<<phi_grad(0).val()<<" "<<phi_grad(1).val()<<" "<<phi_grad(2).val()<<endl;
+             
              if (cell->material_id() == comp_dom.free_sur_ID1 ||
                  cell->material_id() == comp_dom.free_sur_ID2 ||
                  cell->material_id() == comp_dom.free_sur_ID3 )
@@ -2307,17 +2337,18 @@ for (unsigned int k=3; k<7; ++k)
                     loc_y_smooth_res[i] -= blend_factor*0*fad_double(ref_fe_v.shape_value(i,q))*q_JxW[q];
                     local_DphiDt_rhs(i) += (phi_dot_rhs_fun[q]*N_i_supg*q_JxW[q]).val();
                     local_DphiDt_rhs_2(i) += (eta_dot_rhs_fun[q]*N_i_supg*q_JxW[q]).val();
-                /*    if (q_point(0).val()<2.75 && q_point(0).val()>2.00 && abs(q_point(1).val())< 0.2 && abs(q_point(2).val())< 0.02)             
-                {
-                std::cout<<"q_point=("<<q_point(0).val()<<","<<q_point(1).val()<<","<<q_point(2).val()<<")  q_dphi_dn="<<q_dphi_dn.val()<<endl;
-                std::cout<<"phi_grad=("<<phi_grad(0).val()<<","<<phi_grad(1).val()<<","<<phi_grad(2).val()<<")"<<endl;
-                std::cout<<"fluid_vel=("<<fluid_vel[q](0).val()<<","<<fluid_vel[q](1).val()<<","<<fluid_vel[q](2).val()<<")"<<endl;
-                std::cout<<"q_nodes_vel=("<<q_nodes_vel(0).val()<<","<<q_nodes_vel(1).val()<<","<<q_nodes_vel(2).val()<<")"<<endl;
-                std::cout<<"phi_surf_grad_corrected=("<<phi_surf_grad_corrected(0).val()<<","<<phi_surf_grad_corrected(1).val()<<","<<phi_surf_grad_corrected(2).val()<<")"<<endl;
-                cout<<q<<" erhs("<<eta_dot_rhs_fun[q].val()<<")  prhs("<<phi_dot_rhs_fun[q].val()<<")"<<endl;
-                std::cout<<"local_DphiDt_rhs_2(i)="<<local_DphiDt_rhs_2(i)<<"local_DphiDt_rhs_2(i) ="<<local_DphiDt_rhs_2(i)<<")"<<endl;
-                }
-                */
+               //     cout<<q<<"   "<<endl; //<<local_DphiDt_rhs(i)<<" "<<local_DphiDt_rhs_2(i)<<endl;
+               //     if (q_point(0).val()>36 && q_point(0).val()<70 && abs(q_point(1).val())< 6 && abs(q_point(2).val())< 1)             
+               // {
+               // std::cout<<"q_point=("<<q_point(0).val()<<","<<q_point(1).val()<<","<<q_point(2).val()<<")  q_dphi_dn="<<q_dphi_dn.val()<<endl;
+               // std::cout<<"phi_grad=("<<phi_grad(0).val()<<","<<phi_grad(1).val()<<","<<phi_grad(2).val()<<")"<<endl;
+               // std::cout<<"fluid_vel=("<<fluid_vel[q](0).val()<<","<<fluid_vel[q](1).val()<<","<<fluid_vel[q](2).val()<<")"<<endl;
+               // std::cout<<"q_nodes_vel=("<<q_nodes_vel(0).val()<<","<<q_nodes_vel(1).val()<<","<<q_nodes_vel(2).val()<<")"<<endl;
+               // std::cout<<"phi_surf_grad_corrected=("<<phi_surf_grad_corrected(0).val()<<","<<phi_surf_grad_corrected(1).val()<<","<<phi_surf_grad_corrected(2).val()<<")"<<endl;
+               // cout<<q<<" erhs("<<eta_dot_rhs_fun[q].val()<<")  prhs("<<phi_dot_rhs_fun[q].val()<<")"<<endl;
+              //  std::cout<<"local_DphiDt_rhs_2(i)="<<local_DphiDt_rhs_2(i)<<"local_DphiDt_rhs_2(i) ="<<local_DphiDt_rhs_2(i)<<")"<<endl;
+              //  }
+                
                     //cout<<q<<"  "<<i<<"   "<<phi_grad(2)<<"    "<<eta_grad<<"    "<<q_nodes_vel-fluid_vel[q]<<endl;
                     //cout<<q<<"  "<<i<<"   "<<N_i_surf_grad<<"    "<<fluid_vel[q]/fluid_vel_norm<<"   "<<cell->diameter()/sqrt(2)<<endl;
                     //cout<<q<<"  "<<i<<"   "<<N_i_supg.val()<<"   "<<phi_dot_rhs_fun[q].val()<<"   "<<q_JxW[q].val()<<endl;
@@ -2429,15 +2460,10 @@ for (unsigned int k=3; k<7; ++k)
                      loc_x_smooth_res[i] += loc_stiffness_matrix[i][j]*(x_displs[j]-(1-blend_factor)*comp_dom.old_map_points(3*local_dof_indices[j]));
                      loc_y_smooth_res[i] += loc_stiffness_matrix[i][j]*(y_displs[j]-(1-blend_factor)*comp_dom.old_map_points(3*local_dof_indices[j]+1));
                      }
-                 if ( !constraints.is_constrained(local_dof_indices[i]) )
+                 if ( !constraints.is_constrained(local_dof_indices[i]) &&
+                      !(comp_dom.flags[local_dof_indices[i]] & transom_on_water) )
                     {
                     unsigned int ii = local_dof_indices[i];
-                    if (comp_dom.flags[ii] & slave)
-                       {
-                       std::set<unsigned int> duplicates = comp_dom.double_nodes_set[ii];
-                       duplicates.erase(ii);
-                       ii = *duplicates.begin();
-                       }
                     eta_res[ii] += loc_eta_res[i].val();
                     phi_res[ii] += loc_phi_res[i].val();
                                          
@@ -2478,6 +2504,11 @@ for (unsigned int k=3; k<7; ++k)
      DphiDt_sys_matrix_copy.reinit(DphiDt_sparsity_pattern);
      DphiDt_sys_matrix_copy.copy_from(DphiDt_sys_matrix);
 
+     //for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
+     //    {
+     //    cout<<"*** "<<i<<" "<<DphiDt_sys_rhs(i)<<" "<<DphiDt_sys_rhs_2(i)<<" "<<DphiDt_sys_rhs_3(i)<<endl;
+     //    }
+
      constraints.condense(DphiDt_sys_matrix,DphiDt_sys_rhs);
      constraints.condense(DphiDt_sys_matrix_copy,DphiDt_sys_rhs_2);
      constraints.condense(DphiDt_sys_matrix_2,DphiDt_sys_rhs_3);
@@ -2512,7 +2543,8 @@ for (unsigned int k=3; k<7; ++k)
 
      for (unsigned int i=0; i<comp_dom.dh.n_dofs();i++)
          {
-         if (comp_dom.flags[i] & water)
+         if ( (comp_dom.flags[i] & water) &&
+              !(comp_dom.flags[i] & transom_on_water) ) 
             {
             yp(3*i+2) = DphiDt_sys_solution_2(i);
      //       cout<<3*i+2<<" -> "<<yp(3*i+2)<<endl;
@@ -2568,6 +2600,24 @@ for (unsigned int k=3; k<7; ++k)
             }
          }
 
+      // trying a fix for transom stern nodes
+      for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
+          {
+          if ( comp_dom.flags[i] & transom_on_water )
+             {
+	     comp_dom.surface_nodes(i) = 0;
+	     comp_dom.other_nodes(i) = 1;
+             std::set<unsigned int> duplicates = comp_dom.double_nodes_set[i];
+             duplicates.erase(i); 
+             bem_bc(i) = 0;
+             jacobian_matrix.add(i,i,-1.0);
+             for (std::set<unsigned int>::iterator pos = duplicates.begin(); pos !=duplicates.end(); pos++)
+                 {
+                 bem_bc(i) += bem_dphi_dn(*pos)/duplicates.size();
+                 }
+             }
+          } 
+
        // this is to enforce constraints in a more strict way
        // pure normals might not be respecting constraints
        //constraints.distribute(bem_phi);
@@ -2582,11 +2632,11 @@ for (unsigned int k=3; k<7; ++k)
        //constraints.distribute(bem_phi);
        //constraints.distribute(bem_dphi_dn);
 
-       // finally this imposes that the potential on slave side of 
-       // wake line equals that on master side
+       // finally this imposes that the potential on water side of 
+       // transom line equals that on boat side
        for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
            {
-           if (comp_dom.flags[i] & slave)
+           if (comp_dom.flags[i] & transom_on_water)
               {
               std::set<unsigned int> duplicates = comp_dom.double_nodes_set[i];
               duplicates.erase(i);
@@ -2672,33 +2722,19 @@ for (unsigned int k=3; k<7; ++k)
   for (std::map<unsigned int, unsigned int>::iterator it = map_diff.begin(); it != map_diff.end(); ++it)
       {
       yp(it->first) = restart_prob_solution_diff(it->second);
-      //cout<<it->first<<" "<<yp(it->first)<<"("<<restart_prob_solution(it->second)<<")"<<endl;
+      //cout<<it->first<<" "<<yp(it->first)<<"("<<restart_prob_solution_diff(it->second)<<")"<<endl;
       }
 
-/*
-  comp_dom.vector_constraints.distribute((Vector<double>&)nodes_velocities);
-
-  // we now impose the constraints on the slave nodes
-    for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
-      {
-      if ( comp_dom.flags[i] & slave )
-         {
-         std::set<unsigned int> duplicates = comp_dom.vector_double_nodes_set[3*i+2];
-         duplicates.erase(3*i+2); 
-         for (std::set<unsigned int>::iterator pos = duplicates.begin(); pos !=duplicates.end(); pos++)
-             yp(*pos) = yp(3*i+2);
-         }
-      }
-//*/
 
      //std::string filename1 = ( "post_restart_mesh.vtu" );
      //output_results(filename1, t, y, yp);
 
+
    
      // these lines test the jacobian of the DAE system
  
-
 /*
+
      Vector<double> delta_y(this->n_dofs());
      Vector<double> delta_res(this->n_dofs());
      //delta_y.add(1e-8);
@@ -2926,7 +2962,8 @@ int FreeSurface<dim>::jacobian(const double t,
   Vector<double> bem_bc(comp_dom.dh.n_dofs());
   for (unsigned int i=0; i<comp_dom.dh.n_dofs(); i++)
       {
-      if (comp_dom.flags[i] & water)
+      if ( (comp_dom.flags[i] & water) &&
+           (!(comp_dom.flags[i] & transom_on_water)) )
          bem_bc(i) = phi(i);
       else
          bem_bc(i) = dphi_dn(i);
@@ -2942,12 +2979,17 @@ int FreeSurface<dim>::jacobian(const double t,
   for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
       {
       if ( (!constraints.is_constrained(i)) &&
-           (comp_dom.flags[i] & water) )
+           (comp_dom.flags[i] & water) &&
+           (!(comp_dom.flags[i] & transom_on_water)))
          {//cout<<i+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()<<" ***  "<<bem_dphi_dn(i)<<endl;
          dst(i+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()) = bem_dphi_dn(i) - dphi_dn(i);
          }
       else if ( (!constraints.is_constrained(i)) &&
-                (!(comp_dom.flags[i] & water)) )
+                (!(comp_dom.flags[i] & transom_on_water)) )
+         {
+         dst(i+comp_dom.vector_dh.n_dofs()) = bem_phi(i) - phi(i);
+         }
+      else if ( (comp_dom.flags[i] & transom_on_water) )
          {
          dst(i+comp_dom.vector_dh.n_dofs()) = bem_phi(i) - phi(i);
          }
@@ -2996,14 +3038,14 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
     static double old_time = -1000;
     dst = 0;
 
-/*
-    if (t != old_time)
-       {
-       //comp_dom.old_map_points = comp_dom.map_points;
-       std::string filename1 = ( "new_ts_mesh.vtu" );
-       output_results(filename1, t, src_yy, src_yp);
-       }
-*/
+
+    //if (t != old_time)
+    //   {
+    //   //comp_dom.old_map_points = comp_dom.map_points;
+    //   std::string filename1 = ( "new_ts_mesh.vtu" );
+    //   output_results(filename1, t, src_yy, src_yp);
+    //   }
+//*/
     bool new_time_step = false;
     if (t != old_time) 
     {
@@ -3110,7 +3152,7 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
       if ( !(comp_dom.flags[i] & near_boat) &&
            (comp_dom.flags[i] & water) &&
            (comp_dom.flags[i] & edge) &&
-           !(comp_dom.flags[i] & slave) &&
+           !(comp_dom.flags[i] & transom_on_water) &&
            (!constraints.is_constrained(i)))
          {
          working_map_points(3*i) = comp_dom.old_map_points(3*i);
@@ -3128,7 +3170,16 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
          jacobian_matrix.add(3*i,3*i,1.0);
          jacobian_matrix.add(3*i+1,3*i+1,1.0);
          jacobian_matrix.add(3*i+2,3*i+2,1.0);
-         }         
+         }
+      else if ((comp_dom.flags[i] & transom_on_water) )
+         {
+         working_map_points(3*i) = comp_dom.old_map_points(3*i);
+         working_map_points(3*i+1) = comp_dom.old_map_points(3*i+1);
+         working_map_points(3*i+2) = comp_dom.old_map_points(3*i+2);
+         jacobian_matrix.add(3*i,3*i,1.0);
+         jacobian_matrix.add(3*i+1,3*i+1,1.0);
+         jacobian_matrix.add(3*i+2,3*i+2,1.0);
+         }          
       }
 
   // blending factor is needed to avoid that right after restart
@@ -3160,6 +3211,7 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
          if ( (comp_dom.flags[i] & water) &&
               (comp_dom.flags[i] & near_boat) &&
               (comp_dom.flags[i] & right_side) &&
+              !(comp_dom.flags[i] & transom_on_water) &&
               (comp_dom.moving_point_ids[3] != i) &&
               (comp_dom.moving_point_ids[4] != i) &&
               (comp_dom.moving_point_ids[5] != i) &&
@@ -3206,6 +3258,7 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
          if ( (comp_dom.flags[i] & water) &&
               (comp_dom.flags[i] & near_boat) &&
               (comp_dom.flags[i] & left_side) &&
+              !(comp_dom.flags[i] & transom_on_water) &&
               (comp_dom.moving_point_ids[3] != i) &&
               (comp_dom.moving_point_ids[4] != i) &&
               (comp_dom.moving_point_ids[5] != i) &&
@@ -3287,6 +3340,7 @@ for (unsigned int k=3; k<7; ++k)
                    curve->D1(t,P,V1);
                    }
                 }
+            /*
             // here temporarily for kcs hull tests
             if (minDistance > 0.5*comp_dom.boat_model.boatWetLength)
                {
@@ -3313,6 +3367,7 @@ for (unsigned int k=3; k<7; ++k)
                   }
                cout<<"New part two: "<<dP<<" | "<<V1.X()<<" "<<V1.Y()<<" "<<V1.Z()<<" | "<<dP0<<endl;
                }
+            */
             //cout<<k<<"("<<i<<") ---> ("<<dP0<<") vs ("<<dP<<")"<<endl;
             working_map_points(3*i) = dP(0)-comp_dom.ref_points[3*i](0);
             working_map_points(3*i+1) = dP(1)-comp_dom.ref_points[3*i](1);
@@ -3327,6 +3382,7 @@ for (unsigned int k=3; k<7; ++k)
             jacobian_matrix.set(3*i+1,3*i+2,-1.0*comp_dom.edges_tangents(3*i+1)/comp_dom.edges_tangents(3*i+2));
             //cout<<i<<" (point) "<<comp_dom.support_points[i]<<endl;
             //cout<<i<<" (edges_tangents) "<<comp_dom.edges_tangents(3*i)<<","<<comp_dom.edges_tangents(3*i+1)<<","<<comp_dom.edges_tangents(3*i+2)<<endl;
+            
             }              
          }
 
@@ -3335,8 +3391,7 @@ for (unsigned int k=3; k<7; ++k)
      for (unsigned int i=0; i<comp_dom.vector_dh.n_dofs(); ++i)
          {
          if ( (comp_dom.vector_flags[i] & water) &&
-              (comp_dom.vector_flags[i] & edge) &&
-              !(comp_dom.vector_flags[i] & slave) )
+              (comp_dom.vector_flags[i] & edge) )
             {
             std::set<unsigned int> duplicates = comp_dom.vector_double_nodes_set[i];
             duplicates.erase(i); 
@@ -3387,7 +3442,31 @@ for (unsigned int k=3; k<7; ++k)
          else
             bem_bc(i) = dphi_dn(i);
          }
-     //prepare_bem_vectors(t, bem_bc, bem_dphi_dn);
+
+      // trying a fix for transom stern nodes
+      for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
+          {
+          if ( comp_dom.flags[i] & transom_on_water )
+             {
+	     comp_dom.surface_nodes(i) = 0;
+	     comp_dom.other_nodes(i) = 1;
+             std::set<unsigned int> duplicates = comp_dom.double_nodes_set[i];
+             duplicates.erase(i); 
+             bem_bc(i) = 0;
+             jacobian_matrix.add(i+comp_dom.dh.n_dofs()+comp_dom.vector_dh.n_dofs(),
+                                 i+comp_dom.dh.n_dofs()+comp_dom.vector_dh.n_dofs(),
+                                 -1.0);
+             for (std::set<unsigned int>::iterator pos = duplicates.begin(); pos !=duplicates.end(); pos++)
+                 {
+                 bem_bc(i) += bem_dphi_dn(*pos)/duplicates.size();
+                 jacobian_matrix.add(i+comp_dom.dh.n_dofs()+comp_dom.vector_dh.n_dofs(),
+                                     *pos+comp_dom.dh.n_dofs()+comp_dom.vector_dh.n_dofs(),
+                                     1.0/duplicates.size());
+                 }
+             }
+          }   
+
+
      if ( (sync_bem_with_geometry == true) || (new_time_step) )
         {
         //bem.assemble_system();
@@ -3419,20 +3498,8 @@ for (unsigned int k=3; k<7; ++k)
               }
            }
 
-       // finally this imposes that the potential on slave side of 
-       // wake line equals that on master side
-       for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
-           {
-           if (comp_dom.flags[i] & slave)
-              {
-              std::set<unsigned int> duplicates = comp_dom.double_nodes_set[i];
-              duplicates.erase(i);
-              bem_phi(i) = bem_phi(*duplicates.begin());
-              jacobian_matrix.add(i+comp_dom.vector_dh.n_dofs(),i+comp_dom.vector_dh.n_dofs(),-1.0);
-              jacobian_matrix.add(i+comp_dom.vector_dh.n_dofs(),*duplicates.begin()+comp_dom.vector_dh.n_dofs(),1.0);
-              }
-           }
 
+     
 //////////////////////////////////////////////////////////////////////
 
 
@@ -3508,7 +3575,7 @@ for (unsigned int k=3; k<7; ++k)
       Vinf(i) = wind_value(i);
 
   double g = 9.81;
-  double rho = 998.1;
+  double rho = 1025.1;
   double ref_height = fabs(comp_dom.boat_model.PointMidBot(2));
   double Fn = Vinf(0)/sqrt(comp_dom.boat_model.boatWetLength*g);
 
@@ -3550,6 +3617,22 @@ for (unsigned int k=3; k<7; ++k)
       loc_supg_mass_matrix[i].resize(dofs_per_cell);
       }
 
+  double eta_dry = 0.0;
+  double hollow_length = 0.0;
+
+
+  if (comp_dom.boat_model.is_transom)
+     {
+     //double mean_transom_draft = ref_transom_wet_surface/(fabs(comp_dom.boat_model.PointLeftTransom(1))+
+     //                                                     fabs(comp_dom.boat_model.PointRightTransom(1)));
+     double transom_draft = fabs(comp_dom.boat_model.PointCenterTransom(2));
+     double transom_aspect_ratio = (fabs(comp_dom.boat_model.PointLeftTransom(1))+
+                                    fabs(comp_dom.boat_model.PointRightTransom(1)))/transom_draft;
+     double FrT = sqrt(Vinf*Vinf)/sqrt(9.81*transom_draft);
+     double ReT = sqrt(9.81*pow(transom_draft,3.0))/1.307e-6;
+     eta_dry=fmin(0.06296*pow(FrT,2.834)*pow(transom_aspect_ratio,0.1352)*pow(ReT,0.01338),1.0);
+     hollow_length = 0.1135*pow(FrT,3.025)*pow(transom_aspect_ratio,0.4603)*pow(ReT,-0.1514)*transom_draft;
+     }
 
   std::vector<unsigned int> local_dof_indices(dofs_per_cell);
 
@@ -3563,6 +3646,7 @@ for (unsigned int k=3; k<7; ++k)
       //    cell->material_id() == comp_dom.wall_sur_ID2 ||
       //    cell->material_id() == comp_dom.wall_sur_ID3 )
          {
+         //if (fabs(t-0.005) < 1e-4)
          //std::cout<<std::endl;
          //std::cout<<"Cell: "<<cell<<std::endl;
 
@@ -3646,6 +3730,7 @@ for (unsigned int k=3; k<7; ++k)
              fad_double q_y_dot = 0;
              fad_double q_z_dot = 0;
              fad_double q_eta = 0;
+             Point<3> q_init(0.0,0.0,0.0);
              for (unsigned int i=0; i<dofs_per_cell; ++i)
                  {
                  unsigned int index = local_dof_indices[i];
@@ -3659,6 +3744,7 @@ for (unsigned int k=3; k<7; ++k)
                  q_y_dot += fad_double(ref_fe_v.shape_value(i,q))*coors_dot[3*i+1];
                  q_z_dot += fad_double(ref_fe_v.shape_value(i,q))*coors_dot[3*i+2];
                  q_eta +=  fad_double(ref_fe_v.shape_value(i,q))*coors[3*i+2];
+                 q_init += ref_fe_v.shape_value(i,q)*comp_dom.ref_points[3*local_dof_indices[i]];
                  //std::cout<<i<<"-------> "<<u_deriv_pos<<" "<<v_deriv_pos<<" "<<u_deriv_phi<<" "<<v_deriv_phi<<endl;
                  //std::cout<<i<<"-------> "<<coors[3*i]<<" "<<coors[3*i+1]<<" "<<coors[3*i+2]<<" "<<endl;
                  }
@@ -3749,9 +3835,64 @@ for (unsigned int k=3; k<7; ++k)
                    //cout<<"Breaking wave damping ON at "<<q_point(0).val()<<","<<q_point(1).val()<<","<<q_point(2).val()<<"  --->  "<<breaking_wave_added_pressure.val()<<endl;
                    //cout<<"0) "<<breaking_wave_added_pressure.val()<<" "<<endl;
                    }
+/*
+               // this if is needed to compute the pressure patch behind the transom stern
+               // pressure is estimated via Doctors regression formulas
+               if (comp_dom.boat_model.is_transom)
+                  if ( (cell->material_id() == comp_dom.free_sur_ID1 ||
+                        cell->material_id() == comp_dom.free_sur_ID2 ||
+                        cell->material_id() == comp_dom.free_sur_ID3  ))
+                     if ( (q_point(1) < comp_dom.boat_model.PointRightTransom(1)) &&
+                          (q_point(1) > comp_dom.boat_model.PointLeftTransom(1)) )
+                        {
+                        if (q_point(1) < 0)
+                           curve = comp_dom.boat_model.left_transom_bspline;
+                        else
+                           curve = comp_dom.boat_model.right_transom_bspline;
+           				   //this is the horizontal plane
+                        Handle(Geom_Plane) zxPlane = new Geom_Plane(0.,1.,0.,q_point(1));
+                        Handle(Geom_Curve) curve;
+                        GeomAPI_IntCS Intersector(curve, horPlane);
+                        gp_Pnt P;
+                        gp_Vec V1;
+                        int npoints = Intersector.NbPoints();
+                        AssertThrow((npoints != 0), ExcMessage("Keel or transom curve is not intersecting with horizontal plane!"));
 
+            double minDistance=1e7;
+            double t,u,v;
+            for (int j=0; j<npoints;++j)
+                {
+                Point<3> inters = Pnt(Intersector.Point(j+1));
+                Intersector.Parameters(j+1,u,v,t);
+                if (dP0.distance(inters) < minDistance)
+                   {
+                   minDistance = dP0.distance(inters);
+                   dP = inters;
+                   curve->D1(t,P,V1);
+                   }
+                }
+                        }
+*/
+/*
+                    if (q_point(0).val()<102 &&
+                        q_point(0).val()>36.9 &&
+                        abs(q_point(1).val())< 5.6 &&
+                        abs(q_point(2).val())< 0.5 &&
+                        fabs(t-0.005) < 1e-4 )             
+                {
+                std::cout<<"q_point=("<<q_point(0).val()<<","<<q_point(1).val()<<","<<q_point(2).val()<<")  q_dphi_dn="<<q_dphi_dn.val()<<endl;
+                std::cout<<"phi_grad=("<<phi_grad(0).val()<<","<<phi_grad(1).val()<<","<<phi_grad(2).val()<<")"<<endl;
+                std::cout<<"fluid_vel=("<<fluid_vel[q](0).val()<<","<<fluid_vel[q](1).val()<<","<<fluid_vel[q](2).val()<<")"<<endl;
+                std::cout<<"q_nodes_vel=("<<q_nodes_vel(0).val()<<","<<q_nodes_vel(1).val()<<","<<q_nodes_vel(2).val()<<")"<<endl;
+                std::cout<<"phi_surf_grad_corrected=("<<phi_surf_grad_corrected(0).val()<<","<<phi_surf_grad_corrected(1).val()<<","<<phi_surf_grad_corrected(2).val()<<")"<<endl;
+                cout<<"Elevations:  "<<q_eta.val()<<"   VS   "<<q_init(2)<<endl;
+                cout<<q<<" erhs("<<eta_dot_rhs_fun[q].val()<<")  prhs("<<phi_dot_rhs_fun[q].val()<<")"<<endl;
+                //std::cout<<"local_DphiDt_rhs_2(i)="<<local_DphiDt_rhs_2(i)<<"local_DphiDt_rhs_2(i) ="<<local_DphiDt_rhs_2(i)<<")"<<endl;
+                }
+*/
              eta_dot_rhs_fun[q] = phi_grad(2) + eta_grad*(q_nodes_vel-fluid_vel[q]);
-             phi_dot_rhs_fun[q] = phi_grad*phi_grad/2 - g*q_eta + phi_surf_grad_corrected*(q_nodes_vel-fluid_vel[q])-breaking_wave_added_pressure;
+             phi_dot_rhs_fun[q] = phi_grad*phi_grad/2 - g*q_eta + phi_surf_grad_corrected*(q_nodes_vel-fluid_vel[q])-breaking_wave_added_pressure
+                                  + fad_double(g*q_init(2));
              q_JxW[q] = q_jac_det*ref_fe_v.JxW(q);
 
              //cout<<q<<" fvel("<<fluid_vel[q]<<")  fvel_norm="<<fluid_vel_norm<<"   q_JxW="<<q_JxW[q]<<endl;
@@ -3776,17 +3917,8 @@ for (unsigned int k=3; k<7; ++k)
                     local_DphiDt_rhs(i) += (phi_dot_rhs_fun[q]*N_i_supg*q_JxW[q]).val();
                     local_DphiDt_rhs_2(i) += (eta_dot_rhs_fun[q]*N_i_supg*q_JxW[q]).val();
                     local_DphiDt_rhs_4(i) += (breaking_wave_added_pressure*fad_double(ref_fe_v.shape_value(i,q))*q_JxW[q]).val();
-                /*    if (q_point(0).val()<2.75 && q_point(0).val()>2.00 && abs(q_point(1).val())< 0.2 && abs(q_point(2).val())< 0.02)             
-                {
-                std::cout<<"q_point=("<<q_point(0).val()<<","<<q_point(1).val()<<","<<q_point(2).val()<<")  q_dphi_dn="<<q_dphi_dn.val()<<endl;
-                std::cout<<"phi_grad=("<<phi_grad(0).val()<<","<<phi_grad(1).val()<<","<<phi_grad(2).val()<<")"<<endl;
-                std::cout<<"fluid_vel=("<<fluid_vel[q](0).val()<<","<<fluid_vel[q](1).val()<<","<<fluid_vel[q](2).val()<<")"<<endl;
-                std::cout<<"q_nodes_vel=("<<q_nodes_vel(0).val()<<","<<q_nodes_vel(1).val()<<","<<q_nodes_vel(2).val()<<")"<<endl;
-                std::cout<<"phi_surf_grad_corrected=("<<phi_surf_grad_corrected(0).val()<<","<<phi_surf_grad_corrected(1).val()<<","<<phi_surf_grad_corrected(2).val()<<")"<<endl;
-                cout<<q<<" erhs("<<eta_dot_rhs_fun[q].val()<<")  prhs("<<phi_dot_rhs_fun[q].val()<<")"<<endl;
-                std::cout<<"local_DphiDt_rhs_2(i)="<<local_DphiDt_rhs_2(i)<<"local_DphiDt_rhs_2(i) ="<<local_DphiDt_rhs_2(i)<<")"<<endl;
-                }
-                */
+
+                
                     //cout<<q<<"  "<<i<<"   "<<phi_grad(2)<<"    "<<eta_grad<<"    "<<q_nodes_vel-fluid_vel[q]<<endl;
                     //cout<<q<<"  "<<i<<"   "<<N_i_surf_grad<<"    "<<fluid_vel[q]/fluid_vel_norm<<"   "<<cell->diameter()/sqrt(2)<<endl;
                     //cout<<q<<"  "<<i<<"   "<<N_i_supg.val()<<"   "<<phi_dot_rhs_fun[q].val()<<"   "<<q_JxW[q].val()<<endl;
@@ -3896,18 +4028,14 @@ for (unsigned int k=3; k<7; ++k)
                      {
                      loc_eta_res[i] += loc_supg_mass_matrix[i][j]*coors_dot[3*j+2];
                      loc_phi_res[i] += loc_supg_mass_matrix[i][j]*phis_dot[j];
+                     //if (fabs(t<0.005)<1e-4) {cout<<cell<<" "<<i<<" "<<phis_dot[j]<<endl;}
                      loc_x_smooth_res[i] += loc_stiffness_matrix[i][j]*(x_displs[j]-(1-blend_factor)*comp_dom.old_map_points(3*local_dof_indices[j]));
                      loc_y_smooth_res[i] += loc_stiffness_matrix[i][j]*(y_displs[j]-(1-blend_factor)*comp_dom.old_map_points(3*local_dof_indices[j]+1));
                      }
-                 if ( !constraints.is_constrained(local_dof_indices[i]) )
+                 if ( !constraints.is_constrained(local_dof_indices[i]) &&
+                      !(comp_dom.flags[local_dof_indices[i]] & transom_on_water) )
                     {
                     unsigned int ii = local_dof_indices[i];
-                    if (comp_dom.flags[ii] & slave)
-                       {
-                       std::set<unsigned int> duplicates = comp_dom.double_nodes_set[ii];
-                       duplicates.erase(ii);
-                       ii = *duplicates.begin();
-                       }
                     eta_res[ii] += loc_eta_res[i].val();
                     phi_res[ii] += loc_phi_res[i].val();
                     for (unsigned int j=0;j<dofs_per_cell;++j)
@@ -4323,7 +4451,8 @@ for (unsigned int i=0; i<this->n_dofs(); ++i)
 for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
     {
     if ( (!constraints.is_constrained(i)) &&
-         (comp_dom.flags[i] & water) )
+         (comp_dom.flags[i] & water) &&
+         ( !(comp_dom.flags[i] & transom_on_water) ) )
        {
        jacobian_preconditioner_matrix.set(i+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs(),
                                           i+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs(),
@@ -4338,13 +4467,20 @@ for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
                                           1.0);
        //cout<<"   "<<i+comp_dom.vector_dh.n_dofs()<<endl;
        }
+    else if (comp_dom.flags[i] & transom_on_water)
+       {
+       jacobian_preconditioner_matrix.set(i+comp_dom.vector_dh.n_dofs(),
+                                          i+comp_dom.vector_dh.n_dofs(),
+                                          1.0);
+       //cout<<"   "<<i+comp_dom.vector_dh.n_dofs()<<endl;
+       }
     }
 
 
 
 cout<<"Building preconditioner"<<endl;
 /*
-if (fabs(t-0.9)<0.00001)
+//if (fabs(t-0.9)<0.00001)
 {
 for (unsigned int i=0; i<this->n_dofs(); ++i)
     for (SparsityPattern::iterator c=jacobian_sparsity_pattern.begin(i); c!=jacobian_sparsity_pattern.end(i); ++c)
@@ -4408,8 +4544,8 @@ Vector<double> & FreeSurface<dim>::differential_components()
                 }
              // all other edges have first and second algebraic components, third is differential
              else
-                {// this only when node is not a slave node of wake line, in such case it's algebraic
-                if (comp_dom.vector_flags[3*i] & slave)
+                {// this only when node is not a transom_on_water node, in such case it's algebraic
+                if (comp_dom.vector_flags[3*i] & transom_on_water)
                    {
                    for (unsigned int j=0; j<dim; ++j)
                        {
@@ -4452,8 +4588,8 @@ Vector<double> & FreeSurface<dim>::differential_components()
 	  {
           if (comp_dom.flags[i] & water)
              // if node is on free surface, component is differential
-             {// unless node is a slave node of wake line . then it's algebraic
-             if (comp_dom.vector_flags[3*i] & slave)
+             {// unless node is a transom_on_water node. then it's algebraic
+             if (comp_dom.flags[i] & transom_on_water)
                 {
                 sys_comp(i+comp_dom.vector_dh.n_dofs()) = 2;
                 diff_comp(i+comp_dom.vector_dh.n_dofs()) = 0;
@@ -4561,11 +4697,17 @@ Vector<double> & FreeSurface<dim>::differential_components()
       for (unsigned int i=0; i<dofs_per_cell; ++i)
           {
           unsigned int ii = local_dof_indices[i];
-          if (comp_dom.flags[ii] & slave)
+          if (comp_dom.flags[ii] & transom_on_water)
              {
              std::set<unsigned int> duplicates = comp_dom.double_nodes_set[ii];
-             duplicates.erase(ii);
-             ii = *duplicates.begin();
+             jacobian_sparsity_pattern.add(3*ii,3*ii);
+             jacobian_sparsity_pattern.add(3*ii+1,3*ii+1);
+             jacobian_sparsity_pattern.add(3*ii+2,3*ii+2);
+             for (std::set<unsigned int>::iterator pos = duplicates.begin(); pos!=duplicates.end();++pos)
+                 {
+                 unsigned int jj=*pos;
+                 jacobian_sparsity_pattern.add(ii+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs(),jj+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs());
+                 }
              }
           for (unsigned int j=0; j<dofs_per_cell; ++j)
               {
@@ -4684,19 +4826,6 @@ Vector<double> & FreeSurface<dim>::differential_components()
             }
          }
 
-       // finally this is to impose that the potential on slave side of 
-       // wake line equals that on master side
-       for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
-           {
-           if (comp_dom.flags[i] & slave)
-              {
-              std::set<unsigned int> duplicates = comp_dom.double_nodes_set[i];
-              duplicates.erase(i);
-              bem_phi(i) = bem_phi(*duplicates.begin());
-              jacobian_sparsity_pattern.add(i+comp_dom.vector_dh.n_dofs(),i+comp_dom.vector_dh.n_dofs());
-              jacobian_sparsity_pattern.add(i+comp_dom.vector_dh.n_dofs(),*duplicates.begin()+comp_dom.vector_dh.n_dofs());
-              }
-           }
 
   jacobian_sparsity_pattern.compress();
   jacobian_matrix.reinit(jacobian_sparsity_pattern);
@@ -4833,6 +4962,23 @@ void FreeSurface<dim>::prepare_bem_vectors(double time,
 
 	
 	 }
+
+      // trying a fix for transom stern nodes
+      Vector<double> wind_value(dim);
+      wind.vector_value(Point<3>(0.0,0.0,0.0),wind_value);
+      Point<dim> Vinf;
+      for (unsigned int i = 0; i < dim; i++)
+ 	   Vinf(i) = wind_value(i);
+      for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
+          {
+          if ( comp_dom.flags[i] & transom_on_water )
+             {
+	     comp_dom.surface_nodes(i) = 0;
+	     comp_dom.other_nodes(i) = 1;
+             bem_bc(i) = -comp_dom.node_normals[i]*Vinf;
+             dphi_dn(i) = bem_bc(i);
+             }
+          }   
 
 
 }
@@ -5369,7 +5515,7 @@ void FreeSurface<dim>::compute_pressure(Vector<double> & pressure,
    std::cout<<"Computing pressure... "<<std::endl;
 
    double g = 9.81;
-   double rho = 998.1;
+   double rho = 1025.1;
 
    comp_dom.update_support_points();
    pressure.reinit(comp_dom.dh.n_dofs());

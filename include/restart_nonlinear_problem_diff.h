@@ -41,6 +41,7 @@ public:
       {
       if ( (comp_dom.flags[i] & water) &&
            (comp_dom.flags[i] & near_boat) &&
+           !(comp_dom.flags[i] & transom_on_water) &&
            (comp_dom.moving_point_ids[3] != i) &&
            (comp_dom.moving_point_ids[4] != i) &&
            (comp_dom.moving_point_ids[5] != i) &&
@@ -63,7 +64,7 @@ public:
       {
       if ( (comp_dom.flags[i] & water) &&
            (comp_dom.flags[i] & near_boat)==0 &&
-           (comp_dom.flags[i] & slave)==0 &&
+           (comp_dom.flags[i] & transom_on_water)==0 &&
            (comp_dom.vector_constraints.is_constrained(3*i+2))==0 )
          {
          //cout<<"W "<<i<<" ("<<3*i+2<<")"<<endl;
@@ -76,8 +77,8 @@ public:
 	  {
           if (comp_dom.flags[i] & water)
              // if node is on free surface, component is differential
-             {// unless node is a slave node of wake line . then it's algebraic
-             if ( (comp_dom.vector_flags[3*i] & slave) ||
+             {// unless node is a transom_on_water node . then it's algebraic
+             if ( (comp_dom.vector_flags[3*i] & transom_on_water) ||
                   (comp_dom.vector_constraints.is_constrained(3*i)) )
                 {
                 }

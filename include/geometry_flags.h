@@ -44,9 +44,9 @@ enum GeometryFlags
 				    // Position characterization
     right_side                = 0x0400,
     left_side                 = 0x0800,   
-				    // master or slave
-    master                    = 0x1000,
-    slave                     = 0x2000   
+				    // transom on water or boat
+    transom_on_boat           = 0x1000,
+    transom_on_water          = 0x2000   
   };
 
 

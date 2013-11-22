@@ -27,21 +27,7 @@ int RestartNonlinearProblemDiff::residual(Vector<double> &dst,
       free_surf_y_dot(pos->first) = src_yy(pos->second);
       }
 
-  // we now inpose the hanging nodes constraints
-  //VectorView<double> nodes_velocities(comp_dom.vector_dh.n_dofs(),free_surf_y_dot.begin());
-  //comp_dom.vector_constraints.distribute((Vector<double>&)nodes_velocities);
 
-  // we now impose the constraints on the slave nodes
-  //  for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
-  //    {
-  //    if ( comp_dom.flags[i] & slave )
-  //       {
-  //       std::set<unsigned int> duplicates = comp_dom.vector_double_nodes_set[3*i+2];
-  //       duplicates.erase(3*i+2); 
-  //       for (std::set<unsigned int>::iterator pos = duplicates.begin(); pos !=duplicates.end(); pos++)
-  //           free_surf_y_dot(*pos) = free_surf_y_dot(3*i+2);
-  //       }
-  //    }
 
   // now we can call the residual funtion of free surface class
   free_surf_jac_x_delta=0;
