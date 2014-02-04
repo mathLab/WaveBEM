@@ -391,6 +391,8 @@ private:
     double last_remesh_time;
                               // working copy of the map points vector 
   Vector<double>  working_map_points;
+                              // working copy of the map points vector 
+  Vector<double>  working_nodes_velocities;
                               // vector for position residuals
   Vector<double>  nodes_pos_res;
                               // vector for geometric treatment residuals

@@ -251,6 +251,9 @@ void NumericalTowingTank::refine_and_resize()
        	     positions(3*i+j) = vector_support_points[3*i][j];
       }
 
+      remove_transom_hanging_nodes();
+
+
       min_diameter = 10000;
       Triangulation<2,3>::active_cell_iterator
       cell = tria.begin_active(), endc = tria.end();
@@ -1055,6 +1058,7 @@ void NumericalTowingTank::generate_double_nodes_set()
   iges_normals.clear();
   iges_mean_curvatures.clear();
   iges_normals.resize(dh.n_dofs());
+  old_iges_normals.resize(dh.n_dofs());
   iges_mean_curvatures.resize(dh.n_dofs());
   edges_tangents.reinit(vector_dh.n_dofs());
   edges_length_ratios.reinit(vector_dh.n_dofs());
@@ -1067,27 +1071,43 @@ void NumericalTowingTank::generate_double_nodes_set()
   normals_sparsity_pattern.compress();
   compute_normals_at_nodes(map_points);
   set_up_smoother();
-	//QUI UNIRE I NODI DELLA WAKE LINE
+
 /*
+// Let's put all the pressure quad nodes in memory
+  cell_it
+  cell = dh.begin_active(),
+  endc = dh.end();
+  FEValues<2,3> fe_v(*mapping, fe, *quadrature,
+	              update_values | update_gradients |
+		      update_cell_normal_vectors |
+		      update_quadrature_points |
+		      update_JxW_values);
 
-update_support_points();
+   const unsigned int n_q_points = fe_v.n_quadrature_points;
+   const unsigned int dofs_per_cell   = fe.dofs_per_cell;
+   std::vector<unsigned int> local_dof_indices (dofs_per_cell);
 
-for (unsigned int i=0;i<dh.n_dofs();++i)
-    {
-    if (boundary_dofs[0][3*i])
-       {
-       std::set<unsigned int> duplicates = vector_double_nodes_set[3*i];
-       for (std::set<unsigned int>::iterator pos = duplicates.begin(); pos !=duplicates.end(); pos++)
-           {
-           Point<3> p = ref_points[3*i];
-           for (unsigned int j=0; j<3; ++j)
-	       p(j)+= map_points(*pos+j);
-           cout<<3*i<<" ("<<*pos<<")   p("<<vector_support_points[3*i]<<")"<<"  ref("<<ref_points[3*i]<<")"<<endl;
-           }
-       }
-    }
+
+  for (; cell != endc; ++cell)    
+      {
+      if ((cell->material_id() == wall_sur_ID1 )) // right side of the boat
+         {
+         fe_v.reinit(cell);
+         const std::vector<Point<3> > &node_positions = fe_v.get_quadrature_points();
+         const std::vector<Point<dim> > &node_normals = fe_v.get_normal_vectors();
+         std::vector<Point<3> > proj_quad_nodes(n_q_points);
+         for (unsigned int q=0; q<n_q_points; ++q)
+             {
+             boat_model.boat_water_line_right->assigned_axis_projection_and_diff_forms(proj_quad_nodes[],
+                                                                                   iges_normals[i],
+                                                                                   iges_mean_curvatures[i],
+                                                                                   vector_support_points[3*i],
+                                                                                   node_normals[i]);  // for projection in mesh normal direction
+             }
+         }
+      }     
 */
-      
+
 }
 
   
@@ -2458,7 +2478,7 @@ distances*=-1;
 distances.add(map_points);
 
 compute_normals_at_nodes(smoothing_map_points);
-
+old_iges_normals = iges_normals;
 }
 
 
@@ -2512,6 +2532,8 @@ void NumericalTowingTank::perform_smoothing(bool full_treatment, const double bl
                 }
              }
           }
+
+
 
 }
 
@@ -2607,6 +2629,67 @@ void NumericalTowingTank::compute_constraints(ConstraintMatrix &cc) {
 }
 
 
+                                      // in the first layer of water cells past
+                                      // the transom there can't be hanging nodes:
+                                      // this method removes them
+void NumericalTowingTank::remove_transom_hanging_nodes()
+{
+cout<<"Removing hanging nodes from transom stern..."<<endl;
+
+cout<<"dofs before: "<<dh.n_dofs()<<endl;
+
+    unsigned int refinedCellCounter = 1;
+    unsigned int cycles_counter = 0;
+    while(refinedCellCounter)
+     {
+     refinedCellCounter = 0;
+     for (unsigned int i=0;i<dh.n_dofs();++i)
+         {
+         //if ((flags[i] & transom_on_water) )
+         if ((flags[i] & water) && (flags[i] & near_boat))
+            {
+            //cout<<i<<": "<<support_points[i]<<endl;
+            std::vector<cell_it>  cells = dof_to_elems[i];
+            for (unsigned int k=0; k<cells.size(); ++k)
+                {
+                //cout<<k<<":  "<<cells[k]<<"   ("<<cells[k]->center()<<")"<<endl;
+                for (unsigned int j=0; j<GeometryInfo<2>::faces_per_cell; ++j)
+                    {
+                    //cout<<"j: "<<j<<"  nb: "<<cells[k]->neighbor_index(j)<<"  ("<<endl;
+                    if (cells[k]->neighbor_index(j) != -1)
+                       if (cells[k]->neighbor(j)->at_boundary() && cells[k]->neighbor_is_coarser(j))
+                          {
+                          //cout<<"FOUND: "<<cells[k]->neighbor(j)<<" ("<<cells[k]->neighbor(j)->center()<<")"<<endl;
+                          cells[k]->neighbor(j)->set_refine_flag();
+                          refinedCellCounter++;
+                          }
+                    }
+                }
+            }
+         }
+
+     //cout<<"refinedCellCounter   "<<refinedCellCounter<<endl;
+     tria.execute_coarsening_and_refinement();
+     dh.distribute_dofs(fe);
+     vector_dh.distribute_dofs(vector_fe);  
+       
+     map_points.reinit(vector_dh.n_dofs());
+     smoothing_map_points.reinit(vector_dh.n_dofs());
+     old_map_points.reinit(vector_dh.n_dofs());
+     ref_points.resize(vector_dh.n_dofs());
+     DoFTools::map_dofs_to_support_points<2,3>(StaticMappingQ1<2,3>::mapping,
+					       vector_dh, ref_points);
+     generate_double_nodes_set();
+     make_edges_conformal();
+     make_edges_conformal();
+     full_mesh_treatment();
+     cycles_counter++;
+     } 
+
+cout<<"dofs after: "<<dh.n_dofs()<<endl;
+cout<<"...Done removing hanging nodes from transom stern"<<endl;
+}
+
 
 
                                       // this routine detects if mesh is not
@@ -2687,6 +2770,7 @@ double tol=1e-7;
 					          vector_dh, ref_points);
         generate_double_nodes_set();
         full_mesh_treatment();
+
 cout<<"dofs after: "<<dh.n_dofs()<<endl;
 cout<<"...Done restoring mesh conformity"<<endl;
 }

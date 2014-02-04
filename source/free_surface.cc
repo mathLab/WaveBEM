@@ -38,6 +38,8 @@
 #include "../include/restart_nonlinear_problem_alg.h"
 #include "newton_solver.h"
 
+#include <numerics/fe_field_function.h>
+
 #include <GeomPlate_BuildPlateSurface.hxx>
 #include <GeomPlate_PointConstraint.hxx>
 #include <GeomPlate_MakeApprox.hxx>
@@ -254,6 +256,7 @@ void FreeSurface<dim>::reinit() {
 
 
   working_map_points.reinit (comp_dom.vector_dh.n_dofs());
+  working_nodes_velocities.reinit(comp_dom.vector_dh.n_dofs());
   nodes_pos_res.reinit(comp_dom.vector_dh.n_dofs());
   nodes_ref_surf_dist.reinit(comp_dom.vector_dh.n_dofs());
   nodes_diff_jac_x_delta.reinit(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
@@ -562,7 +565,7 @@ void FreeSurface<dim>::output_step(Vector<double> & solution,
    ofstream waterLineFile;
    waterLineFile.open ((output_file_name+"_water_line.txt").c_str());
    for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
-       if ((comp_dom.flags[i] & water) && (comp_dom.flags[i] & near_boat))
+       if ((comp_dom.flags[i] & water) && (comp_dom.flags[i] & near_boat) && (!(comp_dom.flags[i] & transom_on_water)))
           waterLineFile<<comp_dom.support_points[i]<<endl;
    waterLineFile.close();
               
@@ -587,7 +590,7 @@ void FreeSurface<dim>::output_step(Vector<double> & solution,
    ofstream waterLineFile;
    waterLineFile.open ((output_file_name+"_water_line.txt").c_str());
    for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
-       if ((comp_dom.flags[i] & water) && (comp_dom.flags[i] & near_boat))
+       if ((comp_dom.flags[i] & water) && (comp_dom.flags[i] & near_boat) && (!(comp_dom.flags[i] & transom_on_water)))
           waterLineFile<<comp_dom.support_points[i]<<endl;
    waterLineFile.close();
               
@@ -673,7 +676,7 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
 //     if (t>4.5)
 //        comp_dom.n_cycles = 0;
 
-     if (t < 8.0)
+     if (t < 6.0)
          {
          VectorView<double> displacements_dot(vector_dh.n_dofs(), solution_dot.begin());
          KellyErrorEstimator<dim-1,dim>::estimate (vector_dh,
@@ -1012,6 +1015,7 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
       vector_sparsity_pattern.compress();
 
       working_map_points.reinit (comp_dom.vector_dh.n_dofs());
+      working_nodes_velocities.reinit(comp_dom.vector_dh.n_dofs());
       nodes_pos_res.reinit(comp_dom.vector_dh.n_dofs());
       nodes_ref_surf_dist.reinit(comp_dom.vector_dh.n_dofs());
       nodes_diff_jac_x_delta.reinit(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
@@ -1334,6 +1338,7 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
       //output_results(filename4, t, solution, solution_dot);
        nodes_ref_surf_dist = 0.0;
        comp_dom.evaluate_ref_surf_distances(nodes_ref_surf_dist,true);
+       differential_components();
        for (unsigned int i=0; i<comp_dom.vector_dh.n_dofs(); ++i)
            if ( (comp_dom.vector_flags[i] & boat) &&
                 !(comp_dom.vector_flags[i] & near_water) )
@@ -1605,7 +1610,8 @@ std::cout<<"Restoring mesh conformity..."<<std::endl;
       DoFTools::make_sparsity_pattern (vector_dh, vector_sparsity_pattern, vector_constraints);
       vector_sparsity_pattern.compress();
 
-      working_map_points.reinit (comp_dom.vector_dh.n_dofs());
+      working_map_points.reinit(comp_dom.vector_dh.n_dofs());
+      working_nodes_velocities.reinit(comp_dom.vector_dh.n_dofs());
       nodes_pos_res.reinit(comp_dom.vector_dh.n_dofs());
       nodes_ref_surf_dist.reinit(comp_dom.vector_dh.n_dofs());
       nodes_diff_jac_x_delta.reinit(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
@@ -1852,15 +1858,41 @@ setup_jacobian_prec(t,y,yp,0.0);
             {//cout<<"**** "<<i<<endl;
             Point<3> proj_node;
             double iges_curvature;
-            comp_dom.boat_model.boat_water_line_right->axis_projection_and_diff_forms(proj_node,
-                                                                                      comp_dom.iges_normals[i],
-                                                                                      iges_curvature,
-                                                                                      comp_dom.support_points[i]);  // y axis projection
-            working_map_points(3*i) = comp_dom.old_map_points(3*i); // x of the node must not change
-            working_map_points(3*i+1) = proj_node(1) - comp_dom.ref_points[3*i](1);            
+            Point<3> direction(comp_dom.iges_normals[i](0),comp_dom.iges_normals[i](1),0.0);
+            //cout<<3*i+1<<"   "<<comp_dom.support_points[i]<<"   ("<<comp_dom.iges_normals[i]<<")"<<endl;
+            if (fabs(comp_dom.old_iges_normals[i](0))<sqrt(3)/3*fabs(comp_dom.old_iges_normals[i](1)))
+               direction(0) = 0.0;
+            else
+               direction(1) = 0.0;
+            //if (fabs(comp_dom.old_iges_normals[i](0)) > 1e-3)
+               //cout<<3*i<<"  dir:    ("<<direction<<")   |    n_i("<<comp_dom.old_iges_normals[i]<<")"<<endl;
+            comp_dom.boat_model.boat_water_line_right->assigned_axis_projection_and_diff_forms(proj_node,
+                                                                                               comp_dom.iges_normals[i],
+                                                                                               comp_dom.iges_mean_curvatures[i],
+                                                                                               comp_dom.support_points[i],
+                                                                                               direction);  // hor normal dir projection
+            //comp_dom.boat_model.boat_water_line_right->axis_projection_and_diff_forms(proj_node,
+            //                                                                          comp_dom.iges_normals[i],
+            //                                                                          iges_curvature,
+            //                                                                          comp_dom.support_points[i]);  // y axis projection
+            //working_map_points(3*i) = comp_dom.old_map_points(3*i); // x of the node must not change
+            if (fabs(comp_dom.old_iges_normals[i](0))<sqrt(3)/3*fabs(comp_dom.old_iges_normals[i](1)))
+               {
+               working_map_points(3*i) = comp_dom.old_map_points(3*i); // x of the node must not change
+               working_map_points(3*i+1) = proj_node(1) - comp_dom.ref_points[3*i](1);
+               }
+            else
+               {
+               working_map_points(3*i) = proj_node(0) - comp_dom.ref_points[3*i](0);
+               working_map_points(3*i+1) = comp_dom.old_map_points(3*i+1); // y of the node must not change
+               }            
             working_map_points(3*i+2) = proj_node(2) - comp_dom.ref_points[3*i](2);
             //cout<<3*i+1<<"   "<<working_map_points(3*i+1)-comp_dom.map_points(3*i+1)<<"   ("<<iges_normal<<")"<<endl;
-            //out<<i<<"   "<<proj_node<<"   ("<<comp_dom.support_points[i]<<")"<<endl;
+            //if (fabs(comp_dom.old_iges_normals[i](0))>sqrt(3)/3*fabs(comp_dom.old_iges_normals[i](1)))
+            //   {
+            //   cout<<i<<"   "<<proj_node<<"   ("<<comp_dom.support_points[i]<<")"<<endl;
+            //   cout<<direction<<" | "<<working_map_points(3*i)<<" "<<working_map_points(3*i+1)<<endl;
+            //   }
             }              
          }
 
@@ -1878,15 +1910,40 @@ setup_jacobian_prec(t,y,yp,0.0);
             {//cout<<"**** "<<i<<endl;
             Point<3> proj_node;
             double iges_curvature;
-            comp_dom.boat_model.boat_water_line_left->axis_projection_and_diff_forms(proj_node,
-                                                                                     comp_dom.iges_normals[i],
-                                                                                     iges_curvature,
-                                                                                     comp_dom.support_points[i]);  // y axis projection
-            working_map_points(3*i) = comp_dom.old_map_points(3*i); // x of the node must not change
-            working_map_points(3*i+1) = proj_node(1) - comp_dom.ref_points[3*i](1);            
+            Point<3> direction(comp_dom.iges_normals[i](0),comp_dom.iges_normals[i](1),0.0);
+            if (fabs(comp_dom.old_iges_normals[i](0))<sqrt(3)/3*fabs(comp_dom.old_iges_normals[i](1)))
+               direction(0) = 0.0;
+            else
+               direction(1) = 0.0;
+            //if (fabs(comp_dom.iges_normals[i](0))<0.001)
+            //   cout<<3*i<<"  dir:    ("<<direction<<")"<<endl;
+            comp_dom.boat_model.boat_water_line_left->assigned_axis_projection_and_diff_forms(proj_node,
+                                                                                              comp_dom.iges_normals[i],
+                                                                                              comp_dom.iges_mean_curvatures[i],
+                                                                                              comp_dom.support_points[i],
+                                                                                              direction);  // hor normal dir projection
+            //comp_dom.boat_model.boat_water_line_left->axis_projection_and_diff_forms(proj_node,
+            //                                                                         comp_dom.iges_normals[i],
+            //                                                                         iges_curvature,
+            //                                                                         comp_dom.support_points[i]);  // y axis projection
+            //working_map_points(3*i) = comp_dom.old_map_points(3*i); // x of the node must not change
+            if (fabs(comp_dom.old_iges_normals[i](0))<sqrt(3)/3*fabs(comp_dom.old_iges_normals[i](1)))
+               {
+               working_map_points(3*i) = comp_dom.old_map_points(3*i); // x of the node must not change
+               working_map_points(3*i+1) = proj_node(1) - comp_dom.ref_points[3*i](1);
+               }
+            else
+               {
+               working_map_points(3*i) = proj_node(0) - comp_dom.ref_points[3*i](0);
+               working_map_points(3*i+1) = comp_dom.old_map_points(3*i+1); // y of the node must not change
+               }            
             working_map_points(3*i+2) = proj_node(2) - comp_dom.ref_points[3*i](2);
             //cout<<i<<"   "<<temp_src(3*i+1)<<"   ("<<comp_dom.iges_normals[i]<<")"<<endl;
-            //cout<<i<<"   "<<proj_node<<"   ("<<comp_dom.support_points[i]<<")"<<endl;
+            //if (fabs(comp_dom.old_iges_normals[i](0))>sqrt(3)/3*fabs(comp_dom.old_iges_normals[i](1)))
+            //   {
+            //   cout<<i<<"   "<<proj_node<<"   ("<<comp_dom.support_points[i]<<")"<<endl;
+            //   cout<<direction<<" | "<<working_map_points(3*i)<<" "<<working_map_points(3*i+1)<<endl;
+            //   }
             }              
          }
 
@@ -3046,12 +3103,7 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
     //   output_results(filename1, t, src_yy, src_yp);
     //   }
 //*/
-    bool new_time_step = false;
-    if (t != old_time) 
-    {
-    old_time = t;
-    new_time_step = true;        
-    }
+
 
 
   const VectorView<double> nodes_positions(comp_dom.vector_dh.n_dofs(),src_yy.begin());
@@ -3063,7 +3115,13 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
   //for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
   //       cout<<3*i<<" "<<nodes_velocities(3*i)<<" "<<nodes_velocities(3*i+1)<<" "<<nodes_velocities(3*i+2)<<endl;
 
-
+    bool new_time_step = false;
+    if (t != old_time) 
+    {
+    old_time = t;
+    new_time_step = true;      
+    }
+ 
 
 
   // TO BE REMOVED
@@ -3220,26 +3278,50 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
             Point<3> proj_node;
             Point<3> iges_normal;
             double iges_curvature;
-            //Point<3> direction(comp_dom.iges_normals[i](0),comp_dom.iges_normals[i](1),0.0);
-            //cout<<3*i+1<<"   "<<comp_dom.support_points[i]<<"   ("<<comp_dom.iges_normals[i]<<")"<<endl;
-            //comp_dom.boat_model.boat_water_line_right->assigned_axis_projection_and_diff_forms(proj_node,
-            //                                                                                   comp_dom.iges_normals[i],
-            //                                                                                   comp_dom.iges_mean_curvatures[i],
-            //                                                                                   comp_dom.support_points[i],
-            //                                                                                   direction);  // hor normal dir projection
-            comp_dom.boat_model.boat_water_line_right->axis_projection_and_diff_forms(proj_node,
-                                                                                      comp_dom.iges_normals[i],
-                                                                                      comp_dom.iges_mean_curvatures[i],
-                                                                                      comp_dom.support_points[i]);  // y axis projection
-            working_map_points(3*i) = comp_dom.old_map_points(3*i); // x of the node must not change
-            //working_map_points(3*i) = proj_node(0) - comp_dom.ref_points[3*i](0);
-            working_map_points(3*i+1) = proj_node(1) - comp_dom.ref_points[3*i](1);            
+            Point<3> direction(comp_dom.iges_normals[i](0),comp_dom.iges_normals[i](1),0.0);
+            //if (fabs(comp_dom.old_iges_normals[i](0)) > 0.001)
+            //   cout<<3*i+1<<"   "<<comp_dom.support_points[i]<<"   ("<<comp_dom.old_iges_normals[i]<<")"<<endl;
+            if (fabs(comp_dom.old_iges_normals[i](0))<sqrt(3)/3*fabs(comp_dom.old_iges_normals[i](1)))
+               direction(0) = 0.0;
+            else
+               direction(1) = 0.0;
+            //if (fabs(comp_dom.iges_normals[i](0))<0.001)
+            //   cout<<3*i<<"  dir:    ("<<direction<<")"<<endl;
+            comp_dom.boat_model.boat_water_line_right->assigned_axis_projection_and_diff_forms(proj_node,
+                                                                                               comp_dom.iges_normals[i],
+                                                                                               comp_dom.iges_mean_curvatures[i],
+                                                                                               comp_dom.support_points[i],
+                                                                                               direction);  // hor normal dir projection
+            //comp_dom.boat_model.boat_water_line_right->axis_projection_and_diff_forms(proj_node,
+            //                                                                          comp_dom.iges_normals[i],
+            //                                                                          comp_dom.iges_mean_curvatures[i],
+            //                                                                          comp_dom.support_points[i]);  // y axis projection
+            if (fabs(comp_dom.old_iges_normals[i](0))<sqrt(3)/3*fabs(comp_dom.old_iges_normals[i](1)))
+               {
+               working_map_points(3*i) = comp_dom.old_map_points(3*i); // x of the node must not change
+               working_map_points(3*i+1) = proj_node(1) - comp_dom.ref_points[3*i](1);
+               }
+            else
+               {
+               working_map_points(3*i) = proj_node(0) - comp_dom.ref_points[3*i](0);
+               working_map_points(3*i+1) = comp_dom.old_map_points(3*i+1); // y of the node must not change
+               }            
             working_map_points(3*i+2) = proj_node(2) - comp_dom.ref_points[3*i](2);
 
-            jacobian_matrix.add(3*i,3*i,1.0); 
-            jacobian_matrix.add(3*i+1,3*i+1,1.0);
-            jacobian_matrix.add(3*i+1,3*i+2,comp_dom.iges_normals[i](2)/comp_dom.iges_normals[i](1));
-            jacobian_matrix.add(3*i+1,3*i,comp_dom.iges_normals[i](0)/comp_dom.iges_normals[i](1));
+            if (fabs(comp_dom.old_iges_normals[i](0))<sqrt(3)/3*fabs(comp_dom.old_iges_normals[i](1)))
+               {
+               jacobian_matrix.add(3*i,3*i,1.0);
+               jacobian_matrix.add(3*i+1,3*i+1,1.0);
+               jacobian_matrix.add(3*i+1,3*i+2,comp_dom.iges_normals[i](2)/comp_dom.iges_normals[i](1));
+               jacobian_matrix.add(3*i+1,3*i,comp_dom.iges_normals[i](0)/comp_dom.iges_normals[i](1));
+               }
+            else
+               {
+               jacobian_matrix.add(3*i,3*i,1.0); 
+               jacobian_matrix.add(3*i,3*i+2,comp_dom.iges_normals[i](2)/comp_dom.iges_normals[i](0));
+               jacobian_matrix.add(3*i,3*i+1,comp_dom.iges_normals[i](1)/comp_dom.iges_normals[i](0));
+               jacobian_matrix.add(3*i+1,3*i+1,1.0);
+               }
             //cout<<3*i+1<<"   "<<working_map_points(3*i+1)-comp_dom.map_points(3*i+1)<<"   ("<<iges_normal<<")"<<endl;
 
                         // we're doing this thing on the water side, but the iges_normal and iges_mean curvature belong to the boat side
@@ -3267,25 +3349,46 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
             Point<3> proj_node;
             Point<3> iges_normal;
             double iges_curvature;
-            //Point<3> direction(comp_dom.iges_normals[i](0),comp_dom.iges_normals[i](1),0.0);
-            //comp_dom.boat_model.boat_water_line_left->assigned_axis_projection_and_diff_forms(proj_node,
-            //                                                                                  comp_dom.iges_normals[i],
-            //                                                                                  comp_dom.iges_mean_curvatures[i],
-            //                                                                                  comp_dom.support_points[i],
-            //                                                                                  direction);  // hor normal dir projection
-            comp_dom.boat_model.boat_water_line_left->axis_projection_and_diff_forms(proj_node,
-                                                                                     comp_dom.iges_normals[i],
-                                                                                     comp_dom.iges_mean_curvatures[i],
-                                                                                     comp_dom.support_points[i]);  // y axis projection
-            working_map_points(3*i) = comp_dom.old_map_points(3*i); // x of the node must not change
-            //working_map_points(3*i) = proj_node(0) - comp_dom.ref_points[3*i](0);      
-            working_map_points(3*i+1) = proj_node(1) - comp_dom.ref_points[3*i](1);            
+            Point<3> direction(comp_dom.iges_normals[i](0),comp_dom.iges_normals[i](1),0.0);
+            if (fabs(comp_dom.old_iges_normals[i](0))<sqrt(3)/3*fabs(comp_dom.old_iges_normals[i](1)))
+               direction(0) = 0.0;
+            else
+               direction(1) = 0.0;
+            comp_dom.boat_model.boat_water_line_left->assigned_axis_projection_and_diff_forms(proj_node,
+                                                                                              comp_dom.iges_normals[i],
+                                                                                              comp_dom.iges_mean_curvatures[i],
+                                                                                              comp_dom.support_points[i],
+                                                                                              direction);  // hor normal dir projection
+            //comp_dom.boat_model.boat_water_line_left->axis_projection_and_diff_forms(proj_node,
+            //                                                                         comp_dom.iges_normals[i],
+            //                                                                         comp_dom.iges_mean_curvatures[i],
+            //                                                                         comp_dom.support_points[i]);  // y axis projection
+            if (fabs(comp_dom.old_iges_normals[i](0))<sqrt(3)/3*fabs(comp_dom.old_iges_normals[i](1)))
+               {
+               working_map_points(3*i) = comp_dom.old_map_points(3*i); // x of the node must not change
+               working_map_points(3*i+1) = proj_node(1) - comp_dom.ref_points[3*i](1);
+               }
+            else
+               {
+               working_map_points(3*i) = proj_node(0) - comp_dom.ref_points[3*i](0);
+               working_map_points(3*i+1) = comp_dom.old_map_points(3*i+1); // y of the node must not change
+               }            
             working_map_points(3*i+2) = proj_node(2) - comp_dom.ref_points[3*i](2);
 
-            jacobian_matrix.add(3*i,3*i,1.0); 
-            jacobian_matrix.add(3*i+1,3*i+1,1.0);
-            jacobian_matrix.add(3*i+1,3*i+2,comp_dom.iges_normals[i](2)/comp_dom.iges_normals[i](1));
-            jacobian_matrix.add(3*i+1,3*i,comp_dom.iges_normals[i](0)/comp_dom.iges_normals[i](1));
+            if (fabs(comp_dom.old_iges_normals[i](0))<sqrt(3)/3*fabs(comp_dom.old_iges_normals[i](1)))
+               {
+               jacobian_matrix.add(3*i,3*i,1.0);
+               jacobian_matrix.add(3*i+1,3*i+1,1.0);
+               jacobian_matrix.add(3*i+1,3*i+2,comp_dom.iges_normals[i](2)/comp_dom.iges_normals[i](1));
+               jacobian_matrix.add(3*i+1,3*i,comp_dom.iges_normals[i](0)/comp_dom.iges_normals[i](1));
+               }
+            else
+               {
+               jacobian_matrix.add(3*i,3*i,1.0); 
+               jacobian_matrix.add(3*i,3*i+2,comp_dom.iges_normals[i](2)/comp_dom.iges_normals[i](0));
+               jacobian_matrix.add(3*i,3*i+1,comp_dom.iges_normals[i](1)/comp_dom.iges_normals[i](0));
+               jacobian_matrix.add(3*i+1,3*i+1,1.0);
+               }
             //cout<<i<<"   "<<temp_src(3*i+1)<<"   ("<<comp_dom.iges_normals[i]<<")"<<endl;
 
             // we're doing this thing on the water side, but the iges_normal and iges_mean curvature belong to the boat side
@@ -4166,7 +4269,7 @@ for (unsigned int i=0; i<this->n_dofs(); ++i)
 */
 
 
-
+/*
      SparseMatrix<double> DphiDt_sys_matrix_copy;
      DphiDt_sys_matrix_copy.reinit(DphiDt_sparsity_pattern);
      DphiDt_sys_matrix_copy.copy_from(DphiDt_sys_matrix);
@@ -4211,7 +4314,7 @@ for (unsigned int i=0; i<this->n_dofs(); ++i)
      //    if (constraints.is_constrained(i) == 0)
      //       cout<<"*eta_dot("<<i<<") "<<DphiDt_sys_solution_2(i)<<"   res("<<i<<") "<<RES(i)<<"  eta_res("<<i<<") "<<eta_res[i]<<endl;
      //    }
-
+*/
 
 /*
      SparseDirectUMFPACK DphiDt_direct;
@@ -4273,7 +4376,8 @@ for (unsigned int i=0; i<this->n_dofs(); ++i)
 	  case 0:
 					       // Alg. X
 	         dst(i) = nodes_pos_res(i);
-                 //std::cout<<"i --> "<<i<<" (0) "<<dst(i)<<" "<<comp_dom.vector_support_points[i]<<std::endl;
+                 //if (fabs(dst(i)) > 1e-4)
+                 //   std::cout<<"i --> "<<i<<" (0) "<<dst(i)<<" "<<comp_dom.vector_support_points[i]<<std::endl;
                  residual_counter_0 += fabs(dst(i)*dst(i));
 	         break;
 	  case 1:
@@ -4339,7 +4443,7 @@ for (unsigned int i=0; i<this->n_dofs(); ++i)
      std::cout << "Current algebraic potential normal gradient bem residual: " << sqrt(residual_counter_7) << std::endl;
      std::cout << "Current algebraic free surface coords x residual: " << sqrt(residual_counter_8) << std::endl;
      std::cout << "Current algebraic free surface coords y residual: " << sqrt(residual_counter_9) << std::endl;
-
+    
      static unsigned int res_evals = 0;
      res_evals++;
      std::cout << "Residual evaluations: " << res_evals << std::endl;
@@ -4514,9 +4618,12 @@ Vector<double> & FreeSurface<dim>::differential_components()
                                        // 1: X differential (vertical non constrained free surface coors) 
 				       // 2: phi algebraic (on neumann boundaries, non constrained nodes)
                                        // 3: phi differential (non constrained nodes on dirichlet boundaries / free surface)
-				       // 4: dphi/dn algebraic (non constrained nodes)
+				       // 4: dphi/dn algebraic on water coming from BEM solution (non constrained nodes)
                                        // 5: dphi/dn algebraic (constrained nodes)
                                        // 6: phi algebraic (on constrained nodes)
+                                       // 7: dphi/dn on boat coming from L2 projection
+                                       // 8: X algebraic coming from x position smoothing
+                                       // 9: X algebraic coming from y position smoothing 
       
       //let's start with the nodes positions dofs
       for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
@@ -4582,6 +4689,7 @@ Vector<double> & FreeSurface<dim>::differential_components()
                  }
              }
           }
+
 
       // let's take care of the potential dofs
       for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
@@ -4788,7 +4896,9 @@ Vector<double> & FreeSurface<dim>::differential_components()
               (comp_dom.moving_point_ids[2] != i) ) // to avoid the bow and stern node
             {//cout<<"**** "<<i<<endl;
 
-            jacobian_sparsity_pattern.add(3*i,3*i); 
+            jacobian_sparsity_pattern.add(3*i,3*i);
+            jacobian_sparsity_pattern.add(3*i,3*i+1);
+            jacobian_sparsity_pattern.add(3*i,3*i+2);
             jacobian_sparsity_pattern.add(3*i+1,3*i+1);
             jacobian_sparsity_pattern.add(3*i+1,3*i+2);
             jacobian_sparsity_pattern.add(3*i+1,3*i);
@@ -6220,6 +6330,30 @@ void FreeSurface<dim>::compute_pressure(Vector<double> & pressure,
   std::cout<<"Transom Pressure Force: "<<transom_press_force<<std::endl;
   std::cout<<"Viscous Force: "<<visc_force<<std::endl;
   std::cout<<"Wet Surface: "<<wet_surface<<"   Transom Wet Surface: "<<transom_wet_surface<<" ("<<ref_transom_wet_surface<<")"<<std::endl;
+
+/*
+// test of drag computation from control box momentum balance
+  Vector<double> x_coors(comp_dom.dh.n_dofs());
+  Vector<double> y_coors(comp_dom.dh.n_dofs());
+  Vector<double> z_coors(comp_dom.dh.n_dofs());  
+  for (unsigned int i=0; i<comp_dom.dh.n_dofs(); i++)
+      {
+      x_coors(i) = comp_dom.support_points[i](0);
+      y_coors(i) = comp_dom.support_points[i](1);
+      z_coors(i) = comp_dom.support_points[i](2);
+      }
+
+  dealii::Functions::FEFieldFunction<3,DoFHandler<2,3>, Vector <double> > fe_function(comp_dom.dh, x_coors, *comp_dom.mapping);
+  
+//void Functions::FEFieldFunction< dim, DH, VECTOR >::value_list	(	const std::vector< Point< dim > > & 	points,
+//std::vector< double > & 	values,
+//const unsigned int 	component = 0 
+//)		 const
+*/
+
+
+
+
 
 	 
   std::cout<<"...done computing pressure: "<<std::endl;
