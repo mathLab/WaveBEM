@@ -185,6 +185,11 @@ class NumericalTowingTank : public ComputationalDomain<3>
                                       // refinements until all aspect ratios are below 1.5
     void remove_mesh_anisotropy(Triangulation<2,3> &tria);
 
+                                      // in the first layer of water cells past
+                                      // the transom there can't be hanging nodes:
+                                      // this method removes them
+    void remove_transom_hanging_nodes();
+
                                       // this routine finds the index of the vector point p
     unsigned int find_point_id(const Point<3> &p, const std::vector<Point<3> > &ps);
                                       // method to get the ids of all dofs lying on a boundary
@@ -254,6 +259,10 @@ std::vector<GeometryFlags> vector_flags;
  				   // vector containing the normals on boat nodes
                                    // zero vectors on other nodes
 std::vector< Point<3> > iges_normals;
+ 				   // vector containing the normals on boat nodes
+                                   // zero vectors on other nodes, but referred to
+                                   // grid after remesh
+std::vector< Point<3> > old_iges_normals;
  				   // vector containing the mean curvatures on boat
                                    // nodes, and zeros on other nodes
 std::vector<double> iges_mean_curvatures;
@@ -284,10 +293,8 @@ Vector<double> smoothing_curvature_vector;
                                    // vector containing the euler vector for smoothing (always initialized
                                    // as a copy of map_points)
 Vector<double> smoothing_map_points;
-                                   // vector containing the euler vector at the beginning of the time
-                                   // step
+                                   // vector containing the euler vector obtained right after each restart
 Vector<double> old_map_points;
-
                                    // x domain dimension
 double Lx_domain;
                                    // y domain dimension

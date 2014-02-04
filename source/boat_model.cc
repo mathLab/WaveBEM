@@ -77,6 +77,12 @@
 #include <GeomLProp_SLProps.hxx>
 #include <BRepTools_ReShape.hxx>
 #include <BRepBuilderAPI_MakePolygon.hxx>
+#include <BRepBuilderAPI_NurbsConvert.hxx>
+#include <BRepLib_FindSurface.hxx>
+#include <TColStd_Array1OfReal.hxx>
+#include <TColStd_Array1OfInteger.hxx>
+#include <GeomConvert.hxx>
+#include <Geom_BSplineSurface.hxx>
 
 #include <deal.II/grid/grid_reordering.h>
 #include <deal.II/grid/grid_tools.h>
@@ -286,7 +292,7 @@ void BoatModel::start_iges_model(std::string igesFileName,
      Point<3> hs_force = compute_hydrostatic_force(0.0);
                                    //now the boat is in the correct position 
 // These lines can be used to dump the keel edge (or other shapes) on an .igs file
-
+/*
 IGESControl_Controller::Init();
 IGESControl_Writer ICW ("MM", 0);
 Standard_Boolean ok = ICW.AddShape (sh);
@@ -309,13 +315,13 @@ Standard_Boolean OK = ICW.Write ("shape.igs");
 
 
 // These lines can be used to dump the keel edge (or other shapes) on an .igs file
-/*
+
 IGESControl_Controller::Init();
 IGESControl_Writer ICW ("MM", 0);
-Standard_Boolean ok = ICW.AddShape (keel_edge);
+Standard_Boolean ok = ICW.AddShape (right_transom_edge);
 ICW.ComputeModel();
-Standard_Boolean OK = ICW.Write ("keel.igs");
-*/
+Standard_Boolean OK = ICW.Write ("transom.igs");
+//*/
 				   //here we extract the undisturbed right water line from
                                    //the hull shape
   intersect_plane(sh,right_undist_water_line,0.0,0.0,1.0,0.0,1e-2); // 1e-2 tolerance for comacina
@@ -607,6 +613,60 @@ Point<3> BoatModel::compute_hydrostatic_force(const double &sink)
               wet_surface += jacobian*ref_fe_v.JxW(i);
            //cout<<"q("<<Pnt(q)<<")  p:"<<(rho*g*fmax(z_zero-q.Z(),0.0))<<"  n("<<Normal<<")"<<endl;
            }
+/*
+       // LUCA, HERE I PLACED THE PART WHERE I DEFINE THE TRIANGULATION WITH THE BSPLINE SURFACE KNOTS
+       Triangulation<2,2> bspline_triangulation;
+
+       std::vector<Point<2> > bspline_vertices;
+       std::vector<CellData<2> > bspline_cells;
+       SubCellData bspline_subcelldata;
+cout<<"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"<<endl;
+       //BRepBuilderAPI_NurbsConvert nurbs_surf(face);
+cout<<"EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE"<<endl;
+       //Handle(Geom_Surface) geom_nurbs_surf = BRepLib_FindSurface(nurbs_surf.Shape()).Surface();
+       Handle(Geom_Surface) geom_nurbs_surf = BRep_Tool::Surface(face);
+       Handle(Geom_BSplineSurface) bspline_surface = GeomConvert::SurfaceToBSplineSurface(geom_nurbs_surf);
+cout<<"IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII"<<endl;
+       // Set knots and multiplicities
+       TColStd_Array1OfReal UK(1, bspline_surface->NbUKnots());
+       TColStd_Array1OfInteger UM(1, bspline_surface->NbUKnots());
+       TColStd_Array1OfReal VK(1, bspline_surface->NbVKnots());
+       TColStd_Array1OfInteger VM(1, bspline_surface->NbVKnots());       
+cout<<"OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO"<<endl;
+       // Get all ingredients
+       bspline_surface->UKnots(UK);
+       bspline_surface->UMultiplicities(UM);
+       bspline_surface->VKnots(VK);
+       bspline_surface->VMultiplicities(VM);
+       int UDegree = bspline_surface->UDegree();
+       bool UPeriodic = bspline_surface->IsUPeriodic();
+       int VDegree = bspline_surface->VDegree();
+       bool VPeriodic = bspline_surface->IsVPeriodic();
+cout<<"UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU"<<endl;
+       for (int i=0; i<bspline_surface->NbUKnots(); ++i)
+           {
+           cout<<"UK("<<i<<")= "<<UK(i+1)<<"  U Multiplicity "<<UM(i+1)<<endl;
+           }
+      for (int i=0; i<bspline_surface->NbVKnots(); ++i)
+           {
+           cout<<"VK("<<i<<")= "<<VK(i+1)<<"  V Multiplicity "<<VM(i+1)<<endl;
+           } 
+*/
+/*
+       ref_vertices.resize(4);
+       ref_vertices[0](0)=umin; ref_vertices[0](1)=vmin;
+       ref_vertices[1](0)=umax; ref_vertices[1](1)=vmin;
+       ref_vertices[2](0)=umin; ref_vertices[2](1)=vmax;
+       ref_vertices[3](0)=umax; ref_vertices[3](1)=vmax;
+
+       ref_cells.resize(1);
+
+       ref_cells[0].vertices[0]=0; ref_cells[0].vertices[1]=1; ref_cells[0].vertices[2]=3; ref_cells[0].vertices[3]=2;
+       ref_cells[0].material_id = 1;
+*/
+
+
+
 
        //GeomLProp_SLProps props(surf, (umin+umax)/2.0, (vmin+vmax)/2.0, 1, 0.01);          // get surface normal
        //gp_Dir norm=props.Normal();   
@@ -747,7 +807,7 @@ Point<3> BoatModel::compute_hydrostatic_moment(const double &sink)
 
        ref_triangulation.create_triangulation_compatibility(ref_vertices, ref_cells, ref_subcelldata );
 
-       // with this triangulation we create a and a FE and a FEValues (the jacobian will account for
+       // with this triangulation we create a DH and a FE and a FEValues (the jacobian will account for
        // transformation from [0,1]x[0,1] to [umin,umax]x[vmin,vmax], we'll have to add the other part)
 
        FE_Q<2,2> fe(1);
@@ -782,6 +842,8 @@ Point<3> BoatModel::compute_hydrostatic_moment(const double &sink)
            hydrostatic_moment += (rho*g*fmax(z_zero-q.Z(),0.0))*Kross*jacobian*ref_fe_v.JxW(i);
            //cout<<"q("<<Pnt(q)<<")  p:"<<(rho*g*fmax(z_zero-q.Z(),0.0))<<"  n("<<Normal<<")"<<endl;
            }
+       
+
 
        //GeomLProp_SLProps props(surf, (umin+umax)/2.0, (vmin+vmax)/2.0, 1, 0.01);          // get surface normal
        //gp_Dir norm=props.Normal();   
