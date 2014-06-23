@@ -239,8 +239,8 @@ void NumericalTowingTank::refine_and_resize()
       DoFTools::map_dofs_to_support_points<2,3>(StaticMappingQ1<2,3>::mapping,
 					        vector_dh, ref_points);
       generate_double_nodes_set();
-      make_edges_conformal();
-      make_edges_conformal();
+      make_edges_conformal(true);
+      make_edges_conformal(true);
       full_mesh_treatment();
 
       update_support_points();
@@ -2638,15 +2638,15 @@ cout<<"Removing hanging nodes from transom stern..."<<endl;
 
 cout<<"dofs before: "<<dh.n_dofs()<<endl;
 
-    unsigned int refinedCellCounter = 1;
+    unsigned int refinedCellCounter = 0;
     unsigned int cycles_counter = 0;
     while(refinedCellCounter)
      {
      refinedCellCounter = 0;
      for (unsigned int i=0;i<dh.n_dofs();++i)
          {
-         //if ((flags[i] & transom_on_water) )
-         if ((flags[i] & water) && (flags[i] & near_boat))
+         if ((flags[i] & transom_on_water) )
+         //if ((flags[i] & water) && (flags[i] & near_boat))
             {
             //cout<<i<<": "<<support_points[i]<<endl;
             std::vector<cell_it>  cells = dof_to_elems[i];
@@ -2662,9 +2662,16 @@ cout<<"dofs before: "<<dh.n_dofs()<<endl;
                           //cout<<"FOUND: "<<cells[k]->neighbor(j)<<" ("<<cells[k]->neighbor(j)->center()<<")"<<endl;
                           cells[k]->neighbor(j)->set_refine_flag();
                           refinedCellCounter++;
+                          //cout<<"Cycle: "<<cycles_counter<<"  Refined Cells: "<<refinedCellCounter<<endl;
                           }
                     }
                 }
+            }
+         cycles_counter++;
+         if (cycles_counter > 20)
+            {
+            cout<<"Warning! Maximum number of transom stern edge uniforming cycles reached!"<<endl;
+            break;
             }
          }
 
@@ -2680,12 +2687,12 @@ cout<<"dofs before: "<<dh.n_dofs()<<endl;
      DoFTools::map_dofs_to_support_points<2,3>(StaticMappingQ1<2,3>::mapping,
 					       vector_dh, ref_points);
      generate_double_nodes_set();
-     make_edges_conformal();
-     make_edges_conformal();
+     make_edges_conformal(true);
+     make_edges_conformal(true);
      full_mesh_treatment();
      cycles_counter++;
      } 
-
+//*/
 cout<<"dofs after: "<<dh.n_dofs()<<endl;
 cout<<"...Done removing hanging nodes from transom stern"<<endl;
 }
@@ -2696,7 +2703,7 @@ cout<<"...Done removing hanging nodes from transom stern"<<endl;
                                       // conformal at edges (because of double
                                       // nodes) and makes the refinements needed
                                       // to make it conformal
-void NumericalTowingTank::make_edges_conformal()
+void NumericalTowingTank::make_edges_conformal(bool isotropic_ref_on_opposite_side)
 {
 cout<<"Restoring mesh conformity..."<<endl;
 
@@ -2738,12 +2745,12 @@ double tol=1e-7;
 		              if ( parent_face_center.distance(((*jt)->face(d)->vertex(0)+(*jt)->face(d)->vertex(1))/2) < tol)
                                  {
                                  // if we are on wall or free surf, use isotropic refinement
-                                 if ( (*jt)->material_id() == free_sur_ID1 ||
-                                      (*jt)->material_id() == free_sur_ID2 ||
-                                      (*jt)->material_id() == free_sur_ID3 ||
-                                      (*jt)->material_id() == wall_sur_ID1 ||
-                                      (*jt)->material_id() == wall_sur_ID2 ||
-                                      (*jt)->material_id() == wall_sur_ID3 )
+                                 if ( isotropic_ref_on_opposite_side )//(*jt)->material_id() == free_sur_ID1 ||
+                                      //(*jt)->material_id() == free_sur_ID2 ||
+                                      //(*jt)->material_id() == free_sur_ID3 ||
+                                      //(*jt)->material_id() == wall_sur_ID1 ||
+                                      //(*jt)->material_id() == wall_sur_ID2 ||
+                                      //(*jt)->material_id() == wall_sur_ID3 )
                                     (*jt)->set_refine_flag();
                                  // otherwise, use anisotropic refinement to make edge mesh conformal
                                  else
@@ -2776,7 +2783,7 @@ cout<<"...Done restoring mesh conformity"<<endl;
 }
                                       // this routine detects if mesh elements have
                                       // high aspect ratio and performs anisotropic
-                                      // refinements until alla aspect ratios are below 1.5
+                                      // refinements until all aspect ratios are below 1.5
 
 void NumericalTowingTank::remove_mesh_anisotropy(Triangulation<2,3> &tria)
   {
@@ -2789,8 +2796,10 @@ void NumericalTowingTank::remove_mesh_anisotropy(Triangulation<2,3> &tria)
 	refinedCellCounter = 0;
 	for (cell=tria.begin_active(); cell!= endc;++cell)
 	  {
-            if ( cell->center().distance(Point<3>(0.0,0.0,0.0)) <
-                 fmax(6.0*boat_model.boatWetLength/pow(2.0,double(cycles_counter)),boat_model.boatWetLength) )
+            if (  cell->material_id() == wall_sur_ID1 ||
+                  cell->material_id() == wall_sur_ID2 ||
+                  cell->material_id() == wall_sur_ID3 )//( cell->center().distance(Point<3>(0.0,0.0,0.0)) <
+            //     fmax(6.0*boat_model.boatWetLength/pow(2.0,double(cycles_counter)),boat_model.boatWetLength) )
                {
 	       if (cell->extent_in_direction(0) > max_aspect_ratio*cell->extent_in_direction(1))
 	          {
@@ -2819,8 +2828,9 @@ void NumericalTowingTank::remove_mesh_anisotropy(Triangulation<2,3> &tria)
      DoFTools::map_dofs_to_support_points<2,3>(StaticMappingQ1<2,3>::mapping,
 					       vector_dh, ref_points);
      generate_double_nodes_set();
-     make_edges_conformal();
-     make_edges_conformal();
+     make_edges_conformal(false);
+     make_edges_conformal(false);
+     make_edges_conformal(false);
      full_mesh_treatment();
      cycles_counter++;
      }
@@ -2867,8 +2877,8 @@ void NumericalTowingTank::remove_mesh_anisotropy(Triangulation<2,3> &tria)
      DoFTools::map_dofs_to_support_points<2,3>(StaticMappingQ1<2,3>::mapping,
 					       vector_dh, ref_points);
      generate_double_nodes_set();
-     make_edges_conformal();
-     make_edges_conformal();
+     make_edges_conformal(false);
+     make_edges_conformal(false);
      full_mesh_treatment();
      cout<<"Current dofs number: "<<dh.n_dofs()<<endl;
      std::string filename = ( "meshResult_" +
@@ -2931,8 +2941,8 @@ void NumericalTowingTank::remove_mesh_anisotropy(Triangulation<2,3> &tria)
      std::ofstream logfile1(filename1.c_str());
      GridOut grid_out1;
      grid_out1.write_ucd(tria, logfile1);
-     make_edges_conformal();
-     make_edges_conformal();
+     make_edges_conformal(false);
+     make_edges_conformal(false);
      full_mesh_treatment();
      cout<<"Current dofs number: "<<dh.n_dofs()<<endl;
      std::string filename = ( "meshResultSecond_" +
@@ -2943,7 +2953,11 @@ void NumericalTowingTank::remove_mesh_anisotropy(Triangulation<2,3> &tria)
      grid_out.write_ucd(tria, logfile);
      }
 //*/
-
+     cout<<"Current dofs number: "<<dh.n_dofs()<<endl;
+     std::string filename = ( "meshResultSecond.vtu" );
+     std::ofstream logfile(filename.c_str());
+     GridOut grid_out;
+     grid_out.write_ucd(tria, logfile);
 
   }
 
@@ -2971,8 +2985,8 @@ for (unsigned int i=0; i<num_refinements;++i)
 				  	      vector_dh, ref_points);
     generate_double_nodes_set();
     full_mesh_treatment();
-    make_edges_conformal();
-    make_edges_conformal();
+    make_edges_conformal(true);
+    make_edges_conformal(true);
     }
 /*
 for (unsigned int i=0; i<4-num_refinements;++i)
@@ -2997,8 +3011,8 @@ for (unsigned int i=0; i<4-num_refinements;++i)
 					      vector_dh, ref_points);
     generate_double_nodes_set();
     full_mesh_treatment();
-    make_edges_conformal();
-    make_edges_conformal();
+    make_edges_conformal(true);
+    make_edges_conformal(true);
     }
 //*/
 /*
@@ -3028,8 +3042,8 @@ for (unsigned int i=0; i<4;++i)
 					      vector_dh, ref_points);
     generate_double_nodes_set();
     full_mesh_treatment();
-    make_edges_conformal();
-    make_edges_conformal();
+    make_edges_conformal(true);
+    make_edges_conformal(true);
     }
 //*/
 
@@ -3061,8 +3075,8 @@ for (unsigned int k=0; k<1; ++k)
 					      vector_dh, ref_points);
     generate_double_nodes_set();
     full_mesh_treatment();
-    make_edges_conformal();
-    make_edges_conformal();
+    make_edges_conformal(true);
+    make_edges_conformal(true);
     }
 //*/
 }

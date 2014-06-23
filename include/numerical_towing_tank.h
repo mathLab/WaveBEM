@@ -179,7 +179,7 @@ class NumericalTowingTank : public ComputationalDomain<3>
                                       // conformal at water/boat edges (because of double
                                       // nodes) and makes the refinements needed
                                       // to make it conformal
-    void make_edges_conformal();
+    void make_edges_conformal(bool isotropic_ref_on_opposite_side);
                                       // this routine detects if mesh elements have
                                       // high aspect ratio and performs anisotropic
                                       // refinements until all aspect ratios are below 1.5

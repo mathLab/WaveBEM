@@ -18,11 +18,11 @@ Driver<dim>::Driver(int argc, char **argv) :
     
   deallog.depth_console(3);
 
-  std::list<string> args;
+  std::list<std::string> args;
   for (int i=0; i<argc; ++i)
     args.push_back (argv[i]);
 
-  string default_prm;
+  std::string default_prm;
                                    // The default parameter file is the name of the application plus prm
   default_prm = args.back() + ".prm";
     

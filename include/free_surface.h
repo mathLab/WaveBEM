@@ -288,7 +288,7 @@ public:
   Vector<double> sys_comp;
 private:  
 
-  string output_file_name;
+  std::string output_file_name;
   double remeshing_period;
   double dumping_period;
     
