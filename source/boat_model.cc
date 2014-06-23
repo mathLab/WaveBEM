@@ -381,6 +381,8 @@ Standard_Boolean OK = ICW.Write ("transom.igs");
      PointCenterTransom = Pnt(left_transom_bspline->Value(Last));
   else
      PointCenterTransom = Pnt(left_transom_bspline->Value(First));
+  //cout<<"TTEESSTT1: "<<Pnt(left_transom_bspline->Value(Last))<<endl;
+  //cout<<"TTEESSTT2: "<<Pnt(left_transom_bspline->Value(First))<<endl;
 
   TopExp_Explorer edge4Explorer(right_transom_edge, TopAbs_EDGE);
   TopoDS_Edge edge4 =  TopoDS::Edge(edge4Explorer.Current());

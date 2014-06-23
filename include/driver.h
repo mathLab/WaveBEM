@@ -5,7 +5,7 @@
 #include <numerics/data_out.h>
 #include <numerics/vector_tools.h>
 #include <numerics/solution_transfer.h>
-
+#include <base/utilities.h>
 				 // And here are a few C++ standard header
 				 // files that we will need:
 #include <cmath>
@@ -39,7 +39,7 @@ class Driver
 
    void ParseParameters();
 
-   static string get_library_names(); 
+   static std::string get_library_names(); 
    
    private:
    
@@ -56,7 +56,7 @@ class Driver
    
    ParameterHandler prm;
 
-   string library_str;
+   std::string library_str;
 
    unsigned int maxNumSteps;
 

@@ -859,11 +859,12 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
 	        elem->clear_refine_flag();
                 }
             //  }
-            //if((elem->diameter()/2.0 < comp_dom.min_diameter) &&
-            //   (elem->center()(0) > 1.70))
-	    //  elem->clear_refine_flag();
+            if((elem->diameter()/adaptive_ref_limit/2.0 < comp_dom.min_diameter) &&
+               (elem->center()(0) > comp_dom.boat_model.boatWetLength/2.0) &&
+               (comp_dom.boat_model.is_transom) )
+	       elem->clear_refine_flag();
             if(fabs(elem->center()(0)) > comp_dom.boat_model.boatWetLength*3.0)
-	      elem->clear_refine_flag();
+	       elem->clear_refine_flag();
 	    
 	    if ((elem->material_id() == comp_dom.wall_sur_ID1 ||
 		 elem->material_id() == comp_dom.wall_sur_ID2 ||
@@ -5901,7 +5902,8 @@ void FreeSurface<dim>::compute_pressure(Vector<double> & pressure,
           for (unsigned int q=0; q<DphiDt_n_q_points; ++q)
             {
             Point<3> normal(n_x_quad_values[q],n_y_quad_values[q],n_z_quad_values[q]);
-            Point<dim> local_press_force = pressure_quad_values[q]*normal;
+            //Point<dim> local_press_force = pressure_quad_values[q]*normal;
+            Point<dim> local_press_force = pressure_quad_values[q]*DphiDt_node_normals[q];
             press_force += (local_press_force) * fe_v.JxW(q);
             wet_surface += 1.0 * fe_v.JxW(q);
             }
