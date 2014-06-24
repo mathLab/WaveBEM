@@ -676,7 +676,7 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
 //     if (t>4.5)
 //        comp_dom.n_cycles = 0;
 
-     if (t < 6.0)
+     if (t < 0.0)
          {
          VectorView<double> displacements_dot(vector_dh.n_dofs(), solution_dot.begin());
          KellyErrorEstimator<dim-1,dim>::estimate (vector_dh,
@@ -728,21 +728,21 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
       SolutionTransfer<dim-1, Vector<double>, DoFHandler<dim-1, dim> > soltrans(dh);
  
 
-      Vector<double> displacements_x(comp_dom.dh.n_dofs());
-      Vector<double> displacements_y(comp_dom.dh.n_dofs());
-      Vector<double> displacements_z(comp_dom.dh.n_dofs());
-      Vector<double> displacements_dot_x(comp_dom.dh.n_dofs());
-      Vector<double> displacements_dot_y(comp_dom.dh.n_dofs());
-      Vector<double> displacements_dot_z(comp_dom.dh.n_dofs());
+      Vector<double> positions_x(comp_dom.dh.n_dofs());
+      Vector<double> positions_y(comp_dom.dh.n_dofs());
+      Vector<double> positions_z(comp_dom.dh.n_dofs());      
+      Vector<double> positions_dot_x(comp_dom.dh.n_dofs());
+      Vector<double> positions_dot_y(comp_dom.dh.n_dofs());
+      Vector<double> positions_dot_z(comp_dom.dh.n_dofs());
 
       for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
           {
-          displacements_x(i) = solution(3*i+0);
-          displacements_y(i) = solution(3*i+1);
-          displacements_z(i) = solution(3*i+2);
-          displacements_dot_x(i) = solution_dot(3*i+0);
-          displacements_dot_y(i) = solution_dot(3*i+1);
-          displacements_dot_z(i) = solution_dot(3*i+2);
+          positions_x(i) = solution(3*i+0)+comp_dom.ref_points[3*i](0);
+          positions_y(i) = solution(3*i+1)+comp_dom.ref_points[3*i](1);
+          positions_z(i) = solution(3*i+2)+comp_dom.ref_points[3*i](2);
+          positions_dot_x(i) = solution_dot(3*i+0);
+          positions_dot_y(i) = solution_dot(3*i+1);
+          positions_dot_z(i) = solution_dot(3*i+2);
           }          
 
       std::vector<Vector<double> > all_in;
@@ -750,12 +750,12 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
       all_in.push_back((Vector<double>)Phi_dot);
       all_in.push_back((Vector<double>)dphi_dn);
       all_in.push_back((Vector<double>)dphi_dn_dot);
-      all_in.push_back(displacements_x);
-      all_in.push_back(displacements_y);
-      all_in.push_back(displacements_z);
-      all_in.push_back(displacements_dot_x);
-      all_in.push_back(displacements_dot_y);
-      all_in.push_back(displacements_dot_z); 
+      all_in.push_back(positions_x);
+      all_in.push_back(positions_y);
+      all_in.push_back(positions_z);
+      all_in.push_back(positions_dot_x);
+      all_in.push_back(positions_dot_y);
+      all_in.push_back(positions_dot_z); 
  
 
       GridRefinement::refine_and_coarsen_fixed_number	(tria,
@@ -946,24 +946,24 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
       Vector <double> new_dphi_dn(dh.n_dofs());     
       Vector <double> new_dphi_dn_dot(dh.n_dofs());
 
-      Vector<double> new_displacements_x(dh.n_dofs());
-      Vector<double> new_displacements_y(dh.n_dofs());
-      Vector<double> new_displacements_z(dh.n_dofs());
-      Vector<double> new_displacements_dot_x(dh.n_dofs());
-      Vector<double> new_displacements_dot_y(dh.n_dofs());
-      Vector<double> new_displacements_dot_z(dh.n_dofs());
+      Vector<double> new_positions_x(dh.n_dofs());
+      Vector<double> new_positions_y(dh.n_dofs());
+      Vector<double> new_positions_z(dh.n_dofs());
+      Vector<double> new_positions_dot_x(dh.n_dofs());
+      Vector<double> new_positions_dot_y(dh.n_dofs());
+      Vector<double> new_positions_dot_z(dh.n_dofs());
 
       std::vector<Vector<double> > all_out;
       all_out.push_back(new_Phi);
       all_out.push_back(new_Phi_dot);
       all_out.push_back(new_dphi_dn);
       all_out.push_back(new_dphi_dn_dot);
-      all_out.push_back(new_displacements_x);
-      all_out.push_back(new_displacements_y);
-      all_out.push_back(new_displacements_z);
-      all_out.push_back(new_displacements_dot_x);
-      all_out.push_back(new_displacements_dot_y);
-      all_out.push_back(new_displacements_dot_z);
+      all_out.push_back(new_positions_x);
+      all_out.push_back(new_positions_y);
+      all_out.push_back(new_positions_z);
+      all_out.push_back(new_positions_dot_x);
+      all_out.push_back(new_positions_dot_y);
+      all_out.push_back(new_positions_dot_z);
   
       soltrans.interpolate(all_in, all_out);
   
@@ -983,9 +983,9 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
          
       for (unsigned int i=0; i<dh.n_dofs(); ++i) 
 	  {
-          solution(3*i+0) = all_out[4](i);
-          solution(3*i+1) = all_out[5](i);
-          solution(3*i+2) = all_out[6](i);
+          solution(3*i+0) = all_out[4](i)-comp_dom.ref_points[3*i](0);
+          solution(3*i+1) = all_out[5](i)-comp_dom.ref_points[3*i](1);
+          solution(3*i+2) = all_out[6](i)-comp_dom.ref_points[3*i](2);
           solution_dot(3*i+0) = all_out[7](i);
           solution_dot(3*i+1) = all_out[8](i);
           solution_dot(3*i+2) = all_out[9](i);
@@ -1066,8 +1066,8 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
           solution(i) = comp_dom.map_points(i);
           }
 //cout<<"Second save "<<endl;
-//      std::string filename20 = ( "postRemesh2.vtu" );
-//      output_results(filename20, t, solution, solution_dot);
+      std::string filename20 = ( "postRemesh20.vtu" );
+      output_results(filename20, t, solution, solution_dot);
 
       // in particular we must get the position of the nodes (in terms of curvilinear length)
       // on the smoothing lines, and the corresponding potential and horizontal velcoity values, in order to
@@ -1121,11 +1121,12 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
              }
           }
 
+      make_edges_conformal(solution, solution_dot, t, step_number, h);
+      make_edges_conformal(solution, solution_dot, t, step_number, h);
+      remove_transom_hanging_nodes(solution, solution_dot, t, step_number, h);
+      make_edges_conformal(solution, solution_dot, t, step_number, h);
+      make_edges_conformal(solution, solution_dot, t, step_number, h);
 
-
-      make_edges_conformal(solution, solution_dot, t, step_number, h);
-      make_edges_conformal(solution, solution_dot, t, step_number, h);
-      make_edges_conformal(solution, solution_dot, t, step_number, h);
       //comp_dom.full_mesh_treatment();
       //    }
       
@@ -1415,8 +1416,6 @@ std::cout<<"Restoring mesh conformity..."<<std::endl;
       DoFHandler<dim-1, dim> &dh = comp_dom.dh;
       DoFHandler<dim-1, dim> &vector_dh = comp_dom.vector_dh;
     
-      VectorView<double> displacements(vector_dh.n_dofs(), solution.begin());
-      VectorView<double> displacements_dot(vector_dh.n_dofs(), solution_dot.begin());
 
       std::vector<Point<dim> > support_points(dh.n_dofs());
       DoFTools::map_dofs_to_support_points<dim-1, dim>( *comp_dom.mapping, dh, support_points);
@@ -1482,21 +1481,21 @@ std::cout<<"Restoring mesh conformity..."<<std::endl;
 
       SolutionTransfer<dim-1, Vector<double>, DoFHandler<dim-1, dim> > soltrans(dh);
 
-      Vector<double> displacements_x(comp_dom.dh.n_dofs());
-      Vector<double> displacements_y(comp_dom.dh.n_dofs());
-      Vector<double> displacements_z(comp_dom.dh.n_dofs());
-      Vector<double> displacements_dot_x(comp_dom.dh.n_dofs());
-      Vector<double> displacements_dot_y(comp_dom.dh.n_dofs());
-      Vector<double> displacements_dot_z(comp_dom.dh.n_dofs());
+      Vector<double> positions_x(comp_dom.dh.n_dofs());
+      Vector<double> positions_y(comp_dom.dh.n_dofs());
+      Vector<double> positions_z(comp_dom.dh.n_dofs());
+      Vector<double> positions_dot_x(comp_dom.dh.n_dofs());
+      Vector<double> positions_dot_y(comp_dom.dh.n_dofs());
+      Vector<double> positions_dot_z(comp_dom.dh.n_dofs());
 
       for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
           {
-          displacements_x(i) = solution(3*i+0);
-          displacements_y(i) = solution(3*i+1);
-          displacements_z(i) = solution(3*i+2);
-          displacements_dot_x(i) = solution_dot(3*i+0);
-          displacements_dot_y(i) = solution_dot(3*i+1);
-          displacements_dot_z(i) = solution_dot(3*i+2);
+          positions_x(i) = solution(3*i+0)+comp_dom.ref_points[3*i](0);
+          positions_y(i) = solution(3*i+1)+comp_dom.ref_points[3*i](1);
+          positions_z(i) = solution(3*i+2)+comp_dom.ref_points[3*i](2);
+          positions_dot_x(i) = solution_dot(3*i+0);
+          positions_dot_y(i) = solution_dot(3*i+1);
+          positions_dot_z(i) = solution_dot(3*i+2);
           }          
 
       std::vector<Vector<double> > all_in;
@@ -1504,12 +1503,12 @@ std::cout<<"Restoring mesh conformity..."<<std::endl;
       all_in.push_back((Vector<double>)Phi_dot);
       all_in.push_back((Vector<double>)dphi_dn);
       all_in.push_back((Vector<double>)dphi_dn_dot);
-      all_in.push_back(displacements_x);
-      all_in.push_back(displacements_y);
-      all_in.push_back(displacements_z);
-      all_in.push_back(displacements_dot_x);
-      all_in.push_back(displacements_dot_y);
-      all_in.push_back(displacements_dot_z); 
+      all_in.push_back(positions_x);
+      all_in.push_back(positions_y);
+      all_in.push_back(positions_z);
+      all_in.push_back(positions_dot_x);
+      all_in.push_back(positions_dot_y);
+      all_in.push_back(positions_dot_z); 
 
       tria.prepare_coarsening_and_refinement();
       soltrans.prepare_for_coarsening_and_refinement(all_in);
@@ -1534,9 +1533,6 @@ std::cout<<"Restoring mesh conformity..."<<std::endl;
 
       std::cout<<"Total number of dofs after restoring edges conformity: "<<dh.n_dofs()<<std::endl;
 
-      Vector<double> new_displacements(vector_dh.n_dofs());
-      Vector<double> new_displacements_dot(vector_dh.n_dofs());
-      Vector<double> new_curvatures(vector_dh.n_dofs());
 
       Vector<double> new_Phi(dh.n_dofs());
       Vector<double> new_Phi_dot(dh.n_dofs());
@@ -1544,24 +1540,24 @@ std::cout<<"Restoring mesh conformity..."<<std::endl;
       Vector <double> new_dphi_dn(dh.n_dofs());     
       Vector <double> new_dphi_dn_dot(dh.n_dofs());
    
-      Vector<double> new_displacements_x(dh.n_dofs());
-      Vector<double> new_displacements_y(dh.n_dofs());
-      Vector<double> new_displacements_z(dh.n_dofs());
-      Vector<double> new_displacements_dot_x(dh.n_dofs());
-      Vector<double> new_displacements_dot_y(dh.n_dofs());
-      Vector<double> new_displacements_dot_z(dh.n_dofs());
+      Vector<double> new_positions_x(dh.n_dofs());
+      Vector<double> new_positions_y(dh.n_dofs());
+      Vector<double> new_positions_z(dh.n_dofs());
+      Vector<double> new_positions_dot_x(dh.n_dofs());
+      Vector<double> new_positions_dot_y(dh.n_dofs());
+      Vector<double> new_positions_dot_z(dh.n_dofs());
 
       std::vector<Vector<double> > all_out;
       all_out.push_back(new_Phi);
       all_out.push_back(new_Phi_dot);
       all_out.push_back(new_dphi_dn);
       all_out.push_back(new_dphi_dn_dot);
-      all_out.push_back(new_displacements_x);
-      all_out.push_back(new_displacements_y);
-      all_out.push_back(new_displacements_z);
-      all_out.push_back(new_displacements_dot_x);
-      all_out.push_back(new_displacements_dot_y);
-      all_out.push_back(new_displacements_dot_z);
+      all_out.push_back(new_positions_x);
+      all_out.push_back(new_positions_y);
+      all_out.push_back(new_positions_z);
+      all_out.push_back(new_positions_dot_x);
+      all_out.push_back(new_positions_dot_y);
+      all_out.push_back(new_positions_dot_z);
 
       soltrans.interpolate(all_in, all_out);
   
@@ -1583,9 +1579,9 @@ std::cout<<"Restoring mesh conformity..."<<std::endl;
 
       for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i) 
 	  {
-          solution(3*i+0) = all_out[4](i);
-          solution(3*i+1) = all_out[5](i);
-          solution(3*i+2) = all_out[6](i);
+          solution(3*i+0) = all_out[4](i)-comp_dom.ref_points[3*i](0);
+          solution(3*i+1) = all_out[5](i)-comp_dom.ref_points[3*i](1);
+          solution(3*i+2) = all_out[6](i)-comp_dom.ref_points[3*i](2);
           solution_dot(3*i+0) = all_out[7](i);
           solution_dot(3*i+1) = all_out[8](i);
           solution_dot(3*i+2) = all_out[9](i);
@@ -1649,7 +1645,8 @@ std::cout<<"Restoring mesh conformity..."<<std::endl;
           {
           comp_dom.map_points(i) = solution(i);
           }
-
+      std::string filename2 = ( "beforeCrash.vtu" );
+      output_results(filename2, t, solution, solution_dot);
 
       comp_dom.evaluate_ref_surf_distances(nodes_ref_surf_dist,false);
       comp_dom.map_points -= nodes_ref_surf_dist;
@@ -1718,6 +1715,313 @@ std::cout<<"...Done restoring mesh conformity"<<std::endl;
 }
 
 
+
+template <int dim>
+void FreeSurface<dim>::remove_transom_hanging_nodes(Vector<double> & solution,
+				                    Vector<double> &solution_dot,
+				                    const double t,
+	                                            const unsigned int step_number,
+		                                    const double  h)
+{
+std::cout<<"Removing hanging nodes from transom stern..."<<std::endl;
+
+
+      Triangulation<dim-1, dim> &tria = comp_dom.tria;
+      DoFHandler<dim-1, dim> &dh = comp_dom.dh;
+      DoFHandler<dim-1, dim> &vector_dh = comp_dom.vector_dh;
+    
+
+      std::vector<Point<dim> > support_points(dh.n_dofs());
+      DoFTools::map_dofs_to_support_points<dim-1, dim>( *comp_dom.mapping, dh, support_points);
+
+
+
+      VectorView<double> Phi(dh.n_dofs(), solution.begin()+vector_dh.n_dofs());
+      VectorView<double> Phi_dot(dh.n_dofs(), solution_dot.begin()+vector_dh.n_dofs());
+      VectorView<double> dphi_dn(dh.n_dofs(), solution.begin()+vector_dh.n_dofs()+dh.n_dofs());
+      VectorView<double> dphi_dn_dot(dh.n_dofs(), solution_dot.begin()+vector_dh.n_dofs()+dh.n_dofs());
+
+      std::vector<Point<3> > old_points(dh.n_dofs());
+      old_points = support_points;
+
+      Vector<double> curvatures(vector_dh.n_dofs());
+      comp_dom.surface_smoother->compute_curvatures(curvatures);
+
+				   // Get support points in the
+				   // reference configuration
+      std::vector<Point<3> > ref_points(dh.n_dofs());
+      DoFTools::map_dofs_to_support_points<2,3>(StaticMappingQ1<2,3>::mapping,
+					  dh, ref_points);
+    unsigned int refinedCellCounter = 1;
+
+    while(refinedCellCounter)
+     {
+     refinedCellCounter = 0;
+     for (unsigned int i=0;i<comp_dom.dh.n_dofs();++i)
+         {
+         if ((comp_dom.flags[i] & transom_on_water) )
+         //if ((comp_dom.flags[i] & water) && (comp_dom.flags[i] & near_boat))
+            {
+            //cout<<i<<": "<<support_points[i]<<endl;
+            std::vector<cell_it>  cells = comp_dom.dof_to_elems[i];
+            for (unsigned int k=0; k<cells.size(); ++k)
+                {
+                //cout<<k<<":  "<<cells[k]<<"   ("<<cells[k]->center()<<")"<<endl;
+                for (unsigned int j=0; j<GeometryInfo<2>::faces_per_cell; ++j)
+                    {
+                    //cout<<"j: "<<j<<"  nb: "<<cells[k]->neighbor_index(j)<<"  ("<<endl;
+                    if (cells[k]->neighbor_index(j) != -1)
+                       if ( cells[k]->neighbor(j)->at_boundary() &&
+                            (cells[k]->neighbor_is_coarser(j) || cells[k]->refine_flag_set() ) &&
+                            !(cells[k]->neighbor(j)->refine_flag_set()) )
+                          {
+                          //cout<<"FOUND: "<<cells[k]->neighbor(j)<<" ("<<cells[k]->neighbor(j)->center()<<")"<<endl;
+                          cells[k]->neighbor(j)->set_refine_flag();
+                          refinedCellCounter++;
+                          }
+                    }
+                }
+            }
+         }
+
+     }
+
+      SolutionTransfer<dim-1, Vector<double>, DoFHandler<dim-1, dim> > soltrans(dh);
+
+      Vector<double> positions_x(comp_dom.dh.n_dofs());
+      Vector<double> positions_y(comp_dom.dh.n_dofs());
+      Vector<double> positions_z(comp_dom.dh.n_dofs());
+      Vector<double> positions_dot_x(comp_dom.dh.n_dofs());
+      Vector<double> positions_dot_y(comp_dom.dh.n_dofs());
+      Vector<double> positions_dot_z(comp_dom.dh.n_dofs());
+
+      for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
+          {
+          positions_x(i) = solution(3*i+0)+comp_dom.ref_points[3*i](0);
+          positions_y(i) = solution(3*i+1)+comp_dom.ref_points[3*i](1);
+          positions_z(i) = solution(3*i+2)+comp_dom.ref_points[3*i](2);
+          positions_dot_x(i) = solution_dot(3*i+0);
+          positions_dot_y(i) = solution_dot(3*i+1);
+          positions_dot_z(i) = solution_dot(3*i+2);
+          }          
+
+      std::vector<Vector<double> > all_in;
+      all_in.push_back((Vector<double>)Phi);
+      all_in.push_back((Vector<double>)Phi_dot);
+      all_in.push_back((Vector<double>)dphi_dn);
+      all_in.push_back((Vector<double>)dphi_dn_dot);
+      all_in.push_back(positions_x);
+      all_in.push_back(positions_y);
+      all_in.push_back(positions_z);
+      all_in.push_back(positions_dot_x);
+      all_in.push_back(positions_dot_y);
+      all_in.push_back(positions_dot_z); 
+
+      tria.prepare_coarsening_and_refinement();
+      soltrans.prepare_for_coarsening_and_refinement(all_in);
+
+
+
+      //std::cout << "Refined counter: " << refinedCellCounter << std::endl;
+      tria.execute_coarsening_and_refinement();
+      dh.distribute_dofs(comp_dom.fe);
+      vector_dh.distribute_dofs(comp_dom.vector_fe);  
+      comp_dom.map_points.reinit(vector_dh.n_dofs());
+      comp_dom.smoothing_map_points.reinit(vector_dh.n_dofs());
+      comp_dom.old_map_points.reinit(vector_dh.n_dofs());
+      comp_dom.ref_points.resize(vector_dh.n_dofs());
+      DoFTools::map_dofs_to_support_points<2,3>(StaticMappingQ1<2,3>::mapping,
+					      comp_dom.vector_dh, comp_dom.ref_points);
+      comp_dom.generate_double_nodes_set();
+
+      compute_constraints(constraints, vector_constraints);
+
+      dofs_number = vector_dh.n_dofs()+dh.n_dofs()+dh.n_dofs();
+
+      std::cout<<"Total number of dofs after fixing transom stern: "<<dh.n_dofs()<<std::endl;
+
+
+      Vector<double> new_Phi(dh.n_dofs());
+      Vector<double> new_Phi_dot(dh.n_dofs());
+
+      Vector <double> new_dphi_dn(dh.n_dofs());     
+      Vector <double> new_dphi_dn_dot(dh.n_dofs());
+   
+      Vector<double> new_positions_x(dh.n_dofs());
+      Vector<double> new_positions_y(dh.n_dofs());
+      Vector<double> new_positions_z(dh.n_dofs());
+      Vector<double> new_positions_dot_x(dh.n_dofs());
+      Vector<double> new_positions_dot_y(dh.n_dofs());
+      Vector<double> new_positions_dot_z(dh.n_dofs());
+
+      std::vector<Vector<double> > all_out;
+      all_out.push_back(new_Phi);
+      all_out.push_back(new_Phi_dot);
+      all_out.push_back(new_dphi_dn);
+      all_out.push_back(new_dphi_dn_dot);
+      all_out.push_back(new_positions_x);
+      all_out.push_back(new_positions_y);
+      all_out.push_back(new_positions_z);
+      all_out.push_back(new_positions_dot_x);
+      all_out.push_back(new_positions_dot_y);
+      all_out.push_back(new_positions_dot_z);
+
+      soltrans.interpolate(all_in, all_out);
+  
+      solution.reinit(dofs_number);
+      solution_dot.reinit(dofs_number); 
+
+
+      constraints.distribute(all_out[0]);
+      constraints.distribute(all_out[1]);
+      constraints.distribute(all_out[2]);
+      constraints.distribute(all_out[3]);      
+      constraints.distribute(all_out[4]);
+      constraints.distribute(all_out[5]);
+      constraints.distribute(all_out[6]);
+      constraints.distribute(all_out[7]);    
+      constraints.distribute(all_out[8]);
+      constraints.distribute(all_out[9]);
+  
+
+      for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i) 
+	  {
+          solution(3*i+0) = all_out[4](i)-comp_dom.ref_points[3*i](0);
+          solution(3*i+1) = all_out[5](i)-comp_dom.ref_points[3*i](1);
+          solution(3*i+2) = all_out[6](i)-comp_dom.ref_points[3*i](2);
+          solution_dot(3*i+0) = all_out[7](i);
+          solution_dot(3*i+1) = all_out[8](i);
+          solution_dot(3*i+2) = all_out[9](i);
+	  solution(i+vector_dh.n_dofs()) = all_out[0](i);
+          solution_dot(i+vector_dh.n_dofs()) = all_out[1](i);
+          solution(i+vector_dh.n_dofs()+dh.n_dofs()) = all_out[2](i);
+          solution_dot(i+vector_dh.n_dofs()+dh.n_dofs()) = all_out[3](i);
+	  }
+
+
+      DXDt_and_DphiDt_vector.reinit(vector_dh.n_dofs()+dh.n_dofs());
+
+      DphiDt_sparsity_pattern.reinit (dh.n_dofs(),
+				      dh.n_dofs(),
+				      dh.max_couplings_between_dofs());
+      vector_sparsity_pattern.reinit (vector_dh.n_dofs(),
+					vector_dh.n_dofs(),
+					vector_dh.max_couplings_between_dofs());
+
+      DoFTools::make_sparsity_pattern (dh, DphiDt_sparsity_pattern, constraints);
+      DphiDt_sparsity_pattern.compress();
+
+      DoFTools::make_sparsity_pattern (vector_dh, vector_sparsity_pattern, vector_constraints);
+      vector_sparsity_pattern.compress();
+
+      working_map_points.reinit(comp_dom.vector_dh.n_dofs());
+      working_nodes_velocities.reinit(comp_dom.vector_dh.n_dofs());
+      nodes_pos_res.reinit(comp_dom.vector_dh.n_dofs());
+      nodes_ref_surf_dist.reinit(comp_dom.vector_dh.n_dofs());
+      nodes_diff_jac_x_delta.reinit(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
+      nodes_alg_jac_x_delta.reinit(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
+      dae_nonlin_residual.reinit(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
+      dae_linear_step_residual.reinit(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
+      current_sol.reinit(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
+      current_sol_dot.reinit(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
+      bem_residual.reinit(comp_dom.dh.n_dofs()); 
+      bem_phi.reinit(comp_dom.dh.n_dofs());
+      bem_dphi_dn.reinit(comp_dom.dh.n_dofs());
+      temp_src.reinit(comp_dom.vector_dh.n_dofs());
+      break_wave_press.reinit(comp_dom.dh.n_dofs());
+      
+
+      bem.reinit();
+
+      support_points.resize(dh.n_dofs());
+      DoFTools::map_dofs_to_support_points<2, 3>( *comp_dom.mapping, dh, support_points);
+      std::vector<bool> new_boundary_dofs(vector_dh.n_dofs());
+      std::vector< bool > comp_sel(3, true);
+      DoFTools::extract_boundary_dofs(vector_dh, comp_sel, new_boundary_dofs);
+      for (unsigned int i=0; i<dh.n_dofs();++i)
+          for (unsigned int j=0; j<old_points.size();++j)
+              if (old_points[j].distance(support_points[i]) < 1e-5)
+                 {
+                 new_boundary_dofs[3*i] = 1;
+                 new_boundary_dofs[3*i+1] = 1;
+                 new_boundary_dofs[3*i+2] = 1;
+                 }
+
+      for (unsigned int i=0; i<comp_dom.vector_dh.n_dofs(); ++i)
+          {
+          comp_dom.map_points(i) = solution(i);
+          }
+       
+      std::string filename2 = ( "beforeCrash.vtu" );
+      output_results(filename2, t, solution, solution_dot);
+
+      comp_dom.evaluate_ref_surf_distances(nodes_ref_surf_dist,false);
+      comp_dom.map_points -= nodes_ref_surf_dist;
+      for (unsigned int i=0; i<comp_dom.vector_dh.n_dofs(); ++i)
+          {
+          solution(i) = comp_dom.map_points(i);
+          }
+
+
+
+
+      // in particular we must get the position of the nodes (in terms of curvilinear length)
+      // on the smoothing lines, and the corresponding potential and horizontal velcoity values, in order to
+      // interpolate the new values to be assigned at the restart of the simulation
+
+      for (unsigned smooth_id=0; smooth_id<comp_dom.line_smoothers.size(); ++smooth_id)
+          {
+          Vector<double>  &old_lengths = comp_dom.line_smoothers[smooth_id]->get_lengths_before_smoothing();
+          Vector<double>  &new_lengths = comp_dom.line_smoothers[smooth_id]->get_lengths_after_smoothing();
+          std::vector<unsigned int> &indices = comp_dom.line_smoothers[smooth_id]->get_node_indices();
+          Vector<double> old_potentials(old_lengths.size());
+          Vector<double> old_vx(old_lengths.size());
+          Vector<double> old_vy(old_lengths.size());
+          //Vector<double> new_potentials(old_lengths.size());
+          for (unsigned int i=0; i<old_lengths.size();++i)
+              {
+              old_potentials(i) = solution(indices[i]+vector_dh.n_dofs());
+              old_vx(i) = solution_dot(3*indices[i]);
+              old_vy(i) = solution_dot(3*indices[i]+1);
+              //cout<<i<<"("<<indices[i]<<"->"<<round(indices[i]/3)<<")    "<<old_lengths(i)<<" vs "<<new_lengths(i)<<"  pot: "<<old_potentials(i)<<endl;
+              //cout<<indices[i]<<" "<<comp_dom.support_points[indices[i]]<<endl;
+              }
+          //new_potentials(0) = old_potentials(0);
+          //new_potentials(old_lengths.size()-1) = old_potentials(old_lengths.size()-1);
+          for (unsigned int i=1; i<old_lengths.size()-1;++i)
+              {
+              unsigned int jj=1000000;
+              for (unsigned int j=1; j<old_lengths.size();++j)
+                  {
+                  if (new_lengths(i) < old_lengths(j))
+                     {
+                     jj = j;
+                     break;
+                     }
+                  }
+              double fraction = (new_lengths(i)-old_lengths(jj-1))/(old_lengths(jj)-old_lengths(jj-1));
+              solution(indices[i]+vector_dh.n_dofs()) = old_potentials(jj-1)+(old_potentials(jj)-old_potentials(jj-1))*fraction;
+              //solution_dot(3*indices[i]) = old_vx(jj-1)+(old_vx(jj)-old_vx(jj-1))*fraction;
+              //solution_dot(3*indices[i]+1) = old_vy(jj-1)+(old_vy(jj)-old_vy(jj-1))*fraction;
+              //cout<<i<<" ---> "<<jj<<" "<<fraction<<" "<<old_potentials(jj-1)<<" "<<old_potentials(jj)<<" "<<new_potentials(i)<<endl;
+              }
+          }
+
+      for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
+          {
+          if ( (!(comp_dom.flags[i] & near_boat)==0) &&
+               (!(comp_dom.flags[i] & near_water)==0))
+             {
+             solution_dot(3*i) = 0;
+             solution_dot(3*i+1) = 0;
+             }
+          }
+
+      //std::string filename2 = ( "postPostPostRemesh.vtu" );
+      //output_results(filename2, t, solution, solution_dot);
+
+std::cout<<"...Done removing hanging nodes from transom stern"<<std::endl;
+}
 
 
 template <int dim>
@@ -3097,12 +3401,12 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
     dst = 0;
 
 
-    //if (t != old_time)
-    //   {
-    //   //comp_dom.old_map_points = comp_dom.map_points;
-    //   std::string filename1 = ( "new_ts_mesh.vtu" );
-    //   output_results(filename1, t, src_yy, src_yp);
-    //   }
+    if (t != old_time)
+       {
+       //comp_dom.old_map_points = comp_dom.map_points;
+       std::string filename1 = ( "new_ts_mesh.vtu" );
+       output_results(filename1, t, src_yy, src_yp);
+       }
 //*/
 
 
@@ -3613,6 +3917,8 @@ for (unsigned int k=3; k<7; ++k)
   // part of the variables, and the boat neumann condition variables
 ////////////////////////////////////////////////////////////////////// 
 
+
+
 // building reference cell
   Triangulation<2,3> ref_triangulation;
 
@@ -3722,21 +4028,27 @@ for (unsigned int k=3; k<7; ++k)
       }
 
   double eta_dry = 0.0;
-  double hollow_length = 0.0;
+  double lh = 0.0;
+  double transom_draft = fabs(comp_dom.boat_model.PointCenterTransom(2));
+  double transom_beam = (fabs(comp_dom.boat_model.PointLeftTransom(1))+
+                         fabs(comp_dom.boat_model.PointRightTransom(1)));
 
+//just in case of additional pressure to be added past wet transom stern
+   if (comp_dom.boat_model.is_transom && sqrt(Vinf*Vinf) > 0.0)
+      {
+      //double mean_transom_draft = ref_transom_wet_surface/(fabs(comp_dom.boat_model.PointLeftTransom(1))+
+      //                                                     fabs(comp_dom.boat_model.PointRightTransom(1)));
+      double transom_aspect_ratio = (fabs(comp_dom.boat_model.PointLeftTransom(1))+
+                                     fabs(comp_dom.boat_model.PointRightTransom(1)))/transom_draft;
+      double FrT = sqrt(Vinf*Vinf)/sqrt(9.81*transom_draft);
+      double ReT = sqrt(9.81*pow(transom_draft,3.0))/1.307e-6;
+      eta_dry = fmin(0.06296*pow(FrT,2.834)*pow(transom_aspect_ratio,0.1352)*pow(ReT,0.01338),1.0);
+      if (eta_dry < 1.0) 
+         lh = 0.3265*pow(FrT,3.0) - 1.7216*pow(FrT,2.0) + 2.7593*FrT;  
+      cout<<"LH: "<<lh<<endl;
 
-  if (comp_dom.boat_model.is_transom)
-     {
-     //double mean_transom_draft = ref_transom_wet_surface/(fabs(comp_dom.boat_model.PointLeftTransom(1))+
-     //                                                     fabs(comp_dom.boat_model.PointRightTransom(1)));
-     double transom_draft = fabs(comp_dom.boat_model.PointCenterTransom(2));
-     double transom_aspect_ratio = (fabs(comp_dom.boat_model.PointLeftTransom(1))+
-                                    fabs(comp_dom.boat_model.PointRightTransom(1)))/transom_draft;
-     double FrT = sqrt(Vinf*Vinf)/sqrt(9.81*transom_draft);
-     double ReT = sqrt(9.81*pow(transom_draft,3.0))/1.307e-6;
-     eta_dry=fmin(0.06296*pow(FrT,2.834)*pow(transom_aspect_ratio,0.1352)*pow(ReT,0.01338),1.0);
-     hollow_length = 0.1135*pow(FrT,3.025)*pow(transom_aspect_ratio,0.4603)*pow(ReT,-0.1514)*transom_draft;
-     }
+      
+      }
 
   std::vector<unsigned int> local_dof_indices(dofs_per_cell);
 
@@ -3852,6 +4164,45 @@ for (unsigned int k=3; k<7; ++k)
                  //std::cout<<i<<"-------> "<<u_deriv_pos<<" "<<v_deriv_pos<<" "<<u_deriv_phi<<" "<<v_deriv_phi<<endl;
                  //std::cout<<i<<"-------> "<<coors[3*i]<<" "<<coors[3*i+1]<<" "<<coors[3*i+2]<<" "<<endl;
                  }
+             fad_double transom_added_pressure = 0.0;
+             if (comp_dom.boat_model.is_transom && eta_dry < 1.0 && sqrt(Vinf*Vinf) > 0.0)
+                {
+                if ( (q_point(1).val() < comp_dom.boat_model.PointRightTransom(1)) &&
+                     (q_point(1).val() >= 0.0)    )
+                   {
+                   fad_double Fy = -16*transom_draft/pow(transom_beam,3.0)*pow(q_point(1),3.0)
+                                   +12*transom_draft/pow(transom_beam,2.0)*pow(q_point(1),2.0)-transom_draft;
+                   if ( (q_point(0).val() > comp_dom.boat_model.PointCenterTransom(0)) &&
+                        (q_point(0).val() < comp_dom.boat_model.PointCenterTransom(0)-lh*Fy)  )
+                      {
+                      fad_double x_transom = q_point(0)-comp_dom.boat_model.PointCenterTransom(0);
+                      fad_double Fx = +2*(1-eta_dry)*transom_draft/pow(-lh*Fy,3.0)*pow(x_transom,3.0)
+                                      -3*(1-eta_dry)*transom_draft/pow(-lh*Fy,2.0)*pow(x_transom,2.0)+(1-eta_dry)*transom_draft;
+                      transom_added_pressure = Fx*g;
+                      }
+                   
+                   }
+                 else if ( (q_point(1).val() > comp_dom.boat_model.PointLeftTransom(1)) &&
+                           (q_point(1).val() < 0.0)    )
+                   {
+                   fad_double Fy = -16*transom_draft/pow(transom_beam,3.0)*pow(-q_point(1),3.0)
+                                   +12*transom_draft/pow(transom_beam,2.0)*pow(-q_point(1),2.0)-transom_draft;
+                   if ( (q_point(0).val() > comp_dom.boat_model.PointCenterTransom(0)) &&
+                        (q_point(0).val() < comp_dom.boat_model.PointCenterTransom(0)-lh*Fy)  )
+                      {
+                      fad_double x_transom = q_point(0)-comp_dom.boat_model.PointCenterTransom(0);
+                      fad_double Fx = +2*(1-eta_dry)*transom_draft/pow(-lh*Fy,3.0)*pow(x_transom,3.0)
+                                      -3*(1-eta_dry)*transom_draft/pow(-lh*Fy,2.0)*pow(x_transom,2.0)+(1-eta_dry)*transom_draft;
+                      transom_added_pressure = Fx*g;
+                      }
+                   }
+                }
+             double time_factor = 1.0;
+             if(t < 2.0)
+               time_factor = 0.5*sin(3.141592654*(t)/2-3.141592654/2)+0.5;
+             transom_added_pressure*=time_factor;
+             //cout<<"1l :("<<q_point(0).val()<<","<<q_point(1).val()<<","<<q_point(2).val()<<")   "<<transom_added_pressure.val()<<endl;
+
              Point<3,fad_double> q_normal(u_deriv_pos(1)*v_deriv_pos(2)-u_deriv_pos(2)*v_deriv_pos(1),
                                           u_deriv_pos(2)*v_deriv_pos(0)-u_deriv_pos(0)*v_deriv_pos(2),
                                           u_deriv_pos(0)*v_deriv_pos(1)-u_deriv_pos(1)*v_deriv_pos(0));
@@ -3996,7 +4347,7 @@ for (unsigned int k=3; k<7; ++k)
 */
              eta_dot_rhs_fun[q] = phi_grad(2) + eta_grad*(q_nodes_vel-fluid_vel[q]);
              phi_dot_rhs_fun[q] = phi_grad*phi_grad/2 - g*q_eta + phi_surf_grad_corrected*(q_nodes_vel-fluid_vel[q])-breaking_wave_added_pressure
-                                  + fad_double(g*q_init(2));
+                                  - transom_added_pressure + fad_double(g*q_init(2));
              q_JxW[q] = q_jac_det*ref_fe_v.JxW(q);
 
              //cout<<q<<" fvel("<<fluid_vel[q]<<")  fvel_norm="<<fluid_vel_norm<<"   q_JxW="<<q_JxW[q]<<endl;
@@ -4020,8 +4371,8 @@ for (unsigned int k=3; k<7; ++k)
                     loc_y_smooth_res[i] -= blend_factor*0*fad_double(ref_fe_v.shape_value(i,q))*q_JxW[q];
                     local_DphiDt_rhs(i) += (phi_dot_rhs_fun[q]*N_i_supg*q_JxW[q]).val();
                     local_DphiDt_rhs_2(i) += (eta_dot_rhs_fun[q]*N_i_supg*q_JxW[q]).val();
-                    local_DphiDt_rhs_4(i) += (breaking_wave_added_pressure*fad_double(ref_fe_v.shape_value(i,q))*q_JxW[q]).val();
-
+                    //local_DphiDt_rhs_4(i) += (breaking_wave_added_pressure*fad_double(ref_fe_v.shape_value(i,q))*q_JxW[q]).val();
+                    local_DphiDt_rhs_4(i) += (transom_added_pressure*fad_double(ref_fe_v.shape_value(i,q))*q_JxW[q]).val();
                 
                     //cout<<q<<"  "<<i<<"   "<<phi_grad(2)<<"    "<<eta_grad<<"    "<<q_nodes_vel-fluid_vel[q]<<endl;
                     //cout<<q<<"  "<<i<<"   "<<N_i_surf_grad<<"    "<<fluid_vel[q]/fluid_vel_norm<<"   "<<cell->diameter()/sqrt(2)<<endl;
@@ -4270,7 +4621,7 @@ for (unsigned int i=0; i<this->n_dofs(); ++i)
 */
 
 
-/*
+
      SparseMatrix<double> DphiDt_sys_matrix_copy;
      DphiDt_sys_matrix_copy.reinit(DphiDt_sparsity_pattern);
      DphiDt_sys_matrix_copy.copy_from(DphiDt_sys_matrix);
@@ -4315,7 +4666,7 @@ for (unsigned int i=0; i<this->n_dofs(); ++i)
      //    if (constraints.is_constrained(i) == 0)
      //       cout<<"*eta_dot("<<i<<") "<<DphiDt_sys_solution_2(i)<<"   res("<<i<<") "<<RES(i)<<"  eta_res("<<i<<") "<<eta_res[i]<<endl;
      //    }
-*/
+//*/
 
 /*
      SparseDirectUMFPACK DphiDt_direct;
