@@ -208,6 +208,15 @@ public:
 	                    const unsigned int step_number,
 		            const double  h);
 
+                                      // in the first layer of water cells past
+                                      // the transom there can't be hanging nodes:
+                                      // this method removes them
+  void remove_transom_hanging_nodes(Vector<double> & solution,
+                                    Vector<double> &solution_dot,
+                                    const double t,
+                                    const unsigned int step_number,
+                                    const double  h);
+
 				     /** Method to make sure residual is
 					 null at each (re)start of the
 					 computation */
