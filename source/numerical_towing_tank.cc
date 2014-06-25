@@ -636,8 +636,8 @@ vertices[72](0)=-Lx_domain/2; vertices[72](1)=0; vertices[72](2)=0;
 vertices[73](0)=-Lx_domain/2; vertices[73](1)=0; vertices[73](2)=-Lz_domain;
 vertices[74](0)=-Lx_domain/2; vertices[74](1)=-Ly_domain/2; vertices[74](2)=-Lz_domain;
 vertices[75](0)=-Lx_domain/2; vertices[75](1)=-Ly_domain/2; vertices[75](2)=0;
-vertices[76](0)=Lx_domain/2; vertices[76](1)=0; vertices[76](2)=0;
-vertices[77](0)=Lx_domain/2; vertices[77](1)=0; vertices[77](2)=-Lz_domain;
+vertices[76](0)=Lx_domain/2; vertices[76](1)=-Ly_domain/4; vertices[76](2)=0;
+vertices[77](0)=Lx_domain/2; vertices[77](1)=Ly_domain/4; vertices[77](2)=0;
 vertices[78](0)=Lx_domain/2; vertices[78](1)=-Ly_domain/2; vertices[78](2)=0;
 vertices[79](0)=Lx_domain/2; vertices[79](1)=-Ly_domain/2; vertices[79](2)=-Lz_domain;
 vertices[80](0)=Lx_domain/2; vertices[80](1)=0; vertices[80](2)=0;
@@ -649,7 +649,7 @@ vertices[85](0)=Lx_domain/2; vertices[85](1)=Ly_domain/4; vertices[85](2)=0;
 vertices[86](0)=Lx_domain/2; vertices[86](1)=0; vertices[86](2)=0;
 vertices[87](0)=PointCenterTransom(0); vertices[87](1)=0; vertices[87](2)=PointCenterTransom(2);
 
-cells.resize(34);
+cells.resize(35);
 
 cells[0].vertices[0]=0; cells[0].vertices[1]=1; cells[0].vertices[2]=8; cells[0].vertices[3]=5;
 cells[1].vertices[0]=5; cells[1].vertices[1] =8; cells[1].vertices[2] =7; cells[1].vertices[3]=9;
@@ -681,10 +681,11 @@ cells[26].vertices[0]=63; cells[26].vertices[1] =64; cells[26].vertices[2] =65; 
 cells[27].vertices[0]=64; cells[27].vertices[1] =59; cells[27].vertices[2] =60; cells[27].vertices[3]=65;
 cells[28].vertices[0]=69; cells[28].vertices[1] =68; cells[28].vertices[2] =70; cells[28].vertices[3]=71;
 cells[29].vertices[0]=72; cells[29].vertices[1] =73; cells[29].vertices[2] =74; cells[29].vertices[3]=75;
-cells[30].vertices[0]=77; cells[30].vertices[1] =76; cells[30].vertices[2] =78; cells[30].vertices[3]=79;
-cells[31].vertices[0]=80; cells[31].vertices[1] =81; cells[31].vertices[2] =82; cells[31].vertices[3]=83;
+cells[30].vertices[0]=81; cells[30].vertices[1] =76; cells[30].vertices[2] =78; cells[30].vertices[3]=79;
+cells[31].vertices[0]=77; cells[31].vertices[1] =81; cells[31].vertices[2] =82; cells[31].vertices[3]=83;
 cells[32].vertices[0]=87; cells[32].vertices[1] =32; cells[32].vertices[2] =39; cells[32].vertices[3]=86;
-cells[33].vertices[0]=86; cells[33].vertices[1] =85; cells[33].vertices[2] =84; cells[33].vertices[3]=87;//*/
+cells[33].vertices[0]=86; cells[33].vertices[1] =85; cells[33].vertices[2] =84; cells[33].vertices[3]=87;
+cells[34].vertices[0]=81; cells[34].vertices[1] =77; cells[34].vertices[2] =80; cells[34].vertices[3]=76;//*/
 
 cells[0].material_id = 1;
 cells[1].material_id = 1;
@@ -702,10 +703,10 @@ cells[12].material_id = 5;
 cells[13].material_id = 5;
 cells[14].material_id = 5;
 cells[15].material_id = 5;
-cells[16].material_id = 6;
-cells[17].material_id = 6;
-cells[18].material_id = 6;
-cells[19].material_id = 6;
+cells[16].material_id = 5;
+cells[17].material_id = 5;
+cells[18].material_id = 5;
+cells[19].material_id = 5;
 cells[20].material_id = 7;
 cells[21].material_id = 7;
 cells[22].material_id = 7;
@@ -717,9 +718,10 @@ cells[27].material_id = 8;
 cells[28].material_id = 9;
 cells[29].material_id = 10;
 cells[30].material_id = 11;
-cells[31].material_id = 12;
+cells[31].material_id = 11;
 cells[32].material_id = 5;
-cells[33].material_id = 6;//*/
+cells[33].material_id = 5;
+cells[34].material_id = 11;//*/
 
 // waterline (on water) rear left
 subcelldata.boundary_lines.push_back (CellData<1>());
@@ -2755,7 +2757,7 @@ double tol=1e-7;
                                  // otherwise, use anisotropic refinement to make edge mesh conformal
                                  else
                                     {
-                                    if (fabs((*jt)->extent_in_direction(1)-nodes[0].distance(nodes[1]))<tol)
+                                    if ((d==0) || (d==1))
                                        (*jt)->set_refine_flag(RefinementCase<2>::cut_axis(1));
                                     else
                                        (*jt)->set_refine_flag(RefinementCase<2>::cut_axis(0));
@@ -2796,9 +2798,67 @@ void NumericalTowingTank::remove_mesh_anisotropy(Triangulation<2,3> &tria)
 	refinedCellCounter = 0;
 	for (cell=tria.begin_active(); cell!= endc;++cell)
 	  {
-            if (  cell->material_id() == wall_sur_ID1 ||
-                  cell->material_id() == wall_sur_ID2 ||
-                  cell->material_id() == wall_sur_ID3 )//( cell->center().distance(Point<3>(0.0,0.0,0.0)) <
+            //if (  cell->material_id() == wall_sur_ID1 ||
+            //      cell->material_id() == wall_sur_ID2 ||
+            //      cell->material_id() == wall_sur_ID3 )//( cell->center().distance(Point<3>(0.0,0.0,0.0)) <
+            //     fmax(6.0*boat_model.boatWetLength/pow(2.0,double(cycles_counter)),boat_model.boatWetLength) )
+            //   {
+	       if (cell->extent_in_direction(0) > max_aspect_ratio*cell->extent_in_direction(1))
+	          {
+		  cell->set_refine_flag(RefinementCase<2>::cut_axis(0));
+		  refinedCellCounter++;
+	          }
+	       else
+	          {
+		  if (cell->extent_in_direction(1) >max_aspect_ratio*cell->extent_in_direction(0))
+		     {
+		     cell->set_refine_flag(RefinementCase<2>::cut_axis(1));
+		     refinedCellCounter++;
+		     }
+	          }
+             //  }
+	  }
+     //cout<<refinedCellCounter<<endl;
+     tria.execute_coarsening_and_refinement();
+     dh.distribute_dofs(fe);
+     vector_dh.distribute_dofs(vector_fe);  
+       
+     map_points.reinit(vector_dh.n_dofs());
+     smoothing_map_points.reinit(vector_dh.n_dofs());
+     old_map_points.reinit(vector_dh.n_dofs());
+     ref_points.resize(vector_dh.n_dofs());
+     DoFTools::map_dofs_to_support_points<2,3>(StaticMappingQ1<2,3>::mapping,
+					       vector_dh, ref_points);
+     generate_double_nodes_set();
+
+
+     make_edges_conformal(false);
+     make_edges_conformal(false);
+     make_edges_conformal(false);
+     full_mesh_treatment();
+     cycles_counter++;
+
+     //std::string filename = ( "meshResult_" +
+	//		   Utilities::int_to_string(int(round(cycles_counter))) +
+	//		   ".inp" );
+     //std::ofstream logfile(filename.c_str());
+     //GridOut grid_out;
+     //grid_out.write_ucd(tria, logfile);
+
+     }
+
+/*
+    cell = tria.begin_active();
+    refinedCellCounter = 1;
+    cycles_counter = 0;
+    while(refinedCellCounter)
+     {
+	refinedCellCounter = 0;
+	for (cell=tria.begin_active(); cell!= endc;++cell)
+	  {
+            if (  cell->material_id() == free_sur_ID1 ||
+                  cell->material_id() == free_sur_ID2 ||
+                  cell->material_id() == free_sur_ID3 )//( cell->center().distance(Point<3>(0.0,0.0,0.0)) <
             //     fmax(6.0*boat_model.boatWetLength/pow(2.0,double(cycles_counter)),boat_model.boatWetLength) )
                {
 	       if (cell->extent_in_direction(0) > max_aspect_ratio*cell->extent_in_direction(1))
@@ -2834,6 +2894,8 @@ void NumericalTowingTank::remove_mesh_anisotropy(Triangulation<2,3> &tria)
      full_mesh_treatment();
      cycles_counter++;
      }
+
+*/
 
 /*    Triangulation<2,3>::active_cell_iterator
       cell = tria.begin_active(), endc = tria.end();
