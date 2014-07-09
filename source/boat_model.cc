@@ -171,8 +171,29 @@ void BoatModel::start_iges_model(std::string igesFileName,
 				 double middle_keel_length,
                                  unsigned int number_of_transom_edges)
 {
+  //feature_edges_detection();
+
 				   //let's read the (iges) hull shape from file
   sh =read_IGES(igesFileName,scale);
+
+
+  //TopoDS_Shape shape_transom = read_IGES("/home/amola/workspace/FRANCO_TETGEN/CAD_FRANCO/DTMB_transom_franco.iges",scale);
+  //OpenCascade::NormalProjection<2> transom_proj(shape_transom);;
+  //Point<3> degenerate(3.053863,0.0,-0.022);
+  //Point<3> proj;
+  ///Point<3> norm;
+  //double mean_curv;
+  //transom_proj.normal_projection_and_diff_forms(proj, norm, mean_curv,degenerate);
+  //cout<<"****Normal: "<<norm<<endl;
+
+  //TopoDS_Shape top_edge = keel_edge = extract_xz_edges(shape_top,1e-4,30);
+
+  //IGESControl_Controller::Init();
+  //IGESControl_Writer ICW ("MM", 0);
+  //Standard_Boolean ok = ICW.AddShape (top_edge);
+  //ICW.ComputeModel();
+  //Standard_Boolean OK = ICW.Write ("top_edge.igs");
+
 
 
     TopExp_Explorer faceExplorer(sh, TopAbs_FACE);
@@ -315,7 +336,7 @@ Standard_Boolean OK = ICW.Write ("shape.igs");
 
 
 // These lines can be used to dump the keel edge (or other shapes) on an .igs file
-
+/*
 IGESControl_Controller::Init();
 IGESControl_Writer ICW ("MM", 0);
 Standard_Boolean ok = ICW.AddShape (right_transom_edge);
@@ -383,6 +404,7 @@ Standard_Boolean OK = ICW.Write ("transom.igs");
      PointCenterTransom = Pnt(left_transom_bspline->Value(First));
   //cout<<"TTEESSTT1: "<<Pnt(left_transom_bspline->Value(Last))<<endl;
   //cout<<"TTEESSTT2: "<<Pnt(left_transom_bspline->Value(First))<<endl;
+
 
   TopExp_Explorer edge4Explorer(right_transom_edge, TopAbs_EDGE);
   TopoDS_Edge edge4 =  TopoDS::Edge(edge4Explorer.Current());

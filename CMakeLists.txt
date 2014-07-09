@@ -18,7 +18,7 @@ FIND_PACKAGE(OpenCASCADE MODULE REQUIRED)
 
 
 SET(TARGET "waveBem")
-set(CMAKE_BUILD_TYPE "Debug")
+set(CMAKE_BUILD_TYPE "Release")
 
 file(GLOB TARGET_SRC source/*cc)
 include_directories(
