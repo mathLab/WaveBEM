@@ -293,7 +293,9 @@ Vector<double> smoothing_curvature_vector;
                                    // vector containing the euler vector for smoothing (always initialized
                                    // as a copy of map_points)
 Vector<double> smoothing_map_points;
-                                   // vector containing the euler vector obtained right after each restart
+                                   // the euler vector at the simulation start
+Vector<double> initial_map_points;
+                                   // the euler vector obtained right after each restart
 Vector<double> old_map_points;
                                    // x domain dimension
 double Lx_domain;

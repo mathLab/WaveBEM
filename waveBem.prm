@@ -1,5 +1,5 @@
 # nome (con path) del file iges da aprire
-set Iges file name                  = ./utilities/kvlcc2m.iges
+set Iges file name                  = ./utilities/testHull_full_scale.iges
 
 # dislocamento (mettere 0 se non si vuole spostare la barca rispetto
 # alla posizione verticale in cui si trova nel file iges)
@@ -14,7 +14,7 @@ set Assigned trim (rad)             = 0.0
 # Per ora è l'utente che deve specificare, dopo avere guardato il file iges, da quanti edges
 # è composta una eventiale transom stern. Se la barca non ha transom stern, questo parametro è
 # ininfluente
-set Number of transom edges         = 1
+set Number of transom edges         = 3
 
 # Per prima cosa: per chiglia intendo la bspline che rappresenta la curva di intersezione tra barca
 # e piano di simmetria.
@@ -47,7 +47,7 @@ set Max aspect ratio                = 2.0
 
 # è un parametro che serve ad inclinare le linee della mesh sulla superficie libera
 # puoi non toccare mai questo numero, e lasciare 1.0 (nessuna inclinazione)
-set Front mesh inclination coeff    = 3.0
+set Front mesh inclination coeff    = 1.0
 
 # è un parametro che serve ad inclinare le linee della mesh sulla superficie libera
 # puoi non toccare mai questo numero, e lasciare 1.0 (nessuna inclinazione)
@@ -135,8 +135,8 @@ subsection Local Refinement
   set Coarsening fraction    = .0
 # a 4000 nodi intasi la memoria, anche su plx, quindi meglio non andare oltre
   set Maximum number of dofs = 3500
-  set Refinement fraction    = .125
-  set Adaptive refinement limit = 1.0
+  set Refinement fraction    = .15
+  set Adaptive refinement limit = 0.5
 end
 
 # Questo ignoralo: va eliminato
@@ -205,9 +205,9 @@ end
 
 # Parametri per le quadrature nel BEM: ignorali e lascia questi valori
 subsection Quadrature rules
-  set Quadrature order          = 6
+  set Quadrature order          = 2
   set Quadrature type           = gauss
-  set Singular quadrature order = 6
+  set Singular quadrature order = 2
 end
 
 # Parametri per i solutori GMRES usati nel BEM. Ignorali  e lascia questi valori
@@ -266,13 +266,13 @@ subsection Wind function 3d
 #  set Function constants  = k=0.034584 # sqrt(g l)/1000 series 60 full scale
 #  set Function constants  = k=0.0074909 # sqrt(g l)/1000 goteborg
 #  set Function constants  = k=0.0084500 # sqrt(g l)/1000 kcs
-  set Function constants  = k=0.0073569 # sqrt(g l)/1000 kvlcc2m
+#  set Function constants  = k=0.0073569 # sqrt(g l)/1000 kvlcc2m
 #  set Function constants  = k=0.0092538 # sqrt(g l)/1000 comacina
 #  set Function constants  = k=0.009855315337 # sqrt(g l)/1000 vela enave
 #  set Function constants  = k=0.0049917 # sqrt(g l)/1000 test Hull
-#  set Function constants  = k=0.017298 # sqrt(g l)/1000 test Hull Full Scale
+  set Function constants  = k=0.017298 # sqrt(g l)/1000 test Hull Full Scale
 #  set Function constants  = k=0.025966 # sqrt(g l)/1000 Macolino Full Scale
-  set Function expression = 0142*k*if(t < 1, 0.5*sin(3.141592654*(t)/1-3.141592654/2)+0.5, 1 ); 0; 0
+  set Function expression = 0250*k*if(t < 1, 0.5*sin(3.141592654*(t)/1-3.141592654/2)+0.5, 1 ); 0; 0
   set Variable names      = x,y,z,t
 end
 

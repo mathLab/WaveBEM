@@ -129,7 +129,8 @@ void NumericalTowingTank::refine_and_resize()
   
   map_points.reinit(vector_dh.n_dofs());
   smoothing_map_points.reinit(vector_dh.n_dofs());
-  old_map_points.reinit(vector_dh.n_dofs()); 
+  old_map_points.reinit(vector_dh.n_dofs());
+  initial_map_points.reinit(vector_dh.n_dofs()); 
   ref_points.resize(vector_dh.n_dofs());
   DoFTools::map_dofs_to_support_points<2,3>(StaticMappingQ1<2,3>::mapping,
 					    vector_dh, ref_points);
@@ -235,6 +236,7 @@ void NumericalTowingTank::refine_and_resize()
       map_points.reinit(vector_dh.n_dofs());
       smoothing_map_points.reinit(vector_dh.n_dofs());
       old_map_points.reinit(vector_dh.n_dofs());
+      initial_map_points.reinit(vector_dh.n_dofs());
       ref_points.resize(vector_dh.n_dofs());
       DoFTools::map_dofs_to_support_points<2,3>(StaticMappingQ1<2,3>::mapping,
 					        vector_dh, ref_points);
@@ -703,10 +705,10 @@ cells[12].material_id = 5;
 cells[13].material_id = 5;
 cells[14].material_id = 5;
 cells[15].material_id = 5;
-cells[16].material_id = 5;
-cells[17].material_id = 5;
-cells[18].material_id = 5;
-cells[19].material_id = 5;
+cells[16].material_id = 6;
+cells[17].material_id = 6;
+cells[18].material_id = 6;
+cells[19].material_id = 6;
 cells[20].material_id = 7;
 cells[21].material_id = 7;
 cells[22].material_id = 7;
@@ -720,7 +722,7 @@ cells[29].material_id = 10;
 cells[30].material_id = 11;
 cells[31].material_id = 11;
 cells[32].material_id = 5;
-cells[33].material_id = 5;
+cells[33].material_id = 6;
 cells[34].material_id = 11;//*/
 
 // waterline (on water) rear left
@@ -2685,6 +2687,7 @@ cout<<"dofs before: "<<dh.n_dofs()<<endl;
      map_points.reinit(vector_dh.n_dofs());
      smoothing_map_points.reinit(vector_dh.n_dofs());
      old_map_points.reinit(vector_dh.n_dofs());
+     initial_map_points.reinit(vector_dh.n_dofs());
      ref_points.resize(vector_dh.n_dofs());
      DoFTools::map_dofs_to_support_points<2,3>(StaticMappingQ1<2,3>::mapping,
 					       vector_dh, ref_points);
@@ -2774,6 +2777,7 @@ double tol=1e-7;
         map_points.reinit(vector_dh.n_dofs());
         smoothing_map_points.reinit(vector_dh.n_dofs());
         old_map_points.reinit(vector_dh.n_dofs());
+        initial_map_points.reinit(vector_dh.n_dofs());
         ref_points.resize(vector_dh.n_dofs());
         DoFTools::map_dofs_to_support_points<2,3>(StaticMappingQ1<2,3>::mapping,
 					          vector_dh, ref_points);
@@ -2826,6 +2830,7 @@ void NumericalTowingTank::remove_mesh_anisotropy(Triangulation<2,3> &tria)
      map_points.reinit(vector_dh.n_dofs());
      smoothing_map_points.reinit(vector_dh.n_dofs());
      old_map_points.reinit(vector_dh.n_dofs());
+     initial_map_points.reinit(vector_dh.n_dofs());
      ref_points.resize(vector_dh.n_dofs());
      DoFTools::map_dofs_to_support_points<2,3>(StaticMappingQ1<2,3>::mapping,
 					       vector_dh, ref_points);
@@ -2884,6 +2889,7 @@ void NumericalTowingTank::remove_mesh_anisotropy(Triangulation<2,3> &tria)
      map_points.reinit(vector_dh.n_dofs());
      smoothing_map_points.reinit(vector_dh.n_dofs());
      old_map_points.reinit(vector_dh.n_dofs());
+     initial_map_points.reinit(vector_dh.n_dofs());
      ref_points.resize(vector_dh.n_dofs());
      DoFTools::map_dofs_to_support_points<2,3>(StaticMappingQ1<2,3>::mapping,
 					       vector_dh, ref_points);
@@ -2935,6 +2941,7 @@ void NumericalTowingTank::remove_mesh_anisotropy(Triangulation<2,3> &tria)
      map_points.reinit(vector_dh.n_dofs());
      smoothing_map_points.reinit(vector_dh.n_dofs());
      old_map_points.reinit(vector_dh.n_dofs());
+     initial_map_points.reinit(vector_dh.n_dofs());
      ref_points.resize(vector_dh.n_dofs());
      DoFTools::map_dofs_to_support_points<2,3>(StaticMappingQ1<2,3>::mapping,
 					       vector_dh, ref_points);
@@ -2993,6 +3000,7 @@ void NumericalTowingTank::remove_mesh_anisotropy(Triangulation<2,3> &tria)
      map_points.reinit(vector_dh.n_dofs());
      smoothing_map_points.reinit(vector_dh.n_dofs());
      old_map_points.reinit(vector_dh.n_dofs());
+     initial_map_points.reinit(vector_dh.n_dofs());
      ref_points.resize(vector_dh.n_dofs());
      DoFTools::map_dofs_to_support_points<2,3>(StaticMappingQ1<2,3>::mapping,
 					       vector_dh, ref_points);
@@ -3042,6 +3050,7 @@ for (unsigned int i=0; i<num_refinements;++i)
     map_points.reinit(vector_dh.n_dofs());
     smoothing_map_points.reinit(vector_dh.n_dofs());
     old_map_points.reinit(vector_dh.n_dofs());
+    initial_map_points.reinit(vector_dh.n_dofs());
     ref_points.resize(vector_dh.n_dofs());
     DoFTools::map_dofs_to_support_points<2,3>(StaticMappingQ1<2,3>::mapping,
 				  	      vector_dh, ref_points);
@@ -3068,6 +3077,7 @@ for (unsigned int i=0; i<4-num_refinements;++i)
     map_points.reinit(vector_dh.n_dofs());
     smoothing_map_points.reinit(vector_dh.n_dofs());
     old_map_points.reinit(vector_dh.n_dofs());
+    initial_map_points.reinit(vector_dh.n_dofs());
     ref_points.resize(vector_dh.n_dofs());
     DoFTools::map_dofs_to_support_points<2,3>(StaticMappingQ1<2,3>::mapping,
 					      vector_dh, ref_points);
@@ -3099,6 +3109,7 @@ for (unsigned int i=0; i<4;++i)
     map_points.reinit(vector_dh.n_dofs());
     smoothing_map_points.reinit(vector_dh.n_dofs());
     old_map_points.reinit(vector_dh.n_dofs());
+    initial_map_points.reinit(vector_dh.n_dofs());
     ref_points.resize(vector_dh.n_dofs());
     DoFTools::map_dofs_to_support_points<2,3>(StaticMappingQ1<2,3>::mapping,
 					      vector_dh, ref_points);
@@ -3132,6 +3143,7 @@ for (unsigned int k=0; k<1; ++k)
     map_points.reinit(vector_dh.n_dofs());
     smoothing_map_points.reinit(vector_dh.n_dofs());
     old_map_points.reinit(vector_dh.n_dofs());
+    initial_map_points.reinit(vector_dh.n_dofs());
     ref_points.resize(vector_dh.n_dofs());
     DoFTools::map_dofs_to_support_points<2,3>(StaticMappingQ1<2,3>::mapping,
 					      vector_dh, ref_points);
