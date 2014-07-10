@@ -38,9 +38,9 @@ SET(_install $ENV{WAVEBEM_DIR})
 SET(CMAKE_INSTALL_PREFIX ${_install})
 
 STRING(TOLOWER ${CMAKE_BUILD_TYPE} _build)
-MESSAGE(${_build})
-FIND_LIBRARY(mathlab mathlab.${_build} 
-	     HINTS $ENV{MATHLAB_SRC}/lib)
+MESSAGE(mathlab.${_build})
+FIND_LIBRARY(mathlab mathlab.${_build}
+	     HINTS $ENV{MATHLAB_DIR}/lib)
 MESSAGE('mathlab.${_build}')
 MESSAGE(${mathlab})
 target_link_libraries(

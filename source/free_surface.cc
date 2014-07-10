@@ -324,7 +324,7 @@ void FreeSurface<dim>::initial_conditions(Vector<double> &dst) {
       //std::cout<<i<<" "<<dst(i)<<std::endl;
       } 
 
-/*
+
   if (comp_dom.boat_model.is_transom)
      {
      for(unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
@@ -416,18 +416,6 @@ void FreeSurface<dim>::initial_conditions(Vector<double> &dst) {
         }
   }
 
-//*/
-  comp_dom.initial_map_points = comp_dom.map_points;
-  vector_constraints.distribute(comp_dom.map_points);
-
-  for(unsigned int i=0; i<comp_dom.vector_dh.n_dofs(); ++i)
-      {
-      dst(i) = comp_dom.map_points(i);
-      //std::cout<<i<<" "<<dst(i)<<std::endl;
-      } 
-
-  
-
   std::vector<Point<dim> > displaced_support_points(comp_dom.dh.n_dofs());
   DoFTools::map_dofs_to_support_points<dim-1, dim>( *comp_dom.mapping, comp_dom.dh, displaced_support_points);
 
@@ -443,12 +431,70 @@ void FreeSurface<dim>::initial_conditions(Vector<double> &dst) {
                       initial_norm_potential_grad.value(displaced_support_points[i]);
       //std::cout<<i+comp_dom.vector_dh.n_dofs()<<" "<<dst(i+comp_dom.vector_dh.n_dofs())<<std::endl;
       }
-// da togliere
-//for (unsigned int i=0; i<comp_dom.vector_dh.n_dofs(); ++i)
-//    {
-//    if (vector_support_points[i](2) > 1e-4)
-//       std::cout<<i<<" --> "<<vector_support_points[i]<<" ?-> "<<dst(i)<<std::endl;
-//    }
+
+//////////////TEST!/////////////////
+   Vector<double> bem_phi(comp_dom.dh.n_dofs());
+   Vector<double> bem_dphi_dn(comp_dom.dh.n_dofs());
+
+
+
+
+     //cout<<"AFTER "<<endl;
+     //for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
+     //    if (constraints.is_constrained(i))
+     //       cout<<i<<" "<<src_yy(i+comp_dom.dh.n_dofs()+comp_dom.vector_dh.n_dofs())<<endl;
+     
+
+     Vector<double> surface_nodes_backup = comp_dom.surface_nodes;
+     Vector<double> other_nodes_backup = comp_dom.other_nodes;
+
+     comp_dom.surface_nodes = 0.0;
+     comp_dom.other_nodes = 1.0;
+
+      for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
+          {
+          if ((comp_dom.flags[i] & water) || (comp_dom.flags[i] & boat))
+             bem_dphi_dn(i) = -comp_dom.node_normals[i]*Vinf;
+          else
+             {
+             comp_dom.surface_nodes(i) = 1.0;
+             comp_dom.other_nodes(i) = 0.0;
+             bem_phi(i) = 0.0;
+             } 
+          }   
+     Vector<double> bem_bc(bem_dphi_dn);
+
+
+     bem.solve(bem_phi, bem_dphi_dn, bem_bc);
+
+     comp_dom.surface_nodes = surface_nodes_backup;
+     comp_dom.other_nodes = other_nodes_backup;
+
+     for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
+         {
+         dst(i+comp_dom.vector_dh.n_dofs()) = bem_phi(i); 
+         dst(i+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()) = bem_dphi_dn(i); 
+         }
+     
+
+////////////////////////////////////
+
+
+
+
+//*/
+  comp_dom.initial_map_points = comp_dom.map_points;
+  vector_constraints.distribute(comp_dom.map_points);
+
+  for(unsigned int i=0; i<comp_dom.vector_dh.n_dofs(); ++i)
+      {
+      dst(i) = comp_dom.map_points(i);
+      //std::cout<<i<<" "<<dst(i)<<std::endl;
+      } 
+
+  
+
+
 
 
 // on the boat surface the normal potential must respect the boundary conditions (dphi_dn=-Vinf*n)
@@ -955,11 +1001,11 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
             //  {
               //cout<<elem<<" ("<<elem->center()<<") --> "<<elem->diameter()/1.0<<" >< "<<comp_dom.min_diameter<<endl;
               double ref_limit=1.0;
-              if (t < 5)
-                 ref_limit = 4.0*adaptive_ref_limit;
-              else if (t < 10)
+              //if (t < 5)
+              //   ref_limit = 4.0*adaptive_ref_limit;
+              //else if (t < 10)
                  ref_limit = 2.0*adaptive_ref_limit;
-              else
+              //else
                  ref_limit = adaptive_ref_limit;
               if (elem->diameter()/ref_limit < comp_dom.min_diameter)
                  {
@@ -3515,10 +3561,10 @@ int FreeSurface<dim>::jacobian(const double t,
 //*/
   
   jacobian_dot_matrix.vmult(dst,src);
-//cout<<" ****** "<<dst(1484)<<"  "<<dst(1487)<<"  "<<alpha<<endl;
+
   dst*=alpha;
   jacobian_matrix.vmult_add(dst,src);
-//cout<<" ******* "<<dst(1484)<<"  "<<dst(1487)<<endl;
+
   for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
       {
       if ( (!constraints.is_constrained(i)) &&
@@ -3537,7 +3583,7 @@ int FreeSurface<dim>::jacobian(const double t,
          dst(i+comp_dom.vector_dh.n_dofs()) = bem_phi(i) - phi(i);
          }
       }
-//cout<<" ******* "<<dst(1484)<<"  "<<dst(1487)<<endl;
+
 
 
   dae_linear_step_residual = dae_nonlin_residual;
@@ -4067,7 +4113,7 @@ for (unsigned int k=3; k<7; ++k)
         bem.solve_system(bem_phi, bem_dphi_dn, bem_bc);
         }
 
-//cout<<"** "<<bem_dphi_dn(1026)<<" - "<<bem_dphi_dn(1028)<<" - "<<bem_dphi_dn(305)<<endl;
+
        // this is to enforce constraints in a more strict way
        // the vector given back by bem has constraints
        // imposed up to the bem GMRES tolerance
@@ -5214,10 +5260,10 @@ Vector<double> & FreeSurface<dim>::differential_components()
                                        // 1: X differential (vertical non constrained free surface coors) 
 				       // 2: phi algebraic (on neumann boundaries, non constrained nodes)
                                        // 3: phi differential (non constrained nodes on dirichlet boundaries / free surface)
-				       // 4: dphi/dn algebraic on water coming from BEM solution (non constrained nodes)
+				       // 4: dphi/dn on boat coming from L2 projection
                                        // 5: dphi/dn algebraic (constrained nodes)
                                        // 6: phi algebraic (on constrained nodes)
-                                       // 7: dphi/dn on boat coming from L2 projection
+                                       // 7: dphi/dn algebraic on water coming from BEM solution (non constrained nodes)
                                        // 8: X algebraic coming from x position smoothing
                                        // 9: X algebraic coming from y position smoothing 
       
