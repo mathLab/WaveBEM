@@ -451,6 +451,7 @@ void FreeSurface<dim>::initial_conditions(Vector<double> &dst) {
      comp_dom.surface_nodes = 0.0;
      comp_dom.other_nodes = 1.0;
 
+      comp_dom.compute_normals_at_nodes(comp_dom.map_points);
       for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
           {
           if ((comp_dom.flags[i] & water) || (comp_dom.flags[i] & boat))
@@ -1628,7 +1629,11 @@ std::cout<<"Restoring mesh conformity..."<<std::endl;
 		           if ((*jt)->face(d)->at_boundary())
 		              if ( parent_face_center.distance((*jt)->face(d)->center()) < tol)
                                  {
-                                 (*jt)->set_refine_flag();
+                                 //(*jt)->set_refine_flag();
+                                 if ((d==0) || (d==1))
+                                       (*jt)->set_refine_flag(RefinementCase<2>::cut_axis(1));
+                                    else
+                                       (*jt)->set_refine_flag(RefinementCase<2>::cut_axis(0));
                                  }
                  }
             }           
