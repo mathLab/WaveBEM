@@ -327,17 +327,18 @@ void FreeSurface<dim>::initial_conditions(Vector<double> &dst) {
 
   if (comp_dom.boat_model.is_transom)
      {
+     comp_dom.update_support_points();
      for(unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
         {
-        if ( (comp_dom.support_points[i](1) < comp_dom.boat_model.PointRightTransom(1)) &&
-             (comp_dom.support_points[i](1) >= 0.0) &&
-             (comp_dom.support_points[i](0) > comp_dom.boat_model.PointCenterTransom(0)-fabs(comp_dom.boat_model.PointCenterTransom(2)) ) &&
-             (comp_dom.support_points[i](0) < comp_dom.boat_model.PointCenterTransom(0)+5*fabs(comp_dom.boat_model.PointCenterTransom(2)) )  )
+        if ( (comp_dom.ref_points[3*i](1) < comp_dom.boat_model.PointRightTransom(1)) &&
+             (comp_dom.ref_points[3*i](1) >= 0.0) &&
+             (comp_dom.ref_points[3*i](0) > comp_dom.boat_model.PointCenterTransom(0)-fabs(comp_dom.boat_model.PointCenterTransom(2)) ) &&
+             (comp_dom.ref_points[3*i](0) < comp_dom.boat_model.PointCenterTransom(0)+5*fabs(comp_dom.boat_model.PointCenterTransom(2)) )  )
              {
-             Point <3> dP0 = support_points[i];
+             Point <3> dP0 = comp_dom.ref_points[3*i];
              Point <3> dP; 
          				   //this is the vertical plane
-             Handle(Geom_Plane) horPlane = new Geom_Plane(0.,1.,0.,-comp_dom.support_points[i](1));
+             Handle(Geom_Plane) horPlane = new Geom_Plane(0.,1.,0.,-comp_dom.ref_points[3*i](1));
              Handle(Geom_Curve) curve = comp_dom.boat_model.right_transom_bspline;
 
              GeomAPI_IntCS Intersector(curve, horPlane);
@@ -360,26 +361,23 @@ void FreeSurface<dim>::initial_conditions(Vector<double> &dst) {
                     curve->D1(t,P,V1);
                     }
                  }
-             cout<<"r: "<<i<<" "<<dP0<<"  proj: "<<dP<<endl;
-             cout<<"r: "<<i<<" "<<V1.X()<<","<<V1.Y()<<" "<<V1.Z()<<endl;
-             cout<<"r: "<<i<<" "<<5*fabs(dP(2))<<" vs "<<fabs(dP(2))/V1.Z()*V1.X()<<endl;
-             if ( (comp_dom.support_points[i](0) > comp_dom.boat_model.PointCenterTransom(0)+comp_dom.min_diameter/2.0) &&
-                  (comp_dom.support_points[i](0) < comp_dom.boat_model.PointCenterTransom(0)+5*fabs(dP(2))) )
+
+             if ( (comp_dom.ref_points[3*i](0) > comp_dom.boat_model.PointCenterTransom(0)+comp_dom.min_diameter/2.0) &&
+                  (comp_dom.ref_points[3*i](0) < comp_dom.boat_model.PointCenterTransom(0)+5*fabs(dP(2))) )
                 {
-                cout<<"r: "<<i<<" ("<<comp_dom.map_points(3*i)<<","<<comp_dom.map_points(3*i+1)<<","<<comp_dom.map_points(3*i+2)<<")"<<endl;
-                comp_dom.map_points(3*i+2) = dP(2)+(comp_dom.support_points[i](0)-dP(0))/5;
-                cout<<"("<<comp_dom.map_points(3*i)<<","<<comp_dom.map_points(3*i+1)<<","<<comp_dom.map_points(3*i+2)<<")"<<endl;
+                comp_dom.initial_map_points(3*i+2) = dP(2)+(comp_dom.ref_points[3*i](0)-dP(0))/5;
+                comp_dom.map_points(3*i+2) = comp_dom.initial_map_points(3*i+2);
                 }
              }
-             else if ( (comp_dom.support_points[i](1) > comp_dom.boat_model.PointLeftTransom(1)) &&
-                       (comp_dom.support_points[i](1) < 0.0) &&
-                       (comp_dom.support_points[i](0) > comp_dom.boat_model.PointCenterTransom(0)-fabs(comp_dom.boat_model.PointCenterTransom(2))) &&
-                       (comp_dom.support_points[i](0) < comp_dom.boat_model.PointCenterTransom(0)+5*fabs(comp_dom.boat_model.PointCenterTransom(2))))
+             else if ( (comp_dom.ref_points[3*i](1) > comp_dom.boat_model.PointLeftTransom(1)) &&
+                       (comp_dom.ref_points[3*i](1) < 0.0) &&
+                       (comp_dom.ref_points[3*i](0) > comp_dom.boat_model.PointCenterTransom(0)-fabs(comp_dom.boat_model.PointCenterTransom(2))) &&
+                       (comp_dom.ref_points[3*i](0) < comp_dom.boat_model.PointCenterTransom(0)+5*fabs(comp_dom.boat_model.PointCenterTransom(2))))
              {
-             Point <3> dP0 = support_points[i];
+             Point <3> dP0 = comp_dom.ref_points[3*i];
              Point <3> dP; 
          				   //this is the vertical plane
-             Handle(Geom_Plane) horPlane = new Geom_Plane(0.,1.,0.,-comp_dom.support_points[i](1));
+             Handle(Geom_Plane) horPlane = new Geom_Plane(0.,1.,0.,-comp_dom.ref_points[3*i](1));
              Handle(Geom_Curve) curve = comp_dom.boat_model.left_transom_bspline;
 
              GeomAPI_IntCS Intersector(curve, horPlane);
@@ -402,15 +400,11 @@ void FreeSurface<dim>::initial_conditions(Vector<double> &dst) {
                     curve->D1(t,P,V1);
                     }
                  }
-             cout<<"l: "<<i<<" "<<dP0<<"  proj: "<<dP<<endl;
-             cout<<"l: "<<i<<" "<<V1.X()<<","<<V1.Y()<<" "<<V1.Z()<<endl;
-             cout<<"l: "<<i<<" "<<5*fabs(dP(2))<<" vs "<<fabs(dP(2))/V1.Z()*V1.X()<<endl;
-             if ( (comp_dom.support_points[i](0) > comp_dom.boat_model.PointCenterTransom(0)+comp_dom.min_diameter/2.0) &&
-                  (comp_dom.support_points[i](0) < comp_dom.boat_model.PointCenterTransom(0)+5*fabs(dP(2))) )
+             if ( (comp_dom.ref_points[3*i](0) > comp_dom.boat_model.PointCenterTransom(0)+comp_dom.min_diameter/2.0) &&
+                  (comp_dom.ref_points[3*i](0) < comp_dom.boat_model.PointCenterTransom(0)+5*fabs(dP(2))) )
                 {
-                cout<<"l: "<<i<<" ("<<comp_dom.map_points(3*i)<<","<<comp_dom.map_points(3*i+1)<<","<<comp_dom.map_points(3*i+2)<<")"<<endl;
-                comp_dom.map_points(3*i+2) = dP(2)+(comp_dom.support_points[i](0)-dP(0))/5;
-                cout<<"("<<comp_dom.map_points(3*i)<<","<<comp_dom.map_points(3*i+1)<<","<<comp_dom.map_points(3*i+2)<<")"<<endl;
+                comp_dom.initial_map_points(3*i+2) = dP(2)+(comp_dom.ref_points[3*i](0)-dP(0))/5;
+                comp_dom.map_points(3*i+2) = comp_dom.initial_map_points(3*i+2);
                 }
              }
         }
@@ -1222,8 +1216,8 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
           solution(i) = comp_dom.map_points(i);
           }
 //cout<<"Second save "<<endl;
-      std::string filename20 = ( "postRemesh20.vtu" );
-      output_results(filename20, t, solution, solution_dot);
+      //std::string filename20 = ( "postRemesh20.vtu" );
+      //output_results(filename20, t, solution, solution_dot);
 
       // in particular we must get the position of the nodes (in terms of curvilinear length)
       // on the smoothing lines, and the corresponding potential and horizontal velcoity values, in order to
@@ -1283,8 +1277,90 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
       make_edges_conformal(solution, solution_dot, t, step_number, h);
       make_edges_conformal(solution, solution_dot, t, step_number, h);
 
-      //comp_dom.full_mesh_treatment();
-      //    }
+
+  if (comp_dom.boat_model.is_transom)
+     {
+     comp_dom.update_support_points();
+     for(unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
+        {
+        if ( (comp_dom.ref_points[3*i](1) < comp_dom.boat_model.PointRightTransom(1)) &&
+             (comp_dom.ref_points[3*i](1) >= 0.0) &&
+             (comp_dom.ref_points[3*i](0) > comp_dom.boat_model.PointCenterTransom(0)-fabs(comp_dom.boat_model.PointCenterTransom(2)) ) &&
+             (comp_dom.ref_points[3*i](0) < comp_dom.boat_model.PointCenterTransom(0)+5*fabs(comp_dom.boat_model.PointCenterTransom(2)) )  )
+             {
+             Point <3> dP0 = comp_dom.ref_points[3*i];
+             Point <3> dP; 
+         				   //this is the vertical plane
+             Handle(Geom_Plane) horPlane = new Geom_Plane(0.,1.,0.,-comp_dom.ref_points[3*i](1));
+             Handle(Geom_Curve) curve = comp_dom.boat_model.right_transom_bspline;
+
+             GeomAPI_IntCS Intersector(curve, horPlane);
+             int npoints = Intersector.NbPoints();
+             AssertThrow((npoints != 0), ExcMessage("Transom curve is not intersecting with vertical plane!"));
+             //cout<<"Number of intersections: "<<npoints<<endl;
+             double minDistance=1e7;
+             gp_Pnt P;
+             gp_Vec V1;
+             double t,u,v;
+             for (int j=0; j<npoints;++j)
+                 {
+                 Point<3> inters = Pnt(Intersector.Point(j+1));
+                 Intersector.Parameters(j+1,u,v,t);
+
+                 if (dP0.distance(inters) < minDistance)
+                    {
+                    minDistance = dP0.distance(inters);
+                    dP = inters;
+                    curve->D1(t,P,V1);
+                    }
+                 }
+
+             if ( (comp_dom.ref_points[3*i](0) > comp_dom.boat_model.PointCenterTransom(0)+comp_dom.min_diameter/2.0) &&
+                  (comp_dom.ref_points[3*i](0) < comp_dom.boat_model.PointCenterTransom(0)+5*fabs(dP(2))) )
+                {
+                comp_dom.initial_map_points(3*i+2) = dP(2)+(comp_dom.ref_points[3*i](0)-dP(0))/5;
+                }
+             }
+             else if ( (comp_dom.ref_points[3*i](1) > comp_dom.boat_model.PointLeftTransom(1)) &&
+                       (comp_dom.ref_points[3*i](1) < 0.0) &&
+                       (comp_dom.ref_points[3*i](0) > comp_dom.boat_model.PointCenterTransom(0)-fabs(comp_dom.boat_model.PointCenterTransom(2))) &&
+                       (comp_dom.ref_points[3*i](0) < comp_dom.boat_model.PointCenterTransom(0)+5*fabs(comp_dom.boat_model.PointCenterTransom(2))))
+             {
+             Point <3> dP0 = comp_dom.ref_points[3*i];
+             Point <3> dP; 
+         				   //this is the vertical plane
+             Handle(Geom_Plane) horPlane = new Geom_Plane(0.,1.,0.,-comp_dom.ref_points[3*i](1));
+             Handle(Geom_Curve) curve = comp_dom.boat_model.left_transom_bspline;
+
+             GeomAPI_IntCS Intersector(curve, horPlane);
+             int npoints = Intersector.NbPoints();
+             AssertThrow((npoints != 0), ExcMessage("Transom curve is not intersecting with vertical plane!"));
+             //cout<<"Number of intersections: "<<npoints<<endl;
+             double minDistance=1e7;
+             gp_Pnt P;
+             gp_Vec V1;
+             double t,u,v;
+             for (int j=0; j<npoints;++j)
+                 {
+                 Point<3> inters = Pnt(Intersector.Point(j+1));
+                 Intersector.Parameters(j+1,u,v,t);
+
+                 if (dP0.distance(inters) < minDistance)
+                    {
+                    minDistance = dP0.distance(inters);
+                    dP = inters;
+                    curve->D1(t,P,V1);
+                    }
+                 }
+             if ( (comp_dom.ref_points[3*i](0) > comp_dom.boat_model.PointCenterTransom(0)+comp_dom.min_diameter/2.0) &&
+                  (comp_dom.ref_points[3*i](0) < comp_dom.boat_model.PointCenterTransom(0)+5*fabs(dP(2))) )
+                {
+                comp_dom.initial_map_points(3*i+2) = dP(2)+(comp_dom.ref_points[3*i](0)-dP(0))/5;
+                }
+             }
+        }
+  }
+
       
       for (unsigned int i=0; i<comp_dom.vector_dh.n_dofs(); ++i)
           {
@@ -3184,6 +3260,7 @@ for (unsigned int k=3; k<7; ++k)
                  {
                  bem_bc(i) += bem_dphi_dn(*pos)/duplicates.size();
                  }
+             bem_dphi_dn(i) = bem_bc(i);
              }
           } 
 
@@ -5062,7 +5139,6 @@ for (unsigned int i=0; i<this->n_dofs(); ++i)
           case 7:
 	         dst(i) = bem_dphi_dn(i-comp_dom.vector_dh.n_dofs()-comp_dom.dh.n_dofs()) - src_yy(i);
                           //bem_residual(i-comp_dom.vector_dh.n_dofs()-comp_dom.dh.n_dofs());
-                 //std::cout<<"i --> "<<i<<" (7) "<<dst(i)<<"  "<<bem_dphi_dn(i-comp_dom.vector_dh.n_dofs()-comp_dom.dh.n_dofs())<<std::endl;
 	         residual_counter_7 += fabs(dst(i)*dst(i));
 	         break;
    	  case 8:

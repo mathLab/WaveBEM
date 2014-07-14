@@ -1,5 +1,5 @@
 # nome (con path) del file iges da aprire
-set Iges file name                  = ./utilities/kvlcc2m.iges
+set Iges file name                  = ./utilities/testHull_full_scale.iges
 
 # dislocamento (mettere 0 se non si vuole spostare la barca rispetto
 # alla posizione verticale in cui si trova nel file iges)
@@ -14,7 +14,7 @@ set Assigned trim (rad)             = 0.0
 # Per ora è l'utente che deve specificare, dopo avere guardato il file iges, da quanti edges
 # è composta una eventiale transom stern. Se la barca non ha transom stern, questo parametro è
 # ininfluente
-set Number of transom edges         = 1
+set Number of transom edges         = 3
 
 # Per prima cosa: per chiglia intendo la bspline che rappresenta la curva di intersezione tra barca
 # e piano di simmetria.
@@ -81,7 +81,7 @@ set Node displacement type          = semilagrangian
 # salvato sarà nominato nomefile_10.vtu). Saranno poi salvati un file con desinenza
 # _force.txt contenente tutte le forze per ciascun salvataggio, ed un file
 # _water_line.txt contenente le coordinate dei nodi in comune tra barca e acqua
-set Output file name                = OPENSHIP/kvlcc_new_mesh
+set Output file name                = OPENSHIP/npl_new_mesh
 
 # Massimo numero di time steps: non molto utile, lo leverò
 set Maximum number of steps         = 10000
@@ -266,13 +266,13 @@ subsection Wind function 3d
 #  set Function constants  = k=0.034584 # sqrt(g l)/1000 series 60 full scale
 #  set Function constants  = k=0.0074909 # sqrt(g l)/1000 goteborg
 #  set Function constants  = k=0.0084500 # sqrt(g l)/1000 kcs
-  set Function constants  = k=0.0073569 # sqrt(g l)/1000 kvlcc2m
+#  set Function constants  = k=0.0073569 # sqrt(g l)/1000 kvlcc2m
 #  set Function constants  = k=0.0092538 # sqrt(g l)/1000 comacina
 #  set Function constants  = k=0.009855315337 # sqrt(g l)/1000 vela enave
 #  set Function constants  = k=0.0049917 # sqrt(g l)/1000 test Hull
-#  set Function constants  = k=0.017298 # sqrt(g l)/1000 test Hull Full Scale
+  set Function constants  = k=0.017298 # sqrt(g l)/1000 test Hull Full Scale
 #  set Function constants  = k=0.025966 # sqrt(g l)/1000 Macolino Full Scale
-  set Function expression = 0142*k; 0; 0 #*if(t < 4, 0.5*sin(3.141592654*(t)/4-3.141592654/2)+0.5, 1 ); 0; 0
+  set Function expression = 0250*k; 0; 0 #*if(t < 4, 0.5*sin(3.141592654*(t)/4-3.141592654/2)+0.5, 1 ); 0; 0
   set Variable names      = x,y,z,t
 end
 
