@@ -328,20 +328,41 @@ void FreeSurface<dim>::initial_conditions(Vector<double> &dst) {
   if (comp_dom.boat_model.is_transom)
      {
      comp_dom.update_support_points();
+     double transom_draft = fabs(comp_dom.boat_model.PointCenterTransom(2));
+     double transom_aspect_ratio = (fabs(comp_dom.boat_model.PointLeftTransom(1))+
+                                     fabs(comp_dom.boat_model.PointRightTransom(1)))/transom_draft;
+
+     wind.set_time(100000000.0);
+     Vector<double> instantWindValueTinf(dim);
+     Point<dim> zero(0,0,0);
+     wind.vector_value(zero,instantWindValueTinf);
+     Point<dim> VinfTinf;
+     for (unsigned int i = 0; i < dim; i++)
+       VinfTinf(i) = instantWindValueTinf(i);
+     wind.set_time(initial_time);
+
+     double FrT = sqrt(VinfTinf*VinfTinf)/sqrt(9.81*transom_draft);
+     double ReT = sqrt(9.81*pow(transom_draft,3.0))/1.307e-6;
+     double eta_dry = fmin(0.06296*pow(FrT,2.834)*pow(transom_aspect_ratio,0.1352)*pow(ReT,0.01338),1.0);
+     double lh = 0.0;
+     if (eta_dry < 1.0) 
+        lh = 0.3265*pow(FrT,3.0) - 1.7216*pow(FrT,2.0) + 2.7593*FrT;
+
+
      for(unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
         {
         if ( (comp_dom.ref_points[3*i](1) < comp_dom.boat_model.PointRightTransom(1)) &&
              (comp_dom.ref_points[3*i](1) >= 0.0) &&
              (comp_dom.ref_points[3*i](0) > comp_dom.boat_model.PointCenterTransom(0)-fabs(comp_dom.boat_model.PointCenterTransom(2)) ) &&
-             (comp_dom.ref_points[3*i](0) < comp_dom.boat_model.PointCenterTransom(0)+5*fabs(comp_dom.boat_model.PointCenterTransom(2)) )  )
+             (comp_dom.ref_points[3*i](0) < comp_dom.boat_model.PointCenterTransom(0)+lh*fabs(comp_dom.boat_model.PointCenterTransom(2)) )  )
              {
              Point <3> dP0 = comp_dom.ref_points[3*i];
              Point <3> dP; 
          				   //this is the vertical plane
-             Handle(Geom_Plane) horPlane = new Geom_Plane(0.,1.,0.,-comp_dom.ref_points[3*i](1));
+             Handle(Geom_Plane) vertPlane = new Geom_Plane(0.,1.,0.,-comp_dom.ref_points[3*i](1));
              Handle(Geom_Curve) curve = comp_dom.boat_model.right_transom_bspline;
 
-             GeomAPI_IntCS Intersector(curve, horPlane);
+             GeomAPI_IntCS Intersector(curve, vertPlane);
              int npoints = Intersector.NbPoints();
              AssertThrow((npoints != 0), ExcMessage("Transom curve is not intersecting with vertical plane!"));
              //cout<<"Number of intersections: "<<npoints<<endl;
@@ -363,24 +384,35 @@ void FreeSurface<dim>::initial_conditions(Vector<double> &dst) {
                  }
 
              if ( (comp_dom.ref_points[3*i](0) > comp_dom.boat_model.PointCenterTransom(0)+comp_dom.min_diameter/2.0) &&
-                  (comp_dom.ref_points[3*i](0) < comp_dom.boat_model.PointCenterTransom(0)+5*fabs(dP(2))) )
+                  (comp_dom.ref_points[3*i](0) < comp_dom.boat_model.PointCenterTransom(0)+lh*fabs(dP(2))) )
                 {
-                comp_dom.initial_map_points(3*i+2) = dP(2)+(comp_dom.ref_points[3*i](0)-dP(0))/5;
+                double mean_curvature;
+                Point<3> normal;
+                Point<3> projection;
+                comp_dom.boat_model.boat_surface_right->normal_projection_and_diff_forms(projection,
+                                                                                        normal,
+                                                                                        mean_curvature,
+			                                                                dP);
+                AssertThrow((dP.distance(projection) < 1e-5), ExcMessage("Normal projection for surface normal evaluation went wrong!"));
+                double transom_slope = -normal(0)/normal(2);
+                double a = -transom_slope/(lh*fabs(dP(2))) - 1/dP(2)/lh/lh;
+                double x = comp_dom.ref_points[3*i](0)-comp_dom.boat_model.PointCenterTransom(0);
+                comp_dom.initial_map_points(3*i+2) = a*x*x + transom_slope*x + dP(2);
                 comp_dom.map_points(3*i+2) = comp_dom.initial_map_points(3*i+2);
                 }
              }
              else if ( (comp_dom.ref_points[3*i](1) > comp_dom.boat_model.PointLeftTransom(1)) &&
                        (comp_dom.ref_points[3*i](1) < 0.0) &&
                        (comp_dom.ref_points[3*i](0) > comp_dom.boat_model.PointCenterTransom(0)-fabs(comp_dom.boat_model.PointCenterTransom(2))) &&
-                       (comp_dom.ref_points[3*i](0) < comp_dom.boat_model.PointCenterTransom(0)+5*fabs(comp_dom.boat_model.PointCenterTransom(2))))
+                       (comp_dom.ref_points[3*i](0) < comp_dom.boat_model.PointCenterTransom(0)+lh*fabs(comp_dom.boat_model.PointCenterTransom(2))))
              {
              Point <3> dP0 = comp_dom.ref_points[3*i];
              Point <3> dP; 
          				   //this is the vertical plane
-             Handle(Geom_Plane) horPlane = new Geom_Plane(0.,1.,0.,-comp_dom.ref_points[3*i](1));
+             Handle(Geom_Plane) vertPlane = new Geom_Plane(0.,1.,0.,-comp_dom.ref_points[3*i](1));
              Handle(Geom_Curve) curve = comp_dom.boat_model.left_transom_bspline;
 
-             GeomAPI_IntCS Intersector(curve, horPlane);
+             GeomAPI_IntCS Intersector(curve, vertPlane);
              int npoints = Intersector.NbPoints();
              AssertThrow((npoints != 0), ExcMessage("Transom curve is not intersecting with vertical plane!"));
              //cout<<"Number of intersections: "<<npoints<<endl;
@@ -401,9 +433,20 @@ void FreeSurface<dim>::initial_conditions(Vector<double> &dst) {
                     }
                  }
              if ( (comp_dom.ref_points[3*i](0) > comp_dom.boat_model.PointCenterTransom(0)+comp_dom.min_diameter/2.0) &&
-                  (comp_dom.ref_points[3*i](0) < comp_dom.boat_model.PointCenterTransom(0)+5*fabs(dP(2))) )
+                  (comp_dom.ref_points[3*i](0) < comp_dom.boat_model.PointCenterTransom(0)+lh*fabs(dP(2))) )
                 {
-                comp_dom.initial_map_points(3*i+2) = dP(2)+(comp_dom.ref_points[3*i](0)-dP(0))/5;
+                double mean_curvature;
+                Point<3> normal;
+                Point<3> projection;
+                comp_dom.boat_model.boat_surface_left->normal_projection_and_diff_forms(projection,
+                                                                                        normal,
+                                                                                        mean_curvature,
+			                                                                dP);
+                AssertThrow((dP.distance(projection) < 1e-5), ExcMessage("Normal projection for surface normal evaluation went wrong!"));
+                double transom_slope = -normal(0)/normal(2);
+                double a = -transom_slope/(lh*fabs(dP(2))) - 1/dP(2)/lh/lh;
+                double x = comp_dom.ref_points[3*i](0)-comp_dom.boat_model.PointCenterTransom(0);
+                comp_dom.initial_map_points(3*i+2) = a*x*x + transom_slope*x + dP(2);
                 comp_dom.map_points(3*i+2) = comp_dom.initial_map_points(3*i+2);
                 }
              }
@@ -1281,20 +1324,41 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
   if (comp_dom.boat_model.is_transom)
      {
      comp_dom.update_support_points();
+     double transom_draft = fabs(comp_dom.boat_model.PointCenterTransom(2));
+     double transom_aspect_ratio = (fabs(comp_dom.boat_model.PointLeftTransom(1))+
+                                     fabs(comp_dom.boat_model.PointRightTransom(1)))/transom_draft;
+
+     wind.set_time(100000000.0);
+     Vector<double> instantWindValueTinf(dim);
+     Point<dim> zero(0,0,0);
+     wind.vector_value(zero,instantWindValueTinf);
+     Point<dim> VinfTinf;
+     for (unsigned int i = 0; i < dim; i++)
+       VinfTinf(i) = instantWindValueTinf(i);
+     wind.set_time(initial_time);
+
+     double FrT = sqrt(VinfTinf*VinfTinf)/sqrt(9.81*transom_draft);
+     double ReT = sqrt(9.81*pow(transom_draft,3.0))/1.307e-6;
+     double eta_dry = fmin(0.06296*pow(FrT,2.834)*pow(transom_aspect_ratio,0.1352)*pow(ReT,0.01338),1.0);
+     double lh = 0.0;
+     if (eta_dry < 1.0) 
+        lh = 0.3265*pow(FrT,3.0) - 1.7216*pow(FrT,2.0) + 2.7593*FrT;
+
+
      for(unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
         {
         if ( (comp_dom.ref_points[3*i](1) < comp_dom.boat_model.PointRightTransom(1)) &&
              (comp_dom.ref_points[3*i](1) >= 0.0) &&
              (comp_dom.ref_points[3*i](0) > comp_dom.boat_model.PointCenterTransom(0)-fabs(comp_dom.boat_model.PointCenterTransom(2)) ) &&
-             (comp_dom.ref_points[3*i](0) < comp_dom.boat_model.PointCenterTransom(0)+5*fabs(comp_dom.boat_model.PointCenterTransom(2)) )  )
+             (comp_dom.ref_points[3*i](0) < comp_dom.boat_model.PointCenterTransom(0)+lh*fabs(comp_dom.boat_model.PointCenterTransom(2)) )  )
              {
              Point <3> dP0 = comp_dom.ref_points[3*i];
              Point <3> dP; 
          				   //this is the vertical plane
-             Handle(Geom_Plane) horPlane = new Geom_Plane(0.,1.,0.,-comp_dom.ref_points[3*i](1));
+             Handle(Geom_Plane) vertPlane = new Geom_Plane(0.,1.,0.,-comp_dom.ref_points[3*i](1));
              Handle(Geom_Curve) curve = comp_dom.boat_model.right_transom_bspline;
 
-             GeomAPI_IntCS Intersector(curve, horPlane);
+             GeomAPI_IntCS Intersector(curve, vertPlane);
              int npoints = Intersector.NbPoints();
              AssertThrow((npoints != 0), ExcMessage("Transom curve is not intersecting with vertical plane!"));
              //cout<<"Number of intersections: "<<npoints<<endl;
@@ -1316,23 +1380,34 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
                  }
 
              if ( (comp_dom.ref_points[3*i](0) > comp_dom.boat_model.PointCenterTransom(0)+comp_dom.min_diameter/2.0) &&
-                  (comp_dom.ref_points[3*i](0) < comp_dom.boat_model.PointCenterTransom(0)+5*fabs(dP(2))) )
+                  (comp_dom.ref_points[3*i](0) < comp_dom.boat_model.PointCenterTransom(0)+lh*fabs(dP(2))) )
                 {
-                comp_dom.initial_map_points(3*i+2) = dP(2)+(comp_dom.ref_points[3*i](0)-dP(0))/5;
+                double mean_curvature;
+                Point<3> normal;
+                Point<3> projection;
+                comp_dom.boat_model.boat_surface_right->normal_projection_and_diff_forms(projection,
+                                                                                        normal,
+                                                                                        mean_curvature,
+			                                                                dP);
+                AssertThrow((dP.distance(projection) < 1e-5), ExcMessage("Normal projection for surface normal evaluation went wrong!"));
+                double transom_slope = -normal(0)/normal(2);
+                double a = -transom_slope/(lh*fabs(dP(2))) - 1/dP(2)/lh/lh;
+                double x = comp_dom.ref_points[3*i](0)-comp_dom.boat_model.PointCenterTransom(0);
+                comp_dom.initial_map_points(3*i+2) = a*x*x + transom_slope*x + dP(2);
                 }
              }
              else if ( (comp_dom.ref_points[3*i](1) > comp_dom.boat_model.PointLeftTransom(1)) &&
                        (comp_dom.ref_points[3*i](1) < 0.0) &&
                        (comp_dom.ref_points[3*i](0) > comp_dom.boat_model.PointCenterTransom(0)-fabs(comp_dom.boat_model.PointCenterTransom(2))) &&
-                       (comp_dom.ref_points[3*i](0) < comp_dom.boat_model.PointCenterTransom(0)+5*fabs(comp_dom.boat_model.PointCenterTransom(2))))
+                       (comp_dom.ref_points[3*i](0) < comp_dom.boat_model.PointCenterTransom(0)+lh*fabs(comp_dom.boat_model.PointCenterTransom(2))))
              {
              Point <3> dP0 = comp_dom.ref_points[3*i];
              Point <3> dP; 
          				   //this is the vertical plane
-             Handle(Geom_Plane) horPlane = new Geom_Plane(0.,1.,0.,-comp_dom.ref_points[3*i](1));
+             Handle(Geom_Plane) vertPlane = new Geom_Plane(0.,1.,0.,-comp_dom.ref_points[3*i](1));
              Handle(Geom_Curve) curve = comp_dom.boat_model.left_transom_bspline;
 
-             GeomAPI_IntCS Intersector(curve, horPlane);
+             GeomAPI_IntCS Intersector(curve, vertPlane);
              int npoints = Intersector.NbPoints();
              AssertThrow((npoints != 0), ExcMessage("Transom curve is not intersecting with vertical plane!"));
              //cout<<"Number of intersections: "<<npoints<<endl;
@@ -1353,9 +1428,20 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
                     }
                  }
              if ( (comp_dom.ref_points[3*i](0) > comp_dom.boat_model.PointCenterTransom(0)+comp_dom.min_diameter/2.0) &&
-                  (comp_dom.ref_points[3*i](0) < comp_dom.boat_model.PointCenterTransom(0)+5*fabs(dP(2))) )
+                  (comp_dom.ref_points[3*i](0) < comp_dom.boat_model.PointCenterTransom(0)+lh*fabs(dP(2))) )
                 {
-                comp_dom.initial_map_points(3*i+2) = dP(2)+(comp_dom.ref_points[3*i](0)-dP(0))/5;
+                double mean_curvature;
+                Point<3> normal;
+                Point<3> projection;
+                comp_dom.boat_model.boat_surface_left->normal_projection_and_diff_forms(projection,
+                                                                                        normal,
+                                                                                        mean_curvature,
+			                                                                dP);
+                AssertThrow((dP.distance(projection) < 1e-5), ExcMessage("Normal projection for surface normal evaluation went wrong!"));
+                double transom_slope = -normal(0)/normal(2);
+                double a = -transom_slope/(lh*fabs(dP(2))) - 1/dP(2)/lh/lh;
+                double x = comp_dom.ref_points[3*i](0)-comp_dom.boat_model.PointCenterTransom(0);
+                comp_dom.initial_map_points(3*i+2) = a*x*x + transom_slope*x + dP(2);
                 }
              }
         }
