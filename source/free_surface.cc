@@ -346,7 +346,9 @@ void FreeSurface<dim>::initial_conditions(Vector<double> &dst) {
      double eta_dry = fmin(0.06296*pow(FrT,2.834)*pow(transom_aspect_ratio,0.1352)*pow(ReT,0.01338),1.0);
      double lh = 0.0;
      if (eta_dry < 1.0) 
-        lh = 0.3265*pow(FrT,3.0) - 1.7216*pow(FrT,2.0) + 2.7593*FrT;
+        lh = 3.0; 
+        //lh = 0.1135*pow(FrT,3.025)*pow(transom_aspect_ratio,0.4603)*pow(ReT,-0.1514);
+        //lh = 0.3265*pow(FrT,3.0) - 1.7216*pow(FrT,2.0) + 2.7593*FrT;
 
 
      for(unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
@@ -393,7 +395,8 @@ void FreeSurface<dim>::initial_conditions(Vector<double> &dst) {
                                                                                         normal,
                                                                                         mean_curvature,
 			                                                                dP);
-                AssertThrow((dP.distance(projection) < 1e-5), ExcMessage("Normal projection for surface normal evaluation went wrong!"));
+                cout<<projection<<" vs "<<dP<<"    dist: "<<dP.distance(projection)<<endl;
+                AssertThrow((dP.distance(projection) < 1e-4*comp_dom.boat_model.boatWetLength), ExcMessage("Normal projection for surface normal evaluation went wrong!"));
                 double transom_slope = -normal(0)/normal(2);
                 double a = -transom_slope/(lh*fabs(dP(2))) - 1/dP(2)/lh/lh;
                 double x = comp_dom.ref_points[3*i](0)-comp_dom.boat_model.PointCenterTransom(0);
@@ -442,7 +445,8 @@ void FreeSurface<dim>::initial_conditions(Vector<double> &dst) {
                                                                                         normal,
                                                                                         mean_curvature,
 			                                                                dP);
-                AssertThrow((dP.distance(projection) < 1e-5), ExcMessage("Normal projection for surface normal evaluation went wrong!"));
+                cout<<projection<<" vs "<<dP<<"    dist: "<<dP.distance(projection)<<endl;
+                AssertThrow((dP.distance(projection) < 1e-4*comp_dom.boat_model.boatWetLength), ExcMessage("Normal projection for surface normal evaluation went wrong!"));
                 double transom_slope = -normal(0)/normal(2);
                 double a = -transom_slope/(lh*fabs(dP(2))) - 1/dP(2)/lh/lh;
                 double x = comp_dom.ref_points[3*i](0)-comp_dom.boat_model.PointCenterTransom(0);
@@ -1042,7 +1046,7 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
               //if (t < 5)
               //   ref_limit = 4.0*adaptive_ref_limit;
               //else if (t < 10)
-                 ref_limit = 2.0*adaptive_ref_limit;
+                 //ref_limit = 2.0*adaptive_ref_limit;
               //else
                  ref_limit = adaptive_ref_limit;
               if (elem->diameter()/ref_limit < comp_dom.min_diameter)
@@ -1193,6 +1197,9 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
 	  comp_dom.map_points(i) = solution(i);
 	  }
 
+     std::string filename4 = ( "rightAfterInterpolation.vtu" );
+     output_results(filename4, t, solution, solution_dot);
+
       DXDt_and_DphiDt_vector.reinit(vector_dh.n_dofs()+dh.n_dofs());
 
       DphiDt_sparsity_pattern.reinit (comp_dom.dh.n_dofs(),
@@ -1247,6 +1254,16 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
           comp_dom.map_points(i) = solution(i);
           //cout<<"* "<<i<<" "<<comp_dom.map_points(i)<<endl;
           }
+
+
+      make_edges_conformal(solution, solution_dot, t, step_number, h);
+      make_edges_conformal(solution, solution_dot, t, step_number, h);
+      remove_transom_hanging_nodes(solution, solution_dot, t, step_number, h);
+      make_edges_conformal(solution, solution_dot, t, step_number, h);
+      make_edges_conformal(solution, solution_dot, t, step_number, h);
+
+     std::string filename5 = ( "rightAfterInterpolation.vtu" );
+     output_results(filename5, t, solution, solution_dot);
 //cout<<"First save "<<endl;
 //      std::string filename2 = ( "postRemesh1.vtu" );
 //      output_results(filename2, t, solution, solution_dot);
@@ -1314,11 +1331,6 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
              }
           }
 
-      make_edges_conformal(solution, solution_dot, t, step_number, h);
-      make_edges_conformal(solution, solution_dot, t, step_number, h);
-      remove_transom_hanging_nodes(solution, solution_dot, t, step_number, h);
-      make_edges_conformal(solution, solution_dot, t, step_number, h);
-      make_edges_conformal(solution, solution_dot, t, step_number, h);
 
 
   if (comp_dom.boat_model.is_transom)
@@ -1341,8 +1353,10 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
      double ReT = sqrt(9.81*pow(transom_draft,3.0))/1.307e-6;
      double eta_dry = fmin(0.06296*pow(FrT,2.834)*pow(transom_aspect_ratio,0.1352)*pow(ReT,0.01338),1.0);
      double lh = 0.0;
-     if (eta_dry < 1.0) 
-        lh = 0.3265*pow(FrT,3.0) - 1.7216*pow(FrT,2.0) + 2.7593*FrT;
+     if (eta_dry < 1.0)
+        lh = 3.0; 
+        //lh = 0.1135*pow(FrT,3.025)*pow(transom_aspect_ratio,0.4603)*pow(ReT,-0.1514);
+        //lh = 0.3265*pow(FrT,3.0) - 1.7216*pow(FrT,2.0) + 2.7593*FrT;
 
 
      for(unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
@@ -1389,7 +1403,8 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
                                                                                         normal,
                                                                                         mean_curvature,
 			                                                                dP);
-                AssertThrow((dP.distance(projection) < 1e-5), ExcMessage("Normal projection for surface normal evaluation went wrong!"));
+                cout<<projection<<" vs "<<dP<<"    dist: "<<dP.distance(projection)<<endl;
+                AssertThrow((dP.distance(projection) < 1e-4*comp_dom.boat_model.boatWetLength), ExcMessage("Normal projection for surface normal evaluation went wrong!"));
                 double transom_slope = -normal(0)/normal(2);
                 double a = -transom_slope/(lh*fabs(dP(2))) - 1/dP(2)/lh/lh;
                 double x = comp_dom.ref_points[3*i](0)-comp_dom.boat_model.PointCenterTransom(0);
@@ -1437,7 +1452,8 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
                                                                                         normal,
                                                                                         mean_curvature,
 			                                                                dP);
-                AssertThrow((dP.distance(projection) < 1e-5), ExcMessage("Normal projection for surface normal evaluation went wrong!"));
+                cout<<projection<<" vs "<<dP<<"    dist: "<<dP.distance(projection)<<endl;
+                AssertThrow((dP.distance(projection) < 1e-4*comp_dom.boat_model.boatWetLength), ExcMessage("Normal projection for surface normal evaluation went wrong!"));
                 double transom_slope = -normal(0)/normal(2);
                 double a = -transom_slope/(lh*fabs(dP(2))) - 1/dP(2)/lh/lh;
                 double x = comp_dom.ref_points[3*i](0)-comp_dom.boat_model.PointCenterTransom(0);
@@ -2361,38 +2377,6 @@ residual(t,res,y,yp);
 setup_jacobian_prec(t,y,yp,0.0);
 
 
-
-   
-     // these lines test the jacobian of the DAE system
- 
-     Vector<double> delta_y(this->n_dofs());
-     Vector<double> delta_res(this->n_dofs());
-     //delta_y.add(1e-8);
-     //delta_y(974) = 1e-8;
-     for (unsigned int i=0; i<this->n_dofs();++i)
-         {
-         double f = (double)rand()/RAND_MAX;
-         delta_y(i) = -1e-8 + f * (2e-8);
-         cout<<i<<" "<<delta_y(i)<<endl;
-         }
-     residual(t,res,y,yp);
-     jacobian(t,delta_res,y,yp,delta_y,0.0);
-     y.add(delta_y);
-     //yp.add(delta_y);
-     delta_res.add(res);
-     residual(t,res,y,yp);
-     cout<<"----------Test---------"<<endl;
-     for (unsigned int i=0; i<this->n_dofs(); ++i)
-         if (fabs(res(i)-delta_res(i)) > 1e-10)
-         //if (fabs(res(i)) > 1e-20)
-         cout<<i<<"  "<<delta_res(i)<<" vs "<<res(i)<<"      err "<<res(i)-delta_res(i)<<"   "<<sys_comp(i)<<endl;
-     delta_res*=-1;
-     delta_res.add(res);
-     cout<<"Absolute error norm: "<<delta_res.l2_norm()<<endl;
-     cout<<"Relative error norm: "<<delta_res.l2_norm()/delta_y.l2_norm()<<endl;
-     cout<<"----------Done---------"<<endl;
-     for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
-         cout<<i<<" "<<comp_dom.support_points[i]<<"     sn "<<comp_dom.surface_nodes(i)<<"    ic "<<constraints.is_constrained(i)<<endl;
 
 
 
@@ -4450,7 +4434,9 @@ for (unsigned int k=3; k<7; ++k)
       double ReT = sqrt(9.81*pow(transom_draft,3.0))/1.307e-6;
       eta_dry = fmin(0.06296*pow(FrT,2.834)*pow(transom_aspect_ratio,0.1352)*pow(ReT,0.01338),1.0);
       if (eta_dry < 1.0) 
-         lh = 0.3265*pow(FrT,3.0) - 1.7216*pow(FrT,2.0) + 2.7593*FrT;  
+         lh = 3.0; 
+        //lh = 0.1135*pow(FrT,3.025)*pow(transom_aspect_ratio,0.4603)*pow(ReT,-0.1514);
+         //lh = 0.3265*pow(FrT,3.0) - 1.7216*pow(FrT,2.0) + 2.7593*FrT;  
       cout<<"LH: "<<lh<<endl;
       lh = fmax(lh,3.0*transom_draft);
       cout<<"lh: "<<lh<<endl;

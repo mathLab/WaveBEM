@@ -43,11 +43,11 @@ set Middle keel length              = 0.5
 # primo giro di raffinamento opera dividendo i quadrilateri troppo allungati lungo il lato di maggior lunghezza.
 # Questo raffinamento è arrestato quando tutte le celle hanno aspect ratio minore del seguente valore
 # puoi non toccare mai questo numero, e lasciare 1.5
-set Max aspect ratio                = 2.0
+set Max aspect ratio                = 1.5
 
 # è un parametro che serve ad inclinare le linee della mesh sulla superficie libera
 # puoi non toccare mai questo numero, e lasciare 1.0 (nessuna inclinazione)
-set Front mesh inclination coeff    = 3.0
+set Front mesh inclination coeff    = 1.0
 
 # è un parametro che serve ad inclinare le linee della mesh sulla superficie libera
 # puoi non toccare mai questo numero, e lasciare 1.0 (nessuna inclinazione)
@@ -81,7 +81,7 @@ set Node displacement type          = semilagrangian
 # salvato sarà nominato nomefile_10.vtu). Saranno poi salvati un file con desinenza
 # _force.txt contenente tutte le forze per ciascun salvataggio, ed un file
 # _water_line.txt contenente le coordinate dei nodi in comune tra barca e acqua
-set Output file name                = OPENSHIP/npl_new_mesh
+set Output file name                = OPENSHIP/npl_new_mesh_fine
 
 # Massimo numero di time steps: non molto utile, lo leverò
 set Maximum number of steps         = 10000
@@ -104,7 +104,7 @@ set Keep BEM in sync with geometry  = false
 
 # La mesh viene raffinata adattativamente durante la simulazione. Cio viene fatto
 # ogni Remeshing period secondi
-set Remeshing period		    = 0.8
+set Remeshing period		    = 0.1
 
 # Lascia 1. Vuol dire che la mesh sulla barca non viene mai raffinata/deraffinata durante le
 # simulazioni. Mettere significa lasciare il raffinamento libero di toccare la mesh
@@ -134,8 +134,8 @@ subsection Local Refinement
 # per ora preferiamo non deraffinare mai
   set Coarsening fraction    = .0
 # a 4000 nodi intasi la memoria, anche su plx, quindi meglio non andare oltre
-  set Maximum number of dofs = 3500
-  set Refinement fraction    = .15
+  set Maximum number of dofs = 4500
+  set Refinement fraction    = .375
   set Adaptive refinement limit = 2.0
 end
 
