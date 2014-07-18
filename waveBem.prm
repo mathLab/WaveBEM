@@ -58,7 +58,7 @@ set Back mesh inclination coeff     = 1.0
 # Le celle della barca vengono raffinate globalmente, ovvero ciascuna cella viene
 # divisa in 4 celle. Questa procedura viene ripetuta un numero di volte deciso 
 # da questo numero 
-set Number of boat initial uniform refinements = 3
+set Number of boat initial uniform refinements = 2
 
 # Dopo che la barca è stata raffinata uniformemente, viene svolto un ultimo ciclo
 # di raffinamenti locali, basato sulla distanza di ciascuna cella dalla superficie
@@ -81,7 +81,7 @@ set Node displacement type          = semilagrangian
 # salvato sarà nominato nomefile_10.vtu). Saranno poi salvati un file con desinenza
 # _force.txt contenente tutte le forze per ciascun salvataggio, ed un file
 # _water_line.txt contenente le coordinate dei nodi in comune tra barca e acqua
-set Output file name                = OPENSHIP/npl_new_mesh_fine
+set Output file name                = OPENSHIP/npl_new_mesh
 
 # Massimo numero di time steps: non molto utile, lo leverò
 set Maximum number of steps         = 10000
@@ -104,7 +104,7 @@ set Keep BEM in sync with geometry  = false
 
 # La mesh viene raffinata adattativamente durante la simulazione. Cio viene fatto
 # ogni Remeshing period secondi
-set Remeshing period		    = 0.1
+set Remeshing period		    = 0.8
 
 # Lascia 1. Vuol dire che la mesh sulla barca non viene mai raffinata/deraffinata durante le
 # simulazioni. Mettere significa lasciare il raffinamento libero di toccare la mesh
@@ -135,8 +135,8 @@ subsection Local Refinement
   set Coarsening fraction    = .0
 # a 4000 nodi intasi la memoria, anche su plx, quindi meglio non andare oltre
   set Maximum number of dofs = 4500
-  set Refinement fraction    = .375
-  set Adaptive refinement limit = 2.0
+  set Refinement fraction    = .3
+  set Adaptive refinement limit = 1.0
 end
 
 # Questo ignoralo: va eliminato

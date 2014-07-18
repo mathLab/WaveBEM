@@ -2473,7 +2473,28 @@ for (unsigned int i=0; i<dh.n_dofs(); ++i)
        }
     }
 //*/
-vector_constraints.distribute(smoothing_map_points);
+
+
+Vector<double> xyz_coordinates(vector_dh.n_dofs());
+
+for (unsigned int i=0; i<dh.n_dofs(); ++i)
+    {
+    xyz_coordinates(3*i) = ref_points[3*i](0)+smoothing_map_points(3*i);
+    xyz_coordinates(3*i+1) = ref_points[3*i](1)+smoothing_map_points(3*i+1);
+    xyz_coordinates(3*i+2) = ref_points[3*i](2)+smoothing_map_points(3*i+2);
+    }
+
+vector_constraints.distribute(xyz_coordinates);
+
+for (unsigned int i=0; i<dh.n_dofs(); ++i)
+    if (vector_constraints.is_constrained(3*i))
+       {    
+       smoothing_map_points(3*i) = xyz_coordinates(3*i) - ref_points[3*i](0);
+       smoothing_map_points(3*i+1) = xyz_coordinates(3*i+1) - ref_points[3*i](1);
+       smoothing_map_points(3*i+2) = xyz_coordinates(3*i+2) - ref_points[3*i](2);
+       }
+
+//vector_constraints.distribute(smoothing_map_points);
 distances = smoothing_map_points;
 
 
