@@ -1032,6 +1032,8 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
       else
 	for (cell_it elem=dh.begin_active(); elem!= dh.end();++elem)
 	  {
+
+
             //if (t<80.0)
             //  {
 	    //  if(elem->diameter()/2.5 < comp_dom.min_diameter)
@@ -1197,8 +1199,7 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
 	  comp_dom.map_points(i) = solution(i);
 	  }
 
-     std::string filename4 = ( "rightAfterInterpolation.vtu" );
-     output_results(filename4, t, solution, solution_dot);
+
 
       DXDt_and_DphiDt_vector.reinit(vector_dh.n_dofs()+dh.n_dofs());
 
@@ -1262,8 +1263,6 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
       make_edges_conformal(solution, solution_dot, t, step_number, h);
       make_edges_conformal(solution, solution_dot, t, step_number, h);
 
-     std::string filename5 = ( "rightAfterInterpolation.vtu" );
-     output_results(filename5, t, solution, solution_dot);
 //cout<<"First save "<<endl;
 //      std::string filename2 = ( "postRemesh1.vtu" );
 //      output_results(filename2, t, solution, solution_dot);
@@ -1984,8 +1983,8 @@ std::cout<<"Restoring mesh conformity..."<<std::endl;
           {
           comp_dom.map_points(i) = solution(i);
           }
-      std::string filename2 = ( "beforeCrash.vtu" );
-      output_results(filename2, t, solution, solution_dot);
+      //std::string filename2 = ( "beforeCrash.vtu" );
+      //output_results(filename2, t, solution, solution_dot);
 
       comp_dom.evaluate_ref_surf_distances(nodes_ref_surf_dist,false);
       comp_dom.map_points -= nodes_ref_surf_dist;
@@ -2292,8 +2291,8 @@ std::cout<<"Removing hanging nodes from transom stern..."<<std::endl;
           comp_dom.map_points(i) = solution(i);
           }
        
-      std::string filename2 = ( "beforeCrash.vtu" );
-      output_results(filename2, t, solution, solution_dot);
+      //std::string filename2 = ( "beforeCrash.vtu" );
+      //output_results(filename2, t, solution, solution_dot);
 
       comp_dom.evaluate_ref_surf_distances(nodes_ref_surf_dist,false);
       comp_dom.map_points -= nodes_ref_surf_dist;
@@ -3442,8 +3441,8 @@ for (unsigned int k=3; k<7; ++k)
       }
 
 
-     std::string filename1 = ( "post_restart_mesh.vtu" );
-     output_results(filename1, t, y, yp);
+     //std::string filename1 = ( "post_restart_mesh.vtu" );
+     //output_results(filename1, t, y, yp);
 
 
    
@@ -3777,7 +3776,7 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
     static double old_time = -1000;
     dst = 0;
 
-
+/*
     if (t != old_time)
        {
        //comp_dom.old_map_points = comp_dom.map_points;
@@ -3880,7 +3879,7 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
   working_map_points = comp_dom.map_points;
   nodes_pos_res = 0;
 
-  //we enforce contraint on the new geometry assigned by the DAE solver
+  //we enforce constraint on the new geometry assigned by the DAE solver
   vector_constraints.distribute(working_map_points);
 
 
