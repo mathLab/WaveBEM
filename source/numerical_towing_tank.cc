@@ -269,6 +269,8 @@ void NumericalTowingTank::refine_and_resize()
           }  
       std::cout << "Min diameter: << " << min_diameter << std::endl;
 
+
+
         
 
   std::cout<<"Total number of dofs after whole refinement: "<<dh.n_dofs()<<std::endl;

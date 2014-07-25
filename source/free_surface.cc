@@ -270,6 +270,7 @@ void FreeSurface<dim>::reinit() {
   bem_dphi_dn.reinit(comp_dom.dh.n_dofs());
   temp_src.reinit(comp_dom.vector_dh.n_dofs());
   break_wave_press.reinit(comp_dom.dh.n_dofs());
+  cell_flag_vector_before(comp_dom.tria.n_active_cells());
   
                                       // we initialize the rhs evaluations counter
   rhs_evaluations_counter = 0;
@@ -346,7 +347,7 @@ void FreeSurface<dim>::initial_conditions(Vector<double> &dst) {
      double eta_dry = fmin(0.06296*pow(FrT,2.834)*pow(transom_aspect_ratio,0.1352)*pow(ReT,0.01338),1.0);
      double lh = 0.0;
      if (eta_dry < 1.0) 
-        lh = 3.0; 
+        lh = 5.0; 
         //lh = 0.1135*pow(FrT,3.025)*pow(transom_aspect_ratio,0.4603)*pow(ReT,-0.1514);
         //lh = 0.3265*pow(FrT,3.0) - 1.7216*pow(FrT,2.0) + 2.7593*FrT;
 
@@ -385,8 +386,8 @@ void FreeSurface<dim>::initial_conditions(Vector<double> &dst) {
                     }
                  }
 
-             if ( (comp_dom.ref_points[3*i](0) > comp_dom.boat_model.PointCenterTransom(0)+comp_dom.min_diameter/2.0) &&
-                  (comp_dom.ref_points[3*i](0) < comp_dom.boat_model.PointCenterTransom(0)+lh*fabs(dP(2))) )
+             if ( (comp_dom.ref_points[3*i](0) > dP(0)+comp_dom.min_diameter/20.0) &&
+                  (comp_dom.ref_points[3*i](0) < dP(0)+lh*fabs(dP(2))+comp_dom.min_diameter/20.0) )
                 {
                 double mean_curvature;
                 Point<3> normal;
@@ -395,7 +396,6 @@ void FreeSurface<dim>::initial_conditions(Vector<double> &dst) {
                                                                                         normal,
                                                                                         mean_curvature,
 			                                                                dP);
-                cout<<projection<<" vs "<<dP<<"    dist: "<<dP.distance(projection)<<endl;
                 AssertThrow((dP.distance(projection) < 1e-4*comp_dom.boat_model.boatWetLength), ExcMessage("Normal projection for surface normal evaluation went wrong!"));
                 double transom_slope = -normal(0)/normal(2);
                 double a = -transom_slope/(lh*fabs(dP(2))) - 1/dP(2)/lh/lh;
@@ -435,8 +435,8 @@ void FreeSurface<dim>::initial_conditions(Vector<double> &dst) {
                     curve->D1(t,P,V1);
                     }
                  }
-             if ( (comp_dom.ref_points[3*i](0) > comp_dom.boat_model.PointCenterTransom(0)+comp_dom.min_diameter/2.0) &&
-                  (comp_dom.ref_points[3*i](0) < comp_dom.boat_model.PointCenterTransom(0)+lh*fabs(dP(2))) )
+             if ( (comp_dom.ref_points[3*i](0) > dP(0)+comp_dom.min_diameter/20.0) &&
+                  (comp_dom.ref_points[3*i](0) < dP(0)+lh*fabs(dP(2))+comp_dom.min_diameter/20.0) )
                 {
                 double mean_curvature;
                 Point<3> normal;
@@ -445,7 +445,6 @@ void FreeSurface<dim>::initial_conditions(Vector<double> &dst) {
                                                                                         normal,
                                                                                         mean_curvature,
 			                                                                dP);
-                cout<<projection<<" vs "<<dP<<"    dist: "<<dP.distance(projection)<<endl;
                 AssertThrow((dP.distance(projection) < 1e-4*comp_dom.boat_model.boatWetLength), ExcMessage("Normal projection for surface normal evaluation went wrong!"));
                 double transom_slope = -normal(0)/normal(2);
                 double a = -transom_slope/(lh*fabs(dP(2))) - 1/dP(2)/lh/lh;
@@ -456,6 +455,33 @@ void FreeSurface<dim>::initial_conditions(Vector<double> &dst) {
              }
         }
   }
+
+  double min_diameter = 1000000000;
+  FEValues<dim-1,dim> fe_v(*comp_dom.mapping, comp_dom.fe, *comp_dom.quadrature,
+			       update_JxW_values);
+  const unsigned int DphiDt_n_q_points = fe_v.n_quadrature_points;
+  cell_it
+  cell = comp_dom.dh.begin_active(),
+  endc = comp_dom.dh.end();
+
+  for (; cell!=endc; ++cell)
+      {
+      if ((cell->material_id() == comp_dom.free_sur_ID1 ||
+          cell->material_id() == comp_dom.free_sur_ID2 ||
+          cell->material_id() == comp_dom.free_sur_ID3 ))
+          {
+          fe_v.reinit(cell);
+          double area=0;
+          for (unsigned int q=0; q<DphiDt_n_q_points; ++q)
+              {
+              area += fe_v.JxW(q);
+              }
+          min_diameter = fmin(min_diameter,2*sqrt(area/3.1415));
+          }
+       }
+
+  cell_flag_vector_before(comp_dom.tria.n_active_cells());
+  cout<<"Min Diameter Corrected: "<<min_diameter<<endl;
 
   std::vector<Point<dim> > displaced_support_points(comp_dom.dh.n_dofs());
   DoFTools::map_dofs_to_support_points<dim-1, dim>( *comp_dom.mapping, comp_dom.dh, displaced_support_points);
@@ -541,7 +567,7 @@ void FreeSurface<dim>::initial_conditions(Vector<double> &dst) {
 
 // on the boat surface the normal potential must respect the boundary conditions (dphi_dn=-Vinf*n)
    std::vector<unsigned int> local_dof_indices (comp_dom.fe.dofs_per_cell);
-    cell_it 
+    
       cell = comp_dom.dh.begin_active(),
       endc = comp_dom.dh.end();
       
@@ -705,9 +731,9 @@ void FreeSurface<dim>::initial_conditions(Vector<double> &dst) {
 
       // here we finally compute the reference cell areas, which are needed
       // to evaluate boat cell deformations and possibly activate smoothing
-      FEValues<dim-1,dim> fe_v(*comp_dom.mapping, comp_dom.fe, *comp_dom.quadrature,
-			       update_JxW_values);
-      const unsigned int DphiDt_n_q_points = fe_v.n_quadrature_points;
+      //FEValues<dim-1,dim> fe_v(*comp_dom.mapping, comp_dom.fe, *comp_dom.quadrature,
+	//		       update_JxW_values);
+      //const unsigned int DphiDt_n_q_points = fe_v.n_quadrature_points;
       ref_cell_areas.reinit(comp_dom.tria.n_active_cells());
       cell = comp_dom.dh.begin_active(),
       endc = comp_dom.dh.end();
@@ -954,17 +980,54 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
 							 max_number_of_dofs);
 //      GridRefinement::refine_and_coarsen_optimize	(tria,
 //                                                         estimated_error_per_cell);
-     
-				       // prepare the triangulation,
-      tria.prepare_coarsening_and_refinement();
 
+/* 
+        unsigned int cell_count = 0;
+	for (cell_it elem=dh.begin_active(); elem!= dh.end();++elem)
+	    {
+            if (elem->refine_flag_set())
+               {
+               //cout<<"Final final say: "<<elem<<"  needs refinement"<<endl;
+               cell_flag_vector_before(cell_count) = 1.0;
+               }
+            else
+               cell_flag_vector_before(cell_count) = 0.0;
+            cell_count++;
+            }
 
-	
+      std::string filename505 = ( "beforePrepare.vtu" );
+      output_results(filename505, t, solution, solution_dot); 
+    
+*/
+
+      // here we compute the cell diameters, which are needed
+      // to limit cell refinement to bigger cells
+      FEValues<dim-1,dim> fe_v(*comp_dom.mapping, comp_dom.fe, *comp_dom.quadrature,
+	   		       update_JxW_values);
+      const unsigned int n_q_points = fe_v.n_quadrature_points;
+      Vector<double> cell_diameters(comp_dom.tria.n_active_cells());
+      cell_it
+      cell = comp_dom.dh.begin_active(),
+      endc = comp_dom.dh.end();
+
+      counter=0;
+      for (; cell!=endc; ++cell)
+          {
+          fe_v.reinit(cell);
+          for (unsigned int q=0; q<n_q_points; ++q)
+              {
+              cell_diameters(counter) += fe_v.JxW(q);
+              }
+          cell_diameters(counter) = 2*sqrt(cell_diameters(counter)/3.1415);
+          ++counter;
+          }
+
+      counter=0;
       if(comp_dom.n_cycles == 0)
 	{
 	for (cell_it elem=dh.begin_active(); elem!= dh.end();++elem)
 	    {
-	    if(elem->diameter()*8.0/2.0 < comp_dom.min_diameter)
+	    if(cell_diameters(counter)*8.0/2.0 < comp_dom.min_diameter)
 	      elem->clear_refine_flag();
 
             if(fabs(elem->center()(0)) > 20.0)
@@ -990,6 +1053,7 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
 		 elem->clear_refine_flag();
 		 elem->clear_coarsen_flag();
 	      }
+            counter++;
             }
 
 	  typedef typename Triangulation<dim-1, dim>::active_cell_iterator tria_it;
@@ -1033,34 +1097,11 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
 	for (cell_it elem=dh.begin_active(); elem!= dh.end();++elem)
 	  {
 
-
-            //if (t<80.0)
-            //  {
-	    //  if(elem->diameter()/2.5 < comp_dom.min_diameter)
-            //    {
-	    //    elem->clear_refine_flag();
-            //    }
-            //  }
-            //else
-            //  {
-              //cout<<elem<<" ("<<elem->center()<<") --> "<<elem->diameter()/1.0<<" >< "<<comp_dom.min_diameter<<endl;
-              double ref_limit=1.0;
-              //if (t < 5)
-              //   ref_limit = 4.0*adaptive_ref_limit;
-              //else if (t < 10)
-                 //ref_limit = 2.0*adaptive_ref_limit;
-              //else
-                 ref_limit = adaptive_ref_limit;
-              if (elem->diameter()/ref_limit < comp_dom.min_diameter)
-                 {
-                 //cout<<"*"<<endl;
-	         elem->clear_refine_flag();
-                 }
-            //  }
-            ///if((elem->diameter()/adaptive_ref_limit/2.0 < comp_dom.min_diameter) &&
-            //   (elem->center()(0) > comp_dom.boat_model.boatWetLength/2.0) &&
-            //   (comp_dom.boat_model.is_transom) )
-	    //   elem->clear_refine_flag();
+            if (cell_diameters(counter)/adaptive_ref_limit < comp_dom.min_diameter)
+               {
+	       elem->clear_refine_flag();
+               }
+            
             if(fabs(elem->center()(0)) > comp_dom.boat_model.boatWetLength*5.0)
 	       elem->clear_refine_flag();
 	    
@@ -1109,18 +1150,61 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
               elem->clear_refine_flag();
               elem->clear_coarsen_flag();
               }
-	  }
-      
 
+	  counter++;
+          }
+ 
+      /*
+      cell_flag_vector_before = 0.0;
+      cell_count = 0;
+	for (cell_it elem=dh.begin_active(); elem!= dh.end();++elem)
+	    {
+            if (elem->refine_flag_set())
+               {
+               cout<<"Final final say: "<<elem<<"  needs refinement"<<endl;
+               cell_flag_vector_before(cell_count) = 1.0;
+               }
+            else
+               cell_flag_vector_before(cell_count) = 0.0;
+            cell_count++;
+            }
+
+      std::string filename50 = ( "rightBeforePrepare.vtu" );
+      output_results(filename50, t, solution, solution_dot);     
+      */
+				       // prepare the triangulation,
+      tria.prepare_coarsening_and_refinement();
       soltrans.prepare_for_coarsening_and_refinement(all_in);
-      
+
+      /*
+      cell_flag_vector_before = 0.0;
+      cell_count = 0;
+	for (cell_it elem=dh.begin_active(); elem!= dh.end();++elem)
+	    {
+            if (elem->refine_flag_set())
+               {
+               cout<<"Final final final say: "<<elem<<"  needs refinement"<<endl;
+               cell_flag_vector_before(cell_count) = 1.0;
+               }
+            else
+               cell_flag_vector_before(cell_count) = 0.0;
+            cell_count++;
+            }
+
+      std::string filename55 = ( "rightAfterPrepare.vtu" );
+      output_results(filename55, t, solution, solution_dot);
+      */
+
       tria.execute_coarsening_and_refinement();
+
+
       dh.distribute_dofs(comp_dom.fe);
       vector_dh.distribute_dofs(comp_dom.vector_fe);  
       comp_dom.map_points.reinit(vector_dh.n_dofs());
       comp_dom.smoothing_map_points.reinit(vector_dh.n_dofs());
       comp_dom.old_map_points.reinit(vector_dh.n_dofs());
       comp_dom.initial_map_points.reinit(vector_dh.n_dofs());
+      cell_flag_vector_before.reinit(tria.n_active_cells());
       comp_dom.ref_points.resize(vector_dh.n_dofs());
       DoFTools::map_dofs_to_support_points<2,3>(StaticMappingQ1<2,3>::mapping,
 					      comp_dom.vector_dh, comp_dom.ref_points);
@@ -1231,6 +1315,8 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
       bem_dphi_dn.reinit(comp_dom.dh.n_dofs());
       temp_src.reinit(comp_dom.vector_dh.n_dofs());
       break_wave_press.reinit(comp_dom.dh.n_dofs());
+  cell_flag_vector_before(comp_dom.tria.n_active_cells());
+  
       
 
       bem.reinit();
@@ -1353,7 +1439,7 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
      double eta_dry = fmin(0.06296*pow(FrT,2.834)*pow(transom_aspect_ratio,0.1352)*pow(ReT,0.01338),1.0);
      double lh = 0.0;
      if (eta_dry < 1.0)
-        lh = 3.0; 
+        lh = 5.0; 
         //lh = 0.1135*pow(FrT,3.025)*pow(transom_aspect_ratio,0.4603)*pow(ReT,-0.1514);
         //lh = 0.3265*pow(FrT,3.0) - 1.7216*pow(FrT,2.0) + 2.7593*FrT;
 
@@ -1392,8 +1478,8 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
                     }
                  }
 
-             if ( (comp_dom.ref_points[3*i](0) > comp_dom.boat_model.PointCenterTransom(0)+comp_dom.min_diameter/2.0) &&
-                  (comp_dom.ref_points[3*i](0) < comp_dom.boat_model.PointCenterTransom(0)+lh*fabs(dP(2))) )
+             if ( (comp_dom.ref_points[3*i](0) > dP(0)+comp_dom.min_diameter/20.0) &&
+                  (comp_dom.ref_points[3*i](0) < dP(0)+lh*fabs(dP(2))+comp_dom.min_diameter/20.0) )
                 {
                 double mean_curvature;
                 Point<3> normal;
@@ -1402,12 +1488,14 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
                                                                                         normal,
                                                                                         mean_curvature,
 			                                                                dP);
-                cout<<projection<<" vs "<<dP<<"    dist: "<<dP.distance(projection)<<endl;
+                
                 AssertThrow((dP.distance(projection) < 1e-4*comp_dom.boat_model.boatWetLength), ExcMessage("Normal projection for surface normal evaluation went wrong!"));
                 double transom_slope = -normal(0)/normal(2);
                 double a = -transom_slope/(lh*fabs(dP(2))) - 1/dP(2)/lh/lh;
-                double x = comp_dom.ref_points[3*i](0)-comp_dom.boat_model.PointCenterTransom(0);
+                double x = comp_dom.ref_points[3*i](0)-dP(0);
                 comp_dom.initial_map_points(3*i+2) = a*x*x + transom_slope*x + dP(2);
+                //cout<<"a="<<a<<"  t_s="<<transom_slope<<"  dP(2)="<<dP(2)<<endl;
+                //cout<<"x="<<x<<"  z_in="<<comp_dom.initial_map_points(3*i+2)<<endl;
                 }
              }
              else if ( (comp_dom.ref_points[3*i](1) > comp_dom.boat_model.PointLeftTransom(1)) &&
@@ -1441,8 +1529,8 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
                     curve->D1(t,P,V1);
                     }
                  }
-             if ( (comp_dom.ref_points[3*i](0) > comp_dom.boat_model.PointCenterTransom(0)+comp_dom.min_diameter/2.0) &&
-                  (comp_dom.ref_points[3*i](0) < comp_dom.boat_model.PointCenterTransom(0)+lh*fabs(dP(2))) )
+             if ( (comp_dom.ref_points[3*i](0) > dP(0)+comp_dom.min_diameter/20.0) &&
+                  (comp_dom.ref_points[3*i](0) < dP(0)+lh*fabs(dP(2))+comp_dom.min_diameter/20.0) )
                 {
                 double mean_curvature;
                 Point<3> normal;
@@ -1451,7 +1539,7 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
                                                                                         normal,
                                                                                         mean_curvature,
 			                                                                dP);
-                cout<<projection<<" vs "<<dP<<"    dist: "<<dP.distance(projection)<<endl;
+                
                 AssertThrow((dP.distance(projection) < 1e-4*comp_dom.boat_model.boatWetLength), ExcMessage("Normal projection for surface normal evaluation went wrong!"));
                 double transom_slope = -normal(0)/normal(2);
                 double a = -transom_slope/(lh*fabs(dP(2))) - 1/dP(2)/lh/lh;
@@ -1582,11 +1670,9 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
 
       // here we finally compute the reference cell areas, which are needed
       // to evaluate boat cell deformations and possibly activate smoothing
-      FEValues<dim-1,dim> fe_v(*comp_dom.mapping, comp_dom.fe, *comp_dom.quadrature,
-	   		       update_JxW_values);
+
       const unsigned int DphiDt_n_q_points = fe_v.n_quadrature_points;
       ref_cell_areas.reinit(comp_dom.tria.n_active_cells());
-      cell_it
       cell = comp_dom.dh.begin_active(),
       endc = comp_dom.dh.end();
 
@@ -1860,6 +1946,7 @@ std::cout<<"Restoring mesh conformity..."<<std::endl;
       comp_dom.smoothing_map_points.reinit(vector_dh.n_dofs());
       comp_dom.old_map_points.reinit(vector_dh.n_dofs());
       comp_dom.initial_map_points.reinit(vector_dh.n_dofs());
+      cell_flag_vector_before.reinit(tria.n_active_cells());
       comp_dom.ref_points.resize(vector_dh.n_dofs());
       DoFTools::map_dofs_to_support_points<2,3>(StaticMappingQ1<2,3>::mapping,
 					      comp_dom.vector_dh, comp_dom.ref_points);
@@ -1960,6 +2047,8 @@ std::cout<<"Restoring mesh conformity..."<<std::endl;
       bem_dphi_dn.reinit(comp_dom.dh.n_dofs());
       temp_src.reinit(comp_dom.vector_dh.n_dofs());
       break_wave_press.reinit(comp_dom.dh.n_dofs());
+  cell_flag_vector_before(comp_dom.tria.n_active_cells());
+  
       
 
       bem.reinit();
@@ -2168,6 +2257,7 @@ std::cout<<"Removing hanging nodes from transom stern..."<<std::endl;
       comp_dom.smoothing_map_points.reinit(vector_dh.n_dofs());
       comp_dom.old_map_points.reinit(vector_dh.n_dofs());
       comp_dom.initial_map_points.reinit(vector_dh.n_dofs());
+      cell_flag_vector_before.reinit(tria.n_active_cells());
       comp_dom.ref_points.resize(vector_dh.n_dofs());
       DoFTools::map_dofs_to_support_points<2,3>(StaticMappingQ1<2,3>::mapping,
 					      comp_dom.vector_dh, comp_dom.ref_points);
@@ -2268,6 +2358,8 @@ std::cout<<"Removing hanging nodes from transom stern..."<<std::endl;
       bem_dphi_dn.reinit(comp_dom.dh.n_dofs());
       temp_src.reinit(comp_dom.vector_dh.n_dofs());
       break_wave_press.reinit(comp_dom.dh.n_dofs());
+  cell_flag_vector_before(comp_dom.tria.n_active_cells());
+  
       
 
       bem.reinit();
@@ -3501,11 +3593,16 @@ Vector<double>& FreeSurface<dim>::get_diameters()
 	phi_cell = comp_dom.dh.begin_active(),
 	phi_endc = comp_dom.dh.end();
 
+      FEValues<dim-1,dim> fe_v(*comp_dom.mapping, comp_dom.fe, *comp_dom.quadrature,
+			    update_JxW_values);
+      const unsigned int n_q_points = fe_v.n_quadrature_points;
       std::vector<unsigned int> vector_local_dof_indices(comp_dom.vector_fe.dofs_per_cell);    
       std::vector<unsigned int> phi_local_dof_indices(comp_dom.fe.dofs_per_cell);  
+
       for (; phi_cell!=phi_endc,vector_cell!=vector_endc; ++phi_cell,++vector_cell)
 	{
 	  Assert(phi_cell->index() == vector_cell->index(), ExcInternalError());
+
 	  phi_cell->get_dof_indices(phi_local_dof_indices);
 	  vector_cell->get_dof_indices(vector_local_dof_indices);
 	  for (unsigned int i=0; i<comp_dom.vector_fe.dofs_per_cell; ++i)
@@ -4433,7 +4530,7 @@ for (unsigned int k=3; k<7; ++k)
       double ReT = sqrt(9.81*pow(transom_draft,3.0))/1.307e-6;
       eta_dry = fmin(0.06296*pow(FrT,2.834)*pow(transom_aspect_ratio,0.1352)*pow(ReT,0.01338),1.0);
       if (eta_dry < 1.0) 
-         lh = 3.0; 
+         lh = 5.0; 
         //lh = 0.1135*pow(FrT,3.025)*pow(transom_aspect_ratio,0.4603)*pow(ReT,-0.1514);
          //lh = 0.3265*pow(FrT,3.0) - 1.7216*pow(FrT,2.0) + 2.7593*FrT;  
       cout<<"LH: "<<lh<<endl;
@@ -7188,9 +7285,9 @@ void FreeSurface<dim>::output_results(const std::string filename,
    Vector<double> nodes_vel_x(comp_dom.dh.n_dofs());
    Vector<double> nodes_vel_y(comp_dom.dh.n_dofs());
    Vector<double> nodes_vel_z(comp_dom.dh.n_dofs());
-   //Vector<double> eta_grad_x(comp_dom.dh.n_dofs());
-   //Vector<double> eta_grad_y(comp_dom.dh.n_dofs());
-   //Vector<double> eta_grad_z(comp_dom.dh.n_dofs());
+   //Vector<double> map_init_x(comp_dom.dh.n_dofs());
+   //Vector<double> map_init_y(comp_dom.dh.n_dofs());
+   //Vector<double> map_init_z(comp_dom.dh.n_dofs());
 
    Vector<double> complete_potential_gradients(comp_dom.vector_dh.n_dofs()); 
    compute_potential_gradients(complete_potential_gradients,phi,dphi_dn);
@@ -7203,9 +7300,9 @@ void FreeSurface<dim>::output_results(const std::string filename,
        nodes_vel_x(i) = nodes_vel(i*dim);
        nodes_vel_y(i) = nodes_vel(i*dim+1);
        nodes_vel_z(i) = nodes_vel(i*dim+2);
-       //eta_grad_x(i) = vector_sys_solution_2(i*dim);
-       //eta_grad_y(i) = vector_sys_solution_2(i*dim+1);
-       //eta_grad_z(i) = vector_sys_solution_2(i*dim+2);       
+       //map_init_x(i) = comp_dom.initial_map_points(i*dim);
+       //map_init_y(i) = comp_dom.initial_map_points(i*dim+1);
+       //map_init_z(i) = comp_dom.initial_map_points(i*dim+2);       
        }
 
 
@@ -7237,7 +7334,12 @@ void FreeSurface<dim>::output_results(const std::string filename,
   DataOut<dim-1, DoFHandler<dim-1, dim> > dataout;
   
   dataout.attach_dof_handler(comp_dom.dh);
-  
+  if (cell_flag_vector_before.size() == 0)
+     {
+     cout<<filename<<" ATTENTION!"<<endl;
+     cell_flag_vector_before.reinit(comp_dom.tria.n_active_cells());
+     }
+
   dataout.add_data_vector((const Vector<double>&)phi, "phi");
   dataout.add_data_vector((const Vector<double>&)phi_dot, "phi_dot");
   dataout.add_data_vector(elevations, "elevations");
@@ -7259,6 +7361,10 @@ void FreeSurface<dim>::output_results(const std::string filename,
   dataout.add_data_vector(iges_normals_x_values, "iges_normals_x");
   dataout.add_data_vector(iges_normals_y_values, "iges_normals_y");
   dataout.add_data_vector(iges_normals_z_values, "iges_normals_z");
+  dataout.add_data_vector(cell_flag_vector_before,"ref_flags");
+  //dataout.add_data_vector(map_init_x, "map_init_x");
+  //dataout.add_data_vector(map_init_y, "map_init_y");
+  //dataout.add_data_vector(map_init_z, "map_init_z");
   //dataout.add_data_vector(DphiDt_sys_solution_2, "damping");
 
   dataout.build_patches(*comp_dom.mapping,

@@ -81,7 +81,7 @@ set Node displacement type          = semilagrangian
 # salvato sarà nominato nomefile_10.vtu). Saranno poi salvati un file con desinenza
 # _force.txt contenente tutte le forze per ciascun salvataggio, ed un file
 # _water_line.txt contenente le coordinate dei nodi in comune tra barca e acqua
-set Output file name                = OPENSHIP/npl_new_mesh
+set Output file name                = OPENSHIP/npl_new_mesh_test
 
 # Massimo numero di time steps: non molto utile, lo leverò
 set Maximum number of steps         = 10000
@@ -104,7 +104,7 @@ set Keep BEM in sync with geometry  = false
 
 # La mesh viene raffinata adattativamente durante la simulazione. Cio viene fatto
 # ogni Remeshing period secondi
-set Remeshing period		    = 0.8
+set Remeshing period		    = 1.0
 
 # Lascia 1. Vuol dire che la mesh sulla barca non viene mai raffinata/deraffinata durante le
 # simulazioni. Mettere significa lasciare il raffinamento libero di toccare la mesh
@@ -135,7 +135,7 @@ subsection Local Refinement
   set Coarsening fraction    = .0
 # a 4000 nodi intasi la memoria, anche su plx, quindi meglio non andare oltre
   set Maximum number of dofs = 4500
-  set Refinement fraction    = .3
+  set Refinement fraction    = .2
   set Adaptive refinement limit = 1.0
 end
 
