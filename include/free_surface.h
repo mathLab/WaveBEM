@@ -446,6 +446,10 @@ private:
                               // won't be refined.
   double adaptive_ref_limit;
 
+  //to be removed soooooon!!
+  Vector<double> cell_flag_vector_before;
+
+
 };
 
 #endif

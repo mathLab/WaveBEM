@@ -212,6 +212,8 @@ void ComputationalDomain<dim>::read_domain()
 {
   tria.set_mesh_smoothing (Triangulation<dim-1,dim>::do_not_produce_unrefined_islands );
   coarse_tria.set_mesh_smoothing (Triangulation<dim-1,dim>::do_not_produce_unrefined_islands );
+  tria.set_mesh_smoothing (Triangulation<dim-1,dim>::eliminate_refined_boundary_islands );
+  coarse_tria.set_mesh_smoothing (Triangulation<dim-1,dim>::eliminate_refined_boundary_islands );
 
   tria.restore();
 
