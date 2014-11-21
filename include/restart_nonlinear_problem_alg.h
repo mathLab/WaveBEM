@@ -85,7 +85,7 @@ public:
       unsigned int i=*pos;
       for (SparsityPattern::iterator col=free_surf_jacobian.get_sparsity_pattern().begin(i+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs());
            col!=free_surf_jacobian.get_sparsity_pattern().end(i+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()); ++col)
-          if ( (indices_map.count(col->column())) && ((col->column())> comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()) )
+          if ( (indices_map.count(col->column())) && ((col->column())>= comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()) )
              {
              jacobian_sparsity_pattern.add(count,indices_map.find(col->column())->second);
              //cout<<"prima "<<count<<","<<indices_map.find(col->column())->second<<endl;

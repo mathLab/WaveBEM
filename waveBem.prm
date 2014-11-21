@@ -1,5 +1,5 @@
 # nome (con path) del file iges da aprire
-set Iges file name                  = ./utilities/testHull_full_scale.iges
+set Iges file name                  = NO_BOAT#./utilities/goteborgExperiments.iges
 
 # dislocamento (mettere 0 se non si vuole spostare la barca rispetto
 # alla posizione verticale in cui si trova nel file iges)
@@ -14,7 +14,7 @@ set Assigned trim (rad)             = 0.0
 # Per ora è l'utente che deve specificare, dopo avere guardato il file iges, da quanti edges
 # è composta una eventiale transom stern. Se la barca non ha transom stern, questo parametro è
 # ininfluente
-set Number of transom edges         = 3
+set Number of transom edges         = 1
 
 # Per prima cosa: per chiglia intendo la bspline che rappresenta la curva di intersezione tra barca
 # e piano di simmetria.
@@ -26,12 +26,12 @@ set Number of transom edges         = 3
 # Il punto che si trova sotto la poppa è messo ad una distanza Back keel length dal punto superiore
 # (che è l'intersezione posteriore chiglia-superficie libera). Questa distanza è riferita alla
 # lunghezza della parte immersa della chiglia. Con wigley hull usa 0.055556.
-set Back keel length                = 0.2 #0.015
+set Back keel length                = 0.13 #0.2 #0.015
 
 # Il punto che si trova sotto la prua è messo ad una distanza Front keel length dal punto superiore
 # (che è l'intersezione posteriore chiglia-superficie libera). Anche questa distanza è riferita alla
 # lunghezza della parte immersa della chiglia. Con wigley hull usa 0.055556.
-set Front keel length               = 0.05 #0.025
+set Front keel length               = .075 #0.05 #0.025
 
 # Il punto centrale della fila inferiore è messo ad una distanza Middle keel length dal punto di
 # l'intersezione anteriore chiglia-superficie libera. Anche questa distanza è riferita alla
@@ -58,7 +58,7 @@ set Back mesh inclination coeff     = 1.0
 # Le celle della barca vengono raffinate globalmente, ovvero ciascuna cella viene
 # divisa in 4 celle. Questa procedura viene ripetuta un numero di volte deciso 
 # da questo numero 
-set Number of boat initial uniform refinements = 2
+set Number of boat initial uniform refinements = 0
 
 # Dopo che la barca è stata raffinata uniformemente, viene svolto un ultimo ciclo
 # di raffinamenti locali, basato sulla distanza di ciascuna cella dalla superficie
@@ -81,7 +81,7 @@ set Node displacement type          = semilagrangian
 # salvato sarà nominato nomefile_10.vtu). Saranno poi salvati un file con desinenza
 # _force.txt contenente tutte le forze per ciascun salvataggio, ed un file
 # _water_line.txt contenente le coordinate dei nodi in comune tra barca e acqua
-set Output file name                = OPENSHIP/npl_new_mesh_test
+set Output file name                = OPENSHIP/water_tank
 
 # Massimo numero di time steps: non molto utile, lo leverò
 set Maximum number of steps         = 10000
@@ -93,7 +93,7 @@ set Solution method                 = Direct
 # E' un pò che questa cosa non funziona, e dovrò ritirarla su, perchè può chiaramente
 # essere utile far partira una chessò, una simulazione a Fr=0.3, da quella a 
 # Fr= 0.25. In questo caso la soluzione viene salvata ogni 0.3 secondi.
-set Dumping period		    = 1
+set Dumping period		    = 1.0
 
 # Qui si specifica se la simulazione deve ripartire da un file dump assegnato
 # se (come in questo caso) non si vuole ciò, basta non assegnare nulla
@@ -134,9 +134,9 @@ subsection Local Refinement
 # per ora preferiamo non deraffinare mai
   set Coarsening fraction    = .0
 # a 4000 nodi intasi la memoria, anche su plx, quindi meglio non andare oltre
-  set Maximum number of dofs = 4500
-  set Refinement fraction    = .2
-  set Adaptive refinement limit = 1.0
+  set Maximum number of dofs = 4750
+  set Refinement fraction    = .175
+  set Adaptive refinement limit = 2.0
 end
 
 # Questo ignoralo: va eliminato
@@ -173,7 +173,7 @@ subsection IDA Solver Params
   set Initial time                    = 0
 
 # Tempo finale della simulazione
-  set Final time                      = 60
+  set Final time                      = 120
 
 # Time step iniziale
   set Initial step size               = 0.005
@@ -264,15 +264,15 @@ end
 subsection Wind function 3d
 #  set Function constants  = k=0.004952272206 # sqrt(g l)/1000 wigley
 #  set Function constants  = k=0.034584 # sqrt(g l)/1000 series 60 full scale
-#  set Function constants  = k=0.0074909 # sqrt(g l)/1000 goteborg
+  set Function constants  = k=0.0074909 # sqrt(g l)/1000 goteborg
 #  set Function constants  = k=0.0084500 # sqrt(g l)/1000 kcs
 #  set Function constants  = k=0.0073569 # sqrt(g l)/1000 kvlcc2m
 #  set Function constants  = k=0.0092538 # sqrt(g l)/1000 comacina
 #  set Function constants  = k=0.009855315337 # sqrt(g l)/1000 vela enave
 #  set Function constants  = k=0.0049917 # sqrt(g l)/1000 test Hull
-  set Function constants  = k=0.017298 # sqrt(g l)/1000 test Hull Full Scale
+#  set Function constants  = k=0.017298 # sqrt(g l)/1000 test Hull Full Scale
 #  set Function constants  = k=0.025966 # sqrt(g l)/1000 Macolino Full Scale
-  set Function expression = 0250*k; 0; 0 #*if(t < 4, 0.5*sin(3.141592654*(t)/4-3.141592654/2)+0.5, 1 ); 0; 0
+  set Function expression = 0150*k; 0; 0 #*if(t < 4, 0.5*sin(3.141592654*(t)/4-3.141592654/2)+0.5, 1 ); 0; 0
   set Variable names      = x,y,z,t
 end
 
@@ -285,8 +285,8 @@ end
 
 # Questo ignoralo: va eliminato
 subsection Inflow Normal Potential Gradient 3d
-  set Function constants  = 
-  set Function expression = 0 
+  set Function constants  = k=4.0269, omega=6.2832, h=1, g=9.81, a=0.02
+  set Function expression = omega*a*cosh(k*(z+h))/sinh(k*h)*cos(k*x-omega*t)*if(t < 10, 0.5*sin(3.141592654*(t)/10-3.141592654/2)+0.5, 1 )
   set Variable names      = x,y,z,t
 end
 

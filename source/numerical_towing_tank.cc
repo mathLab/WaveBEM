@@ -39,7 +39,8 @@ void NumericalTowingTank::full_mesh_treatment()
 {
 std::cout<<"Performing full mesh treatment"<<std::endl;
 
-perform_line_smoothing(7);
+
+perform_line_smoothing(line_smoothers.size());
 
 perform_water_line_nodes_projection();
 // for (unsigned int i=0; i<vector_dh.n_dofs(); ++i)
@@ -67,7 +68,8 @@ void NumericalTowingTank::partial_mesh_treatment(const double blend_factor)
 {
 std::cout<<"Performing partial mesh treatment"<<std::endl;
 
-perform_line_smoothing(3);
+if (line_smoothers.size() == 7)
+   perform_line_smoothing(3);
 perform_water_line_nodes_projection();
 perform_smoothing(false,blend_factor);
 vector_constraints.distribute(map_points);
@@ -139,7 +141,9 @@ void NumericalTowingTank::refine_and_resize()
 	    (mapping_degree, map_points, vector_dh);
   
   generate_double_nodes_set();
+
   full_mesh_treatment();
+
 // anisotropic refinement
   remove_mesh_anisotropy(tria);
   refine_global_on_boat(init_global_boat_refs);
@@ -283,18 +287,30 @@ void NumericalTowingTank::refine_and_resize()
   
 void NumericalTowingTank::read_domain ()
 {
+
   //tria.set_mesh_smoothing (Triangulation<2,3>::do_not_produce_unrefined_islands );
   //coarse_tria.set_mesh_smoothing (Triangulation<2,3>::do_not_produce_unrefined_islands );
+  cout<<"Hey: "<<iges_file_name<<endl;
+  cout<<iges_file_name.compare("NO_BOAT")<<endl;
+  if (!iges_file_name.compare("NO_BOAT"))
+     {
+     no_boat = true;
+     line_smoothers.resize(0);
+     }
+  else
+     {
+     no_boat = false;
+     boat_model.start_iges_model(iges_file_name,
+                                 1.0/1000.0,
+                                 boat_displacement,
+                                 assigned_sink,
+                                 assigned_trim,
+                                 back_keel_length, 
+                                 front_keel_length,
+                                 middle_keel_length,
+                                 number_of_transom_edges);
+     }
 
-  boat_model.start_iges_model(iges_file_name,
-                              1.0/1000.0,
-                              boat_displacement,
-                              assigned_sink,
-                              assigned_trim,
-                              back_keel_length, 
-                              front_keel_length,
-                              middle_keel_length,
-                              number_of_transom_edges);
   //boat_model.start_iges_model(iges_file_name,1.0/1000.0,boat_displacement,assigned_sink,assigned_trim,0.068979, 0.075, .5); //con kcs.iges
   //boat_model.start_iges_model(iges_file_name, 1.0/1000.0,boat_displacement,assigned_sink,assigned_trim,0.13, 0.05, .5); //con goteborg.iges
   //boat_model.start_iges_model(iges_file_name, 1.0/1000.0,boat_displacement,assigned_sink,assigned_trim,0.13, .05, .47); //con goteborgLow.iges
@@ -302,7 +318,7 @@ void NumericalTowingTank::read_domain ()
   //boat_model.start_iges_model(iges_file_name, 1.0/1000.0,boat_displacement,assigned_sink,assigned_trim,0.055556, 0.055556, .5); //con wigley.iges
   //boat_model.start_iges_model(iges_file_name, 1.0/1000.0,boat_displacement,assigned_sink,assigned_trim,0.068979, 0.049807, .5); //con series_60.iges
   //boat_model.start_iges_model(iges_file_name, 1.0/1000.0,boat_displacement,assigned_sink,assigned_trim,0.35, 0.2, .5); //con vela_enave.iges
-
+    
   cout<<"FrontBot "<<boat_model.PointFrontBot<<endl;
   cout<<"BackBot "<<boat_model.PointBackBot<<endl;
   create_initial_mesh(boat_model.PointFrontTop,
@@ -462,7 +478,7 @@ void NumericalTowingTank::declare_parameters (ParameterHandler &prm)
   ComputationalDomain<3>::declare_parameters (prm);
 // parameters to set domain 2ensions with respect to boat length could
 // be asked here to the user		      
-  prm.declare_entry("Iges file name", "wigley.iges", Patterns::Anything()); 
+  prm.declare_entry("Iges file name", "NO_BOAT", Patterns::Anything()); 
 
   prm.declare_entry("Refinement level on boat", "0", Patterns::Integer());
 
@@ -553,6 +569,53 @@ SubCellData subcelldata;
 double a = front_mesh_inclination_coeff;
 double b = back_mesh_inclination_coeff;
 
+if (no_boat)
+{
+vertices.resize(24);
+vertices[0](0)=-5.0; vertices[0](1)=-0.5; vertices[0](2)=0.0;
+vertices[1](0)=-5.0; vertices[1](1)=0.5; vertices[1](2)=0.0;
+vertices[2](0)=-5.0; vertices[2](1)=-0.5; vertices[2](2)=-1.0;
+vertices[3](0)=-5.0; vertices[3](1)=0.5; vertices[3](2)=-1.0;
+vertices[4](0)=-5.0; vertices[4](1)=0.5; vertices[4](2)=0.0;
+vertices[5](0)=-5.0; vertices[5](1)=-0.5; vertices[5](2)=0.0;
+vertices[6](0)=5.0; vertices[6](1)=-0.5; vertices[6](2)=0.0;
+vertices[7](0)=5.0; vertices[7](1)=0.5; vertices[7](2)=0.0;
+vertices[8](0)=-5.0; vertices[8](1)=0.5; vertices[8](2)=0.0;
+vertices[9](0)=5.0; vertices[9](1)=0.5; vertices[9](2)=0.0;
+vertices[10](0)=5.0; vertices[10](1)=0.5; vertices[10](2)=-1.0;
+vertices[11](0)=-5.0; vertices[11](1)=0.5; vertices[11](2)=-1.0;
+vertices[12](0)=-5.0; vertices[12](1)=-0.5; vertices[12](2)=0.0;
+vertices[13](0)=-5.0; vertices[13](1)=-0.5; vertices[13](2)=-1.0;
+vertices[14](0)=5.0; vertices[14](1)=-0.5; vertices[14](2)=-1.0;
+vertices[15](0)=5.0; vertices[15](1)=-0.5; vertices[15](2)=0.0;
+vertices[16](0)=-5.0; vertices[16](1)=-0.5; vertices[16](2)=-1.0;
+vertices[17](0)=-5.0; vertices[17](1)=0.5; vertices[17](2)=-1.0;
+vertices[18](0)=5.0; vertices[18](1)=0.5; vertices[18](2)=-1.0;
+vertices[19](0)=5.0; vertices[19](1)=-0.5; vertices[19](2)=-1.0;
+vertices[20](0)=5.0; vertices[20](1)=0.5; vertices[20](2)=0.0;
+vertices[21](0)=5.0; vertices[21](1)=-0.5; vertices[21](2)=0.0;
+vertices[22](0)=5.0; vertices[22](1)=-0.5; vertices[22](2)=-1.0;
+vertices[23](0)=5.0; vertices[23](1)=0.5; vertices[23](2)=-1.0;
+
+cells.resize(6);
+
+cells[0].vertices[0]=0; cells[0].vertices[1]=2; cells[0].vertices[2]=3; cells[0].vertices[3]=1;
+cells[1].vertices[0]=4; cells[1].vertices[1]=5; cells[1].vertices[2]=6; cells[1].vertices[3]=7;
+cells[2].vertices[0]=8; cells[2].vertices[1]=9; cells[2].vertices[2]=10; cells[2].vertices[3]=11;
+cells[3].vertices[0]=12; cells[3].vertices[1]=13; cells[3].vertices[2]=14; cells[3].vertices[3]=15;
+cells[4].vertices[0]=16; cells[4].vertices[1]=17; cells[4].vertices[2]=18; cells[4].vertices[3]=19;
+cells[5].vertices[0]=20; cells[5].vertices[1]=21; cells[5].vertices[2]=22; cells[5].vertices[3]=23;
+
+cells[0].material_id = 9; // inflow
+cells[1].material_id = 5; // free surface
+cells[2].material_id = 2; // side(+)
+cells[3].material_id = 1; // side(-)
+cells[4].material_id = 7; // bottom
+cells[5].material_id = 11; // outflow
+//*/
+}
+else
+{
 if (boat_model.is_transom)
 {
 
@@ -1031,7 +1094,7 @@ subcelldata.boundary_lines.back().vertices[0] = 23; subcelldata.boundary_lines.b
 subcelldata.boundary_lines.back().material_id = 37;
 
 }
-
+}
 
 GridTools::delete_unused_vertices (vertices, cells, subcelldata);
 GridReordering<2,3>::reorder_cells (cells);
@@ -1052,6 +1115,7 @@ void NumericalTowingTank::generate_double_nodes_set()
   ComputationalDomain<3>::generate_double_nodes_set();
 
   compute_nodes_flags();
+
   surface_nodes.reinit(dh.n_dofs());
   other_nodes.reinit(dh.n_dofs());
   for (unsigned int i=0; i<dh.n_dofs();++i)
@@ -1060,7 +1124,8 @@ void NumericalTowingTank::generate_double_nodes_set()
          surface_nodes(i) = 1;
       else
          other_nodes(i) = 1;
-      } 
+      }
+
   iges_normals.clear();
   iges_mean_curvatures.clear();
   iges_normals.resize(dh.n_dofs());
@@ -1535,14 +1600,19 @@ else
    restart_surface_smoother = new SurfaceSmoothing(smoothing_map_points, smoothing_curvature_vector,
    				           vector_dh, *mapping);
    }
-if ( line_smoothers[0] ) 
+
+if (line_smoothers.size() == 7)
    {
-   update_smoother();
+   if ( line_smoothers[0] ) 
+      {
+      update_smoother();
+      }
+   else
+      {
+      initialize_smoother();
+      }
    }
-else
-   {
-   initialize_smoother();
-   }
+
 
 }
 
@@ -2511,23 +2581,25 @@ old_iges_normals = iges_normals;
 
 void NumericalTowingTank::perform_smoothing(bool full_treatment, const double blend_factor)
 {  
-      
-      for(unsigned int i=0; i<vector_dh.n_dofs()/3;++i) 
-       	{
-          if( (boundary_dofs[0][3*i] == false) &&
-	      (boundary_dofs[1][3*i] == false) && 
-              (boundary_dofs[2][3*i] == false) &&
-	      (boundary_dofs[3][3*i] == false) &&
-	      (boundary_dofs[4][3*i] == false) &&
-	      (boundary_dofs[5][3*i] == false) &&
-              (boundary_dofs[6][3*i] == false) )
-          {   
-       	  for(unsigned int j=0; j<3; ++j) 
-       	    {
-       	    smoothing_curvature_vector(3*i+j) = -iges_normals[i][j]*(iges_mean_curvatures[i]);
-       	    }
-          }
-       	}
+     if (!no_boat)
+        { 
+        for(unsigned int i=0; i<vector_dh.n_dofs()/3;++i) 
+       	   {
+           if ( (boundary_dofs[0][3*i] == false) &&
+	        (boundary_dofs[1][3*i] == false) && 
+                (boundary_dofs[2][3*i] == false) &&
+	        (boundary_dofs[3][3*i] == false) &&
+	        (boundary_dofs[4][3*i] == false) &&
+	        (boundary_dofs[5][3*i] == false) &&
+                (boundary_dofs[6][3*i] == false) )
+              {   
+       	      for (unsigned int j=0; j<3; ++j) 
+       	          {
+       	          smoothing_curvature_vector(3*i+j) = -iges_normals[i][j]*(iges_mean_curvatures[i]);
+       	          }
+              }
+       	   }
+        }
       //smoothing is done on a COPY of map_points
       smoothing_map_points = map_points;
       surface_smoother->smooth();
@@ -2665,7 +2737,7 @@ cout<<"Removing hanging nodes from transom stern..."<<endl;
 
 cout<<"dofs before: "<<dh.n_dofs()<<endl;
 
-    unsigned int refinedCellCounter = 0;
+    unsigned int refinedCellCounter = 1;
     unsigned int cycles_counter = 0;
     while(refinedCellCounter)
      {
@@ -2694,13 +2766,13 @@ cout<<"dofs before: "<<dh.n_dofs()<<endl;
                     }
                 }
             }
-         cycles_counter++;
-         if (cycles_counter > 20)
-            {
-            cout<<"Warning! Maximum number of transom stern edge uniforming cycles reached!"<<endl;
-            break;
-            }
          }
+     cycles_counter++;
+     if (cycles_counter > 20)
+        {
+        cout<<"Warning! Maximum number of transom stern edge uniforming cycles reached!"<<endl;
+        break;
+        }
 
      //cout<<"refinedCellCounter   "<<refinedCellCounter<<endl;
      tria.execute_coarsening_and_refinement();
