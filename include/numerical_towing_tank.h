@@ -351,6 +351,9 @@ unsigned int init_adaptive_boat_refs;
                                    // fraction of boat cells to be refined per each cycle in the initial curvature
                                    // based refinement
 double init_adaptive_boat_refs_fraction;
+                                   // a flag that determines if a boat surface has to be used or the numerical wave tank
+                                   // has to be prepared for the simulation of free waves
+bool no_boat;
 
 };
 

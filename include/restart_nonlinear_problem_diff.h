@@ -36,29 +36,30 @@ public:
   bow_stern_indices.clear();
   water_indices.clear();
   phi_indices.clear();
-
-  for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
-      {
-      if ( (comp_dom.flags[i] & water) &&
-           (comp_dom.flags[i] & near_boat) &&
-           !(comp_dom.flags[i] & transom_on_water) &&
-           (comp_dom.moving_point_ids[3] != i) &&
-           (comp_dom.moving_point_ids[4] != i) &&
-           (comp_dom.moving_point_ids[5] != i) &&
-           (comp_dom.moving_point_ids[6] != i) )
+  if (!comp_dom.no_boat)
+     for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
          {
-         //cout<<"WL "<<i<<" ("<<3*i+1<<" "<<3*i+2<<")"<<endl;
-         water_line_indices.insert(i);
+         if ( (comp_dom.flags[i] & water) &&
+              (comp_dom.flags[i] & near_boat) &&
+              !(comp_dom.flags[i] & transom_on_water) &&
+              (comp_dom.moving_point_ids[3] != i) &&
+              (comp_dom.moving_point_ids[4] != i) &&
+              (comp_dom.moving_point_ids[5] != i) &&
+              (comp_dom.moving_point_ids[6] != i) )
+            {
+            //cout<<"WL "<<i<<" ("<<3*i+1<<" "<<3*i+2<<")"<<endl;
+            water_line_indices.insert(i);
+            }
          }
-      }
 
      //this takes care of the bow and stern nodes 
-  for (unsigned int k=3; k<7; ++k)
-      {
-      unsigned int i = comp_dom.moving_point_ids[k];
-      bow_stern_indices.insert(i);
-      //cout<<"BS "<<i<<" ("<<3*i<<" "<<3*i+1<<" "<<3*i+2<<")"<<endl;
-      }              
+  if (!comp_dom.no_boat)
+     for (unsigned int k=3; k<7; ++k)
+         {
+         unsigned int i = comp_dom.moving_point_ids[k];
+         bow_stern_indices.insert(i);
+         //cout<<"BS "<<i<<" ("<<3*i<<" "<<3*i+1<<" "<<3*i+2<<")"<<endl;
+         }              
 
   for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
       {
