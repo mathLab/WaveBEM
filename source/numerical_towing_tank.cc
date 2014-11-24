@@ -225,7 +225,6 @@ void NumericalTowingTank::refine_and_resize()
           }
 
 
-
       GridRefinement::refine_and_coarsen_fixed_fraction	(tria,
                                                          estimated_error_per_cell,
                                                          init_adaptive_boat_refs_fraction,
@@ -353,76 +352,79 @@ void NumericalTowingTank::read_domain ()
           }
       }
 */
-  tria.set_boundary(5, *boat_model.undist_water_surf);
-  tria.set_boundary(6, *boat_model.undist_water_surf);
-  //tria.set_boundary(21, *boat_model.boat_surface_right);
-  tria.set_boundary(21, *boat_model.water_line_right); //tria.set_boundary(21, *boat_model.boat_water_line_right);
-  //tria.set_boundary(23, *boat_model.boat_surface_right);
-  tria.set_boundary(23, *boat_model.water_line_right);//tria.set_boundary(23, *boat_model.boat_water_line_right);
-  //tria.set_boundary(22, *boat_model.boat_surface_left);
-  tria.set_boundary(22, *boat_model.water_line_left);//tria.set_boundary(22, *boat_model.boat_water_line_left);
-  //tria.set_boundary(24, *boat_model.boat_surface_left);
-  tria.set_boundary(24, *boat_model.water_line_left);//tria.set_boundary(22, *boat_model.boat_water_line_left);
-  //tria.set_boundary(26, *boat_model.boat_surface_right);
-  tria.set_boundary(26, *boat_model.water_line_right);//tria.set_boundary(26, *boat_model.boat_water_line_right);
-  //tria.set_boundary(28, *boat_model.boat_surface_right);
-  tria.set_boundary(28, *boat_model.water_line_right);//tria.set_boundary(28, *boat_model.boat_water_line_right);
-  //tria.set_boundary(27, *boat_model.boat_surface_left);
-  tria.set_boundary(27, *boat_model.water_line_left);//tria.set_boundary(27, *boat_model.boat_water_line_left);
-  //tria.set_boundary(29, *boat_model.boat_surface_left);
-  tria.set_boundary(29, *boat_model.water_line_left);//tria.set_boundary(29, *boat_model.boat_water_line_left);
-  if (boat_model.is_transom)
-     tria.set_boundary(32, *boat_model.boat_transom_left);
-  else
-     tria.set_boundary(32, *boat_model.boat_keel);
-  tria.set_boundary(31, *boat_model.boat_keel);
-  tria.set_boundary(30, *boat_model.boat_keel);
-  if (boat_model.is_transom)
-     tria.set_boundary(37, *boat_model.boat_transom_right);
-  else
-     tria.set_boundary(37, *boat_model.boat_keel);
-  tria.set_boundary(36, *boat_model.boat_keel);
-  tria.set_boundary(35, *boat_model.boat_keel);
-  if (boat_model.is_transom)
+  if (!no_boat)
      {
-     tria.set_boundary(40, *boat_model.boat_transom_left);
-     tria.set_boundary(41, *boat_model.boat_transom_right);
-     }
+     tria.set_boundary(5, *boat_model.undist_water_surf);
+     tria.set_boundary(6, *boat_model.undist_water_surf);
+     //tria.set_boundary(21, *boat_model.boat_surface_right);
+     tria.set_boundary(21, *boat_model.water_line_right); //tria.set_boundary(21, *boat_model.boat_water_line_right);
+     //tria.set_boundary(23, *boat_model.boat_surface_right);
+     tria.set_boundary(23, *boat_model.water_line_right);//tria.set_boundary(23, *boat_model.boat_water_line_right);
+     //tria.set_boundary(22, *boat_model.boat_surface_left);
+     tria.set_boundary(22, *boat_model.water_line_left);//tria.set_boundary(22, *boat_model.boat_water_line_left);
+     //tria.set_boundary(24, *boat_model.boat_surface_left);
+     tria.set_boundary(24, *boat_model.water_line_left);//tria.set_boundary(22, *boat_model.boat_water_line_left);
+     //tria.set_boundary(26, *boat_model.boat_surface_right);
+     tria.set_boundary(26, *boat_model.water_line_right);//tria.set_boundary(26, *boat_model.boat_water_line_right);
+     //tria.set_boundary(28, *boat_model.boat_surface_right);
+     tria.set_boundary(28, *boat_model.water_line_right);//tria.set_boundary(28, *boat_model.boat_water_line_right);
+     //tria.set_boundary(27, *boat_model.boat_surface_left);
+     tria.set_boundary(27, *boat_model.water_line_left);//tria.set_boundary(27, *boat_model.boat_water_line_left);
+     //tria.set_boundary(29, *boat_model.boat_surface_left);
+     tria.set_boundary(29, *boat_model.water_line_left);//tria.set_boundary(29, *boat_model.boat_water_line_left);
+     if (boat_model.is_transom)
+        tria.set_boundary(32, *boat_model.boat_transom_left);
+     else
+        tria.set_boundary(32, *boat_model.boat_keel);
+     tria.set_boundary(31, *boat_model.boat_keel);
+     tria.set_boundary(30, *boat_model.boat_keel);
+     if (boat_model.is_transom)
+        tria.set_boundary(37, *boat_model.boat_transom_right);
+     else
+        tria.set_boundary(37, *boat_model.boat_keel);
+     tria.set_boundary(36, *boat_model.boat_keel);
+     tria.set_boundary(35, *boat_model.boat_keel);
+     if (boat_model.is_transom)
+        {
+        tria.set_boundary(40, *boat_model.boat_transom_left);
+        tria.set_boundary(41, *boat_model.boat_transom_right);
+        }
 
-  coarse_tria.set_boundary(5, *boat_model.undist_water_surf);
-  coarse_tria.set_boundary(6, *boat_model.undist_water_surf);
-  //coarse_tria.set_boundary(21, *boat_model.boat_surface_right);
-  coarse_tria.set_boundary(21, *boat_model.water_line_right); //coarse_tria.set_boundary(21, *boat_model.boat_water_line_right);
-  //coarse_tria.set_boundary(23, *boat_model.boat_surface_right);
-  coarse_tria.set_boundary(23, *boat_model.water_line_right);//coarse_tria.set_boundary(23, *boat_model.boat_water_line_right);
-  //coarse_tria.set_boundary(22, *boat_model.boat_surface_left);
-  coarse_tria.set_boundary(22, *boat_model.water_line_left);//coarse_tria.set_boundary(22, *boat_model.boat_water_line_left);
-  //coarse_tria.set_boundary(24, *boat_model.boat_surface_left);
-  coarse_tria.set_boundary(24, *boat_model.water_line_left);//coarse_tria.set_boundary(22, *boat_model.boat_water_line_left);
-  //coarse_tria.set_boundary(26, *boat_model.boat_surface_right);
-  coarse_tria.set_boundary(26, *boat_model.water_line_right);//coarse_tria.set_boundary(26, *boat_model.boat_water_line_right);
-  //coarse_tria.set_boundary(28, *boat_model.boat_surface_right);
-  coarse_tria.set_boundary(28, *boat_model.water_line_right);//coarse_tria.set_boundary(28, *boat_model.boat_water_line_right);
-  //coarse_tria.set_boundary(27, *boat_model.boat_surface_left);
-  coarse_tria.set_boundary(27, *boat_model.water_line_left);//coarse_tria.set_boundary(27, *boat_model.boat_water_line_left);
-  //coarse_tria.set_boundary(29, *boat_model.boat_surface_left);
-  coarse_tria.set_boundary(29, *boat_model.water_line_left);//coarse_tria.set_boundary(29, *boat_model.boat_water_line_left);
-    if (boat_model.is_transom)
-     coarse_tria.set_boundary(32, *boat_model.boat_transom_left);
-  else
-     coarse_tria.set_boundary(32, *boat_model.boat_keel);
-  coarse_tria.set_boundary(31, *boat_model.boat_keel);
-  coarse_tria.set_boundary(30, *boat_model.boat_keel);
-    if (boat_model.is_transom)
-     coarse_tria.set_boundary(37, *boat_model.boat_transom_right);
-  else
-     coarse_tria.set_boundary(37, *boat_model.boat_keel);
-  coarse_tria.set_boundary(36, *boat_model.boat_keel);
-  coarse_tria.set_boundary(35, *boat_model.boat_keel);
-  if (boat_model.is_transom)
-     {
-     coarse_tria.set_boundary(40, *boat_model.boat_transom_left);
-     coarse_tria.set_boundary(41, *boat_model.boat_transom_right);
+     coarse_tria.set_boundary(5, *boat_model.undist_water_surf);
+     coarse_tria.set_boundary(6, *boat_model.undist_water_surf);
+     //coarse_tria.set_boundary(21, *boat_model.boat_surface_right);
+     coarse_tria.set_boundary(21, *boat_model.water_line_right); //coarse_tria.set_boundary(21, *boat_model.boat_water_line_right);
+     //coarse_tria.set_boundary(23, *boat_model.boat_surface_right);
+     coarse_tria.set_boundary(23, *boat_model.water_line_right);//coarse_tria.set_boundary(23, *boat_model.boat_water_line_right);
+     //coarse_tria.set_boundary(22, *boat_model.boat_surface_left);
+     coarse_tria.set_boundary(22, *boat_model.water_line_left);//coarse_tria.set_boundary(22, *boat_model.boat_water_line_left);
+     //coarse_tria.set_boundary(24, *boat_model.boat_surface_left);
+     coarse_tria.set_boundary(24, *boat_model.water_line_left);//coarse_tria.set_boundary(22, *boat_model.boat_water_line_left);
+     //coarse_tria.set_boundary(26, *boat_model.boat_surface_right);
+     coarse_tria.set_boundary(26, *boat_model.water_line_right);//coarse_tria.set_boundary(26, *boat_model.boat_water_line_right);
+     //coarse_tria.set_boundary(28, *boat_model.boat_surface_right);
+     coarse_tria.set_boundary(28, *boat_model.water_line_right);//coarse_tria.set_boundary(28, *boat_model.boat_water_line_right);
+     //coarse_tria.set_boundary(27, *boat_model.boat_surface_left);
+     coarse_tria.set_boundary(27, *boat_model.water_line_left);//coarse_tria.set_boundary(27, *boat_model.boat_water_line_left);
+     //coarse_tria.set_boundary(29, *boat_model.boat_surface_left);
+     coarse_tria.set_boundary(29, *boat_model.water_line_left);//coarse_tria.set_boundary(29, *boat_model.boat_water_line_left);
+       if (boat_model.is_transom)
+        coarse_tria.set_boundary(32, *boat_model.boat_transom_left);
+     else
+        coarse_tria.set_boundary(32, *boat_model.boat_keel);
+     coarse_tria.set_boundary(31, *boat_model.boat_keel);
+     coarse_tria.set_boundary(30, *boat_model.boat_keel);
+       if (boat_model.is_transom)
+        coarse_tria.set_boundary(37, *boat_model.boat_transom_right);
+     else
+        coarse_tria.set_boundary(37, *boat_model.boat_keel);
+     coarse_tria.set_boundary(36, *boat_model.boat_keel);
+     coarse_tria.set_boundary(35, *boat_model.boat_keel);
+     if (boat_model.is_transom)
+        {
+        coarse_tria.set_boundary(40, *boat_model.boat_transom_left);
+        coarse_tria.set_boundary(41, *boat_model.boat_transom_right);
+        }
      }
 }
 
@@ -571,31 +573,36 @@ double b = back_mesh_inclination_coeff;
 
 if (no_boat)
 {
+
+Lx_domain = 40.0;
+Ly_domain = 1.0;
+Lz_domain = 1.0;
+
 vertices.resize(24);
-vertices[0](0)=-5.0; vertices[0](1)=-0.5; vertices[0](2)=0.0;
-vertices[1](0)=-5.0; vertices[1](1)=0.5; vertices[1](2)=0.0;
-vertices[2](0)=-5.0; vertices[2](1)=-0.5; vertices[2](2)=-1.0;
-vertices[3](0)=-5.0; vertices[3](1)=0.5; vertices[3](2)=-1.0;
-vertices[4](0)=-5.0; vertices[4](1)=0.5; vertices[4](2)=0.0;
-vertices[5](0)=-5.0; vertices[5](1)=-0.5; vertices[5](2)=0.0;
-vertices[6](0)=5.0; vertices[6](1)=-0.5; vertices[6](2)=0.0;
-vertices[7](0)=5.0; vertices[7](1)=0.5; vertices[7](2)=0.0;
-vertices[8](0)=-5.0; vertices[8](1)=0.5; vertices[8](2)=0.0;
-vertices[9](0)=5.0; vertices[9](1)=0.5; vertices[9](2)=0.0;
-vertices[10](0)=5.0; vertices[10](1)=0.5; vertices[10](2)=-1.0;
-vertices[11](0)=-5.0; vertices[11](1)=0.5; vertices[11](2)=-1.0;
-vertices[12](0)=-5.0; vertices[12](1)=-0.5; vertices[12](2)=0.0;
-vertices[13](0)=-5.0; vertices[13](1)=-0.5; vertices[13](2)=-1.0;
-vertices[14](0)=5.0; vertices[14](1)=-0.5; vertices[14](2)=-1.0;
-vertices[15](0)=5.0; vertices[15](1)=-0.5; vertices[15](2)=0.0;
-vertices[16](0)=-5.0; vertices[16](1)=-0.5; vertices[16](2)=-1.0;
-vertices[17](0)=-5.0; vertices[17](1)=0.5; vertices[17](2)=-1.0;
-vertices[18](0)=5.0; vertices[18](1)=0.5; vertices[18](2)=-1.0;
-vertices[19](0)=5.0; vertices[19](1)=-0.5; vertices[19](2)=-1.0;
-vertices[20](0)=5.0; vertices[20](1)=0.5; vertices[20](2)=0.0;
-vertices[21](0)=5.0; vertices[21](1)=-0.5; vertices[21](2)=0.0;
-vertices[22](0)=5.0; vertices[22](1)=-0.5; vertices[22](2)=-1.0;
-vertices[23](0)=5.0; vertices[23](1)=0.5; vertices[23](2)=-1.0;
+vertices[0](0)=-Lx_domain/2.0; vertices[0](1)=-Ly_domain/2.0; vertices[0](2)=0.0;
+vertices[1](0)=-Lx_domain/2.0; vertices[1](1)=Ly_domain/2.0; vertices[1](2)=0.0;
+vertices[2](0)=-Lx_domain/2.0; vertices[2](1)=-Ly_domain/2.0; vertices[2](2)=-Lz_domain;
+vertices[3](0)=-Lx_domain/2.0; vertices[3](1)=Ly_domain/2.0; vertices[3](2)=-Lz_domain;
+vertices[4](0)=-Lx_domain/2.0; vertices[4](1)=Ly_domain/2.0; vertices[4](2)=0.0;
+vertices[5](0)=-Lx_domain/2.0; vertices[5](1)=-Ly_domain/2.0; vertices[5](2)=0.0;
+vertices[6](0)=Lx_domain/2.0; vertices[6](1)=-Ly_domain/2.0; vertices[6](2)=0.0;
+vertices[7](0)=Lx_domain/2.0; vertices[7](1)=Ly_domain/2.0; vertices[7](2)=0.0;
+vertices[8](0)=-Lx_domain/2.0; vertices[8](1)=Ly_domain/2.0; vertices[8](2)=0.0;
+vertices[9](0)=Lx_domain/2.0; vertices[9](1)=Ly_domain/2.0; vertices[9](2)=0.0;
+vertices[10](0)=Lx_domain/2.0; vertices[10](1)=Ly_domain/2.0; vertices[10](2)=-Lz_domain;
+vertices[11](0)=-Lx_domain/2.0; vertices[11](1)=Ly_domain/2.0; vertices[11](2)=-Lz_domain;
+vertices[12](0)=-Lx_domain/2.0; vertices[12](1)=-Ly_domain/2.0; vertices[12](2)=0.0;
+vertices[13](0)=-Lx_domain/2.0; vertices[13](1)=-Ly_domain/2.0; vertices[13](2)=-Lz_domain;
+vertices[14](0)=Lx_domain/2.0; vertices[14](1)=-Ly_domain/2.0; vertices[14](2)=-Lz_domain;
+vertices[15](0)=Lx_domain/2.0; vertices[15](1)=-Ly_domain/2.0; vertices[15](2)=0.0;
+vertices[16](0)=-Lx_domain/2.0; vertices[16](1)=-Ly_domain/2.0; vertices[16](2)=-Lz_domain;
+vertices[17](0)=-Lx_domain/2.0; vertices[17](1)=Ly_domain/2.0; vertices[17](2)=-Lz_domain;
+vertices[18](0)=Lx_domain/2.0; vertices[18](1)=Ly_domain/2.0; vertices[18](2)=-Lz_domain;
+vertices[19](0)=Lx_domain/2.0; vertices[19](1)=-Ly_domain/2.0; vertices[19](2)=-Lz_domain;
+vertices[20](0)=Lx_domain/2.0; vertices[20](1)=Ly_domain/2.0; vertices[20](2)=0.0;
+vertices[21](0)=Lx_domain/2.0; vertices[21](1)=-Ly_domain/2.0; vertices[21](2)=0.0;
+vertices[22](0)=Lx_domain/2.0; vertices[22](1)=-Ly_domain/2.0; vertices[22](2)=-Lz_domain;
+vertices[23](0)=Lx_domain/2.0; vertices[23](1)=Ly_domain/2.0; vertices[23](2)=-Lz_domain;
 
 cells.resize(6);
 
@@ -3131,15 +3138,29 @@ void NumericalTowingTank::refine_global_on_boat(const unsigned int num_refinemen
 for (unsigned int i=0; i<num_refinements;++i)
     {
     std::cout<<"Uniform boat refinement cycle "<<i+1<<" of "<<num_refinements<<std::endl;
-    tria_it cell = tria.begin_active(), endc = tria.end();
-    for (cell=tria.begin_active(); cell!= endc;++cell)
-        {
-        if ((cell->material_id() == wall_sur_ID1 ||
-             cell->material_id() == wall_sur_ID2 ||
-             cell->material_id() == wall_sur_ID3 ))
-            cell->set_refine_flag();
-        }
-    tria.execute_coarsening_and_refinement();
+    if (no_boat)
+       {
+       tria_it cell = tria.begin_active(), endc = tria.end();
+       for (cell=tria.begin_active(); cell!= endc;++cell)
+           {
+           cell->set_refine_flag();
+           }
+
+       tria.execute_coarsening_and_refinement();
+
+       }
+    else
+       {
+       tria_it cell = tria.begin_active(), endc = tria.end();
+       for (cell=tria.begin_active(); cell!= endc;++cell)
+           {
+           if ((cell->material_id() == wall_sur_ID1 ||
+                cell->material_id() == wall_sur_ID2 ||
+                cell->material_id() == wall_sur_ID3 ))
+              cell->set_refine_flag();
+           }
+       tria.execute_coarsening_and_refinement();
+       }
     dh.distribute_dofs(fe);
     vector_dh.distribute_dofs(vector_fe);  
     map_points.reinit(vector_dh.n_dofs());

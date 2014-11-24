@@ -377,11 +377,15 @@ private:
 
   Vector<double>       diameters;
 
-                              // max y coodiante value (needed for
+                              // max x,y,z coodiante value (needed for
   		              // semi-lagrangian free surface
 			      // deformation)
      
+  double max_x_coor_value;
+
   double max_y_coor_value;
+
+  double max_z_coor_value;
 
   unsigned int rhs_evaluations_counter;
 

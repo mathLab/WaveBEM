@@ -325,8 +325,7 @@ void FreeSurface<dim>::initial_conditions(Vector<double> &dst) {
       } 
 
 
-  if (!comp_dom.no_boat &&
-      comp_dom.boat_model.is_transom)
+  if (!comp_dom.no_boat && comp_dom.boat_model.is_transom)
      {
      comp_dom.update_support_points();
      
@@ -613,12 +612,16 @@ cout<<"Check: "<<inflow_norm_potential_grad.value(Point<3>(-5.0,0,0))<<endl;
     
 
    
+   max_x_coor_value = 0;
    max_y_coor_value = 0;
+   max_z_coor_value = 0;
    for (unsigned int i=0; i < comp_dom.dh.n_dofs(); i++)
        {
        //for printout
        //std::cout<<"Node "<<i<< "["<<support_points(i)<<"] "<<std::endl;
+       max_x_coor_value = std::max(max_x_coor_value,std::abs(displaced_support_points[i](0)));
        max_y_coor_value = std::max(max_y_coor_value,std::abs(displaced_support_points[i](1)));
+       max_z_coor_value = std::max(max_z_coor_value,std::abs(displaced_support_points[i](2)));
        }
 
    DphiDt_sys_solution.reinit (comp_dom.dh.n_dofs());
@@ -653,7 +656,7 @@ cout<<"Check: "<<inflow_norm_potential_grad.value(Point<3>(-5.0,0,0))<<endl;
 
 
      // we have to compute the reference transom wet surface with the new mesh here
-   if (comp_dom.boat_model.is_transom)
+   if (!comp_dom.no_boat && comp_dom.boat_model.is_transom)
       {
         double transom_wet_surface = 0;
       std::vector<Point<3> > vertices;
@@ -1378,7 +1381,7 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
 
 
 
-  if (comp_dom.boat_model.is_transom)
+  if (!comp_dom.no_boat && comp_dom.boat_model.is_transom)
      {
      comp_dom.update_support_points();
      double transom_draft = fabs(comp_dom.boat_model.PointCenterTransom(2));
@@ -1546,7 +1549,7 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
 //*/
 
      // we have to compute the reference transom wet surface with the new mesh here
-   if (comp_dom.boat_model.is_transom)
+   if (!comp_dom.no_boat && comp_dom.boat_model.is_transom)
       {
         double transom_wet_surface = 0;
       std::vector<Point<3> > vertices;
@@ -3441,7 +3444,7 @@ setup_jacobian_prec(t,y,yp,0.0);
 
   // these lines test the correctness of the jacobian for the
   // restart (reduced) nonlinear problem
-
+/*
   Vector<double> restart_prob_solution(rest_nonlin_prob_diff.n_dofs());
   Vector<double> restart_prob_residual(rest_nonlin_prob_diff.n_dofs());
   for (std::map<unsigned int, unsigned int>::iterator it = map_diff.begin(); it != map_diff.end(); ++it)
@@ -4426,10 +4429,21 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
   for (unsigned int i = 0; i < dim; i++)
       Vinf(i) = wind_value(i);
 
+  double amplitude = 0.02;
   double g = 9.81;
   double rho = 1025.1;
-  double ref_height = fabs(comp_dom.boat_model.PointMidBot(2));
-  double Fn = Vinf(0)/sqrt(comp_dom.boat_model.boatWetLength*g);
+  double ref_height;
+  double Fn;
+  if (comp_dom.no_boat)
+     {
+     Fn = Vinf(0)/sqrt(max_z_coor_value*g);
+     ref_height = amplitude;
+     }
+  else
+     {
+     ref_height = fabs(comp_dom.boat_model.PointMidBot(2));
+     Fn = Vinf(0)/sqrt(comp_dom.boat_model.boatWetLength*g);
+     }
 
 
   FullMatrix<double>   local_DphiDt_matrix (dofs_per_cell, dofs_per_cell);
@@ -4487,7 +4501,7 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
 
 
 //just in case of additional pressure to be added past wet transom stern
-   if (comp_dom.boat_model.is_transom && sqrt(Vinf*Vinf) > 0.0)
+   if (!comp_dom.no_boat && comp_dom.boat_model.is_transom && sqrt(Vinf*Vinf) > 0.0)
       {
       //double mean_transom_draft = ref_transom_wet_surface/(fabs(comp_dom.boat_model.PointLeftTransom(1))+
       //                                                     fabs(comp_dom.boat_model.PointRightTransom(1)));
@@ -4645,7 +4659,7 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
                  //cout<<"Earlier: "<<"i "<<i<<"   q "<<q<<"  "<<ref_fe_v.shape_value(i,q)*gg(2).val()<<endl;
                  }
              fad_double transom_added_pressure = 0.0;
-             if (comp_dom.boat_model.is_transom )
+             if (!comp_dom.no_boat && comp_dom.boat_model.is_transom)
                 {
                 if ( (q_init(1) < comp_dom.boat_model.PointRightTransom(1)) &&
                      (q_init(1) >= 0.0)    )
@@ -4767,6 +4781,7 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
                    //fad_double test = fluid_vel[q]*eta_grad;
                    //fad_double test2 = 1/fluid_vel_norm/eta_grad_norm;
                    //cout<<"4) "<<breaking_wave_added_pressure.val()<<" "<<test.val()<<" "<<test2.val()<<" "<<rho*g/ref_height*2.0<<endl;
+                   //cout<<"4) "<<breaking_wave_added_pressure.val()<<" "<<rho<<" "<<g<<" "<<ref_height<<endl;
                    //cout<<"Breaking wave damping ON at "<<q_point(0).val()<<","<<q_point(1).val()<<","<<q_point(2).val()<<"  --->  "<<breaking_wave_added_pressure.val()<<endl;
                    //cout<<"0) "<<breaking_wave_added_pressure.val()<<" "<<endl;
                    }
@@ -4843,12 +4858,12 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
                //   (q_point(0).val() > comp_dom.boat_model.PointCenterTransom(0)-fabs(comp_dom.boat_model.PointCenterTransom(2)) ) &&
                //   (q_point(0).val() < comp_dom.boat_model.PointCenterTransom(0)+5*fabs(comp_dom.boat_model.PointCenterTransom(2)) )  )
               //  {
-                cout<<cell->material_id()<<endl;
-                cout<<q<<"   "<<q_point(0).val()<<","<<q_point(1).val()<<","<<q_point(2).val()<<endl;
+                //cout<<(int)cell->material_id()<<endl;
+                //cout<<q<<"   "<<q_point(0).val()<<","<<q_point(1).val()<<","<<q_point(2).val()<<endl;
               //  cout<<transom_added_pressure.val()-g*q_eta.val()<<"    ("<<transom_added_pressure.val()<<" vs "<<g*q_eta.val()<<")"<<endl;
                 //cout<<q<<" fvel("<<fluid_vel[q]<<")  fvel_norm="<<fluid_vel_norm<<"   q_JxW="<<q_JxW[q]<<endl;
                 //cout<<q<<" erhs("<<eta_dot_rhs_fun[q]<<")  prhs("<<phi_dot_rhs_fun[q]<<")"<<endl;
-                cout<<q<<" phi_grad("<<phi_surf_grad_corrected(0).val()<<","<<phi_surf_grad_corrected(1).val()<<","<<phi_surf_grad_corrected(2).val()<<")"<<endl;//  phi_surf_grad("<<phi_surf_grad<<")"<<endl;
+                //cout<<q<<" phi_grad("<<phi_surf_grad_corrected(0).val()<<","<<phi_surf_grad_corrected(1).val()<<","<<phi_surf_grad_corrected(2).val()<<")"<<endl;//  phi_surf_grad("<<phi_surf_grad<<")"<<endl;
                 //cout<<q<<"   "<<phi_dot_rhs_fun[q].val()<<endl;//" "<<phi_dot_rhs_fun[q].val()<<endl;
              //   }
              if (cell->material_id() == comp_dom.free_sur_ID1 ||
@@ -7064,7 +7079,7 @@ void FreeSurface<dim>::compute_pressure(Vector<double> & pressure,
    Point<dim> transom_press_force;
    double transom_wet_surface = 0;
 
-   if (comp_dom.boat_model.is_transom)
+   if (!comp_dom.no_boat && comp_dom.boat_model.is_transom)
       {
       //double transom_draft = ref_transom_wet_surface/(fabs(comp_dom.boat_model.PointLeftTransom(1))+
       //                                                     fabs(comp_dom.boat_model.PointRightTransom(1)));
@@ -7151,7 +7166,7 @@ void FreeSurface<dim>::compute_pressure(Vector<double> & pressure,
       SubCellData subcelldata;
       Triangulation<dim-1, dim> transom_tria;
       GridTools::delete_unused_vertices (vertices, cells, subcelldata);
-      GridReordering<2,3>::reorder_cells (cells);
+      GridReordering<2,3>::reorder_cells (cells);   
       transom_tria.create_triangulation_compatibility(vertices, cells, subcelldata );
       FE_Q<dim-1,dim> transom_fe(1);
       DoFHandler<dim-1,dim> transom_dh(transom_tria);
@@ -7165,7 +7180,7 @@ void FreeSurface<dim>::compute_pressure(Vector<double> & pressure,
 
       const unsigned int transom_n_q_points = transom_fe_v.n_quadrature_points;
       //const unsigned int  DphiDt_dofs_per_cell   = comp_dom.fe.dofs_per_cell;
-   
+
       if (eta_dry < 1.0)
          {
          std::vector<double> transom_pressure_quad_values(transom_n_q_points);
@@ -7255,7 +7270,7 @@ void FreeSurface<dim>::compute_pressure(Vector<double> & pressure,
 
 
 	 
-  std::cout<<"...done computing pressure: "<<std::endl;
+  std::cout<<"...done computing pressure. "<<std::endl;
 
 }
 
