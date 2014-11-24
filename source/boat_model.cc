@@ -171,7 +171,7 @@ void BoatModel::start_iges_model(std::string igesFileName,
 				 double middle_keel_length,
                                  unsigned int number_of_transom_edges)
 {
-  //feature_edges_detection();
+  feature_edges_detection();
 
 				   //let's read the (iges) hull shape from file
   sh =read_IGES(igesFileName,scale);
