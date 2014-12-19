@@ -983,6 +983,11 @@ template <int dim>
 void BEMProblem<dim>::compute_constraints(ConstraintMatrix &c, const Vector<double> &tmp_rhs)
 
 {
+
+  // we will need the normals and the surface gradients at the nodes
+  comp_dom.compute_normals();
+  compute_surface_gradients(tmp_rhs);  
+
   // we start clearing the constraint matrix
   c.clear();
 
@@ -1030,14 +1035,37 @@ void BEMProblem<dim>::compute_constraints(ConstraintMatrix &c, const Vector<doub
 	        {
 		if (comp_dom.surface_nodes(*it) == 1)
 		   {
-                   // to be checked seven(hundred) more times
-                   // this is the dirichlet-dirichlet case: here we impose that
-                   // dphi_dn on the two (or more) sides is equal. thus we can only
-                   // deal with flat dirichlet-dirichlet boundaries (good enough
-                   // for simmetry/wake line on free surface)  
-                   c.add_line(*it);
-                   c.add_entry(*it,i,1);		   
-		   }
+                   // this is the dirichlet-dirichlet case on flat edges: here we impose that
+                   // dphi_dn on the two (or more) sides is equal.
+                   if ( comp_dom.nodes_normals[*it].distance(comp_dom.nodes_normals[i]) < 1e-4 )
+                      {  
+                      c.add_line(*it);
+                      c.add_entry(*it,i,1);
+                      }
+                   // this is the dirichlet-dirichlet case on sharp edges: both normal gradients
+                   // can be computed from surface gradients of phi and assingned as BC
+                   else
+                      {
+                      c.add_line(*it);
+                      double this_normal_gradient = (1.0/(1.0-pow(comp_dom.nodes_normals[i]*comp_dom.nodes_normals[*it],2))) *
+                                                    (node_surface_gradients[*it]*comp_dom.nodes_normals[i]+
+                                                     (node_surface_gradients[i]*comp_dom.nodes_normals[*it])*(comp_dom.nodes_normals[i]*comp_dom.nodes_normals[*it]));
+                      double other_normal_gradient = (1.0/(1.0-pow(comp_dom.nodes_normals[*it]*comp_dom.nodes_normals[i],2))) *
+                                                     (node_surface_gradients[i]*comp_dom.nodes_normals[*it]+
+                                                      (node_surface_gradients[*it]*comp_dom.nodes_normals[i])*(comp_dom.nodes_normals[*it]*comp_dom.nodes_normals[i]));
+                      //std::cout<<"i="<<i<<" j="<<*it<<std::endl;
+                      //std::cout<<"ni=("<<comp_dom.nodes_normals[i]<<")  nj=("<<comp_dom.nodes_normals[*it]<<")"<<std::endl;
+                      //std::cout<<"grad_s_phi_i=("<<node_surface_gradients[i]<<")  grad_s_phi_j=("<<node_surface_gradients[*it]<<")"<<std::endl;
+                      //std::cout<<"dphi_dn_i="<<this_normal_gradient<<" dphi_dn_j="<<other_normal_gradient<<std::endl;
+                      //Point<3> this_full_gradient = comp_dom.nodes_normals[i]*this_normal_gradient + node_surface_gradients[i]; 
+                      //Point<3> other_full_gradient = comp_dom.nodes_normals[*it]*other_normal_gradient + node_surface_gradients[*it];
+                      //std::cout<<"grad_phi_i=("<<this_full_gradient<<")  grad_phi_j=("<<other_full_gradient<<")"<<std::endl; 
+                      c.add_line(i);
+                      c.set_inhomogeneity(i,this_normal_gradient);
+                      c.add_line(*it);
+                      c.set_inhomogeneity(*it,other_normal_gradient);
+                      }
+	           }
 		else
 		   {
                    c.add_line(*it);
@@ -1111,5 +1139,151 @@ void BEMProblem<dim>::assemble_preconditioner()
   preconditioner.initialize(band_system);
       
 }
+
+
+
+  template <int dim>
+  void BEMProblem<dim>::compute_surface_gradients(const Vector<double> &tmp_rhs)
+  {
+  Vector<double> phi(tmp_rhs.size());
+  phi = tmp_rhs;
+  phi.scale(comp_dom.surface_nodes);
+
+
+   typedef typename DoFHandler<dim-1,dim>::active_cell_iterator cell_it;
+
+   SparsityPattern      gradients_sparsity_pattern;
+   gradients_sparsity_pattern.reinit(comp_dom.vector_dh.n_dofs(),
+                                   comp_dom.vector_dh.n_dofs(),
+                                   comp_dom.vector_dh.max_couplings_between_dofs());
+   ConstraintMatrix  vector_constraints;
+   vector_constraints.clear();
+   DoFTools::make_hanging_node_constraints (comp_dom.vector_dh,vector_constraints);
+   vector_constraints.close();
+   DoFTools::make_sparsity_pattern (comp_dom.vector_dh, gradients_sparsity_pattern, vector_constraints);
+   gradients_sparsity_pattern.compress();
+
+                                   
+   SparseMatrix<double> vector_gradients_matrix;
+   Vector<double> vector_gradients_rhs;
+
+   vector_gradients_matrix.reinit (gradients_sparsity_pattern);
+   vector_gradients_rhs.reinit(comp_dom.vector_dh.n_dofs());
+   Vector<double> vector_gradients_solution(comp_dom.vector_dh.n_dofs());
+
+
+   FEValues<dim-1,dim> vector_fe_v(*comp_dom.mapping, comp_dom.vector_fe, *comp_dom.quadrature,
+			           update_values | update_gradients |
+			           update_cell_normal_vectors |
+			           update_quadrature_points |
+			           update_JxW_values);
+
+   FEValues<dim-1,dim> fe_v(*comp_dom.mapping, comp_dom.fe, *comp_dom.quadrature,
+			    update_values | update_gradients |
+			    update_cell_normal_vectors |
+			    update_quadrature_points |
+			    update_JxW_values);
+
+   const unsigned int vector_n_q_points = vector_fe_v.n_quadrature_points;
+   const unsigned int   vector_dofs_per_cell   = comp_dom.vector_fe.dofs_per_cell;
+   std::vector<unsigned int> vector_local_dof_indices (vector_dofs_per_cell);
+
+   std::vector< Tensor<1,dim> > phi_surf_grads(vector_n_q_points);
+   std::vector<double> phi_norm_grads(vector_n_q_points);
+   std::vector<Vector<double> > q_vector_normals_solution(vector_n_q_points,
+						          Vector<double>(dim));
+
+   FullMatrix<double>   local_gradients_matrix (vector_dofs_per_cell, vector_dofs_per_cell);
+   Vector<double>       local_gradients_rhs (vector_dofs_per_cell);
+
+   
+   cell_it
+   vector_cell = comp_dom.vector_dh.begin_active(),
+   vector_endc = comp_dom.vector_dh.end();
+
+   cell_it
+   cell = comp_dom.dh.begin_active(),
+   endc = comp_dom.dh.end();
+
+   std::vector<Point<dim> > support_points(comp_dom.dh.n_dofs());
+   DoFTools::map_dofs_to_support_points<dim-1, dim>( *comp_dom.mapping, comp_dom.dh, support_points);
+   std::vector<unsigned int> face_dofs(comp_dom.fe.dofs_per_face);
+
+   Quadrature <dim-1> dummy_quadrature(comp_dom.fe.get_unit_support_points());
+   FEValues<dim-1,dim> dummy_fe_v(*comp_dom.mapping, comp_dom.fe, dummy_quadrature,
+			          update_values | update_gradients |
+			          update_cell_normal_vectors |
+			          update_quadrature_points);
+
+   const unsigned int   dofs_per_cell = comp_dom.fe.dofs_per_cell;
+   std::vector<unsigned int> local_dof_indices (dofs_per_cell);
+   const unsigned int n_q_points = dummy_fe_v.n_quadrature_points;
+   std::vector< Tensor<1,dim> > dummy_phi_surf_grads(n_q_points);
+
+            
+   for (; cell!=endc,vector_cell!=vector_endc; ++cell,++vector_cell)
+     {
+       Assert(cell->index() == vector_cell->index(), ExcInternalError());
+
+       fe_v.reinit (cell);
+       vector_fe_v.reinit (vector_cell);
+       local_gradients_matrix = 0;
+       local_gradients_rhs = 0;
+       const std::vector<Point<dim> > &vector_node_normals = vector_fe_v.get_normal_vectors();
+       fe_v.get_function_grads(phi, phi_surf_grads);
+       unsigned int comp_i, comp_j;
+
+
+        
+       
+       for (unsigned int q=0; q<vector_n_q_points; ++q)
+         {
+         Point<dim> gradient = phi_surf_grads[q];
+	 for (unsigned int i=0; i<vector_dofs_per_cell; ++i)
+	   {
+	     comp_i = comp_dom.vector_fe.system_to_component_index(i).first;
+	     for (unsigned int j=0; j<vector_dofs_per_cell; ++j)
+	       {
+		 comp_j = comp_dom.vector_fe.system_to_component_index(j).first;
+		 if (comp_i == comp_j) 
+		   {
+		     local_gradients_matrix(i,j) += vector_fe_v.shape_value(i,q)*
+						  vector_fe_v.shape_value(j,q)*
+						  vector_fe_v.JxW(q);
+		   }
+	       }
+	   local_gradients_rhs(i) += (vector_fe_v.shape_value(i, q)) *
+                                    gradient(comp_i) * vector_fe_v.JxW(q);
+	   }
+         }
+       vector_cell->get_dof_indices (vector_local_dof_indices);
+       
+       vector_constraints.distribute_local_to_global
+       (local_gradients_matrix,
+	local_gradients_rhs,
+	vector_local_dof_indices,
+	vector_gradients_matrix,
+	vector_gradients_rhs);
+     }
+
+   SparseDirectUMFPACK gradients_inverse;
+   gradients_inverse.initialize(vector_gradients_matrix);
+   gradients_inverse.vmult(vector_gradients_solution, vector_gradients_rhs);
+   vector_constraints.distribute(vector_gradients_solution);
+
+
+   node_surface_gradients.resize(comp_dom.dh.n_dofs());
+ 
+   for (unsigned int i=0; i<comp_dom.vector_dh.n_dofs()/dim; ++i)
+       { 
+       for (unsigned int d=0; d<dim; d++)
+           node_surface_gradients[i](d) = vector_gradients_solution(3*i+d);
+       //cout<<i<<" Gradient: "<<node_gradients[i]<<endl;
+       }
+
+
+  }
+
+
 
 template class BEMProblem<3>;

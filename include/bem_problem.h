@@ -136,6 +136,8 @@ class BEMProblem
 
     void assemble_preconditioner();
 
+    void compute_surface_gradients(const Vector<double> &tmp_rhs); 
+
     void solve_system(Vector<double> &phi, Vector<double> &dphi_dn,
                       const Vector<double> &tmp_rhs);
 
@@ -172,6 +174,8 @@ class BEMProblem
     int preconditioner_band;
 
     bool is_preconditioner_initialized;
+
+    std::vector<Point<dim> > node_surface_gradients;
 
 };
 

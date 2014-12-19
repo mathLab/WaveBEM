@@ -166,6 +166,9 @@ class ComputationalDomain
   void dump_tria(std::string fname) const;
 
   void restore_tria(std::string fname);
+
+                                      // computation of normals at collocation points (dofs)
+  void compute_normals();
     
     
   void update_support_points();
@@ -405,6 +408,10 @@ class ComputationalDomain
                                    // this is the vector with the support points
                                    // in reference position
 std::vector<Point<3> > ref_points;
+
+				     // vector of Point<dim> containing the node normals 
+    
+    std::vector<Point<dim> > nodes_normals;
 };
 
 #endif
