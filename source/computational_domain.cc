@@ -1519,5 +1519,104 @@ void ComputationalDomain<dim>::update_support_points()
 
 
 
+  template <int dim>
+  void ComputationalDomain<dim>::compute_normals()
+  {
+   typedef typename DoFHandler<dim-1,dim>::active_cell_iterator cell_it;
+
+   SparsityPattern      normals_sparsity_pattern;
+   normals_sparsity_pattern.reinit(vector_dh.n_dofs(),
+                                   vector_dh.n_dofs(),
+                                   vector_dh.max_couplings_between_dofs());
+   ConstraintMatrix  vector_constraints;
+   vector_constraints.clear();
+   DoFTools::make_hanging_node_constraints (vector_dh,vector_constraints);
+   vector_constraints.close();
+   DoFTools::make_sparsity_pattern (vector_dh, normals_sparsity_pattern, vector_constraints);
+   normals_sparsity_pattern.compress();
+   Vector<double> vector_normals_solution(vector_dh.n_dofs());
+                                   
+   SparseMatrix<double> vector_normals_matrix;
+   Vector<double> vector_normals_rhs;
+
+   vector_normals_matrix.reinit (normals_sparsity_pattern);
+   vector_normals_rhs.reinit(vector_dh.n_dofs());
+   vector_normals_solution.reinit(vector_dh.n_dofs());
+
+
+   FEValues<dim-1,dim> vector_fe_v(*mapping, vector_fe, *quadrature,
+			     update_values | update_cell_normal_vectors |  
+			     update_JxW_values);
+
+   const unsigned int vector_n_q_points = vector_fe_v.n_quadrature_points;
+   const unsigned int   vector_dofs_per_cell   = vector_fe.dofs_per_cell;
+   std::vector<unsigned int> vector_local_dof_indices (vector_dofs_per_cell);
+
+   FullMatrix<double>   local_normals_matrix (vector_dofs_per_cell, vector_dofs_per_cell);
+   Vector<double>       local_normals_rhs (vector_dofs_per_cell);
+
+   cell_it
+   vector_cell = vector_dh.begin_active(),
+   vector_endc = vector_dh.end();
+            
+   for (; vector_cell!=vector_endc; ++vector_cell)
+     {
+       vector_fe_v.reinit (vector_cell);
+       local_normals_matrix = 0;
+       local_normals_rhs = 0;
+       const std::vector<Point<dim> > &vector_node_normals = vector_fe_v.get_normal_vectors();
+       unsigned int comp_i, comp_j;
+       
+       for (unsigned int q=0; q<vector_n_q_points; ++q)
+	 for (unsigned int i=0; i<vector_dofs_per_cell; ++i)
+	   {
+	     comp_i = vector_fe.system_to_component_index(i).first;
+	     for (unsigned int j=0; j<vector_dofs_per_cell; ++j)
+	       {
+		 comp_j = vector_fe.system_to_component_index(j).first;
+		 if (comp_i == comp_j) 
+		   {
+		     local_normals_matrix(i,j) += vector_fe_v.shape_value(i,q)*
+						  vector_fe_v.shape_value(j,q)*
+						  vector_fe_v.JxW(q);
+		   }
+	       }
+	   local_normals_rhs(i) += (vector_fe_v.shape_value(i, q)) *
+                                    vector_node_normals[q](comp_i) * vector_fe_v.JxW(q);
+	   }
+        
+       vector_cell->get_dof_indices (vector_local_dof_indices);
+       
+       vector_constraints.distribute_local_to_global
+       (local_normals_matrix,
+	local_normals_rhs,
+	vector_local_dof_indices,
+	vector_normals_matrix,
+	vector_normals_rhs);
+     }
+
+
+
+   SparseDirectUMFPACK normals_inverse;
+   normals_inverse.initialize(vector_normals_matrix);
+   normals_inverse.vmult(vector_normals_solution, vector_normals_rhs);
+   vector_constraints.distribute(vector_normals_solution);
+
+   nodes_normals.resize(dh.n_dofs());
+ 
+   for (unsigned int i=0; i<vector_dh.n_dofs()/dim; ++i)
+       { 
+       for (unsigned int d=0; d<dim; d++)
+           nodes_normals[i](d) = vector_normals_solution(3*i+d);
+       nodes_normals[i]/= nodes_normals[i].distance(Point<dim>(0.0,0.0,0.0));
+       //cout<<i<<" Gradient: "<<node_normals[i]<<endl;
+       for (unsigned int d=0; d<dim; d++)
+           vector_normals_solution(3*i+d) = nodes_normals[i](d);
+       }
+
+
+  }
+
+
 
 template class ComputationalDomain<3>;

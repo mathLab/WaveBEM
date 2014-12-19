@@ -574,9 +574,9 @@ double b = back_mesh_inclination_coeff;
 if (no_boat)
 {
 
-Lx_domain = 40.0;
-Ly_domain = 1.0;
-Lz_domain = 1.0;
+Lx_domain = 100.0;
+Ly_domain = 5.5/4.0;
+Lz_domain = 5.5;
 
 vertices.resize(24);
 vertices[0](0)=-Lx_domain/2.0; vertices[0](1)=-Ly_domain/2.0; vertices[0](2)=0.0;
@@ -606,7 +606,7 @@ vertices[23](0)=Lx_domain/2.0; vertices[23](1)=Ly_domain/2.0; vertices[23](2)=-L
 
 cells.resize(6);
 
-cells[0].vertices[0]=0; cells[0].vertices[1]=2; cells[0].vertices[2]=3; cells[0].vertices[3]=1;
+cells[0].vertices[0]=0; cells[0].vertices[1]=1; cells[0].vertices[2]=3; cells[0].vertices[3]=2;
 cells[1].vertices[0]=4; cells[1].vertices[1]=5; cells[1].vertices[2]=6; cells[1].vertices[3]=7;
 cells[2].vertices[0]=8; cells[2].vertices[1]=9; cells[2].vertices[2]=10; cells[2].vertices[3]=11;
 cells[3].vertices[0]=12; cells[3].vertices[1]=13; cells[3].vertices[2]=14; cells[3].vertices[3]=15;
@@ -2904,9 +2904,9 @@ void NumericalTowingTank::remove_mesh_anisotropy(Triangulation<2,3> &tria)
 	refinedCellCounter = 0;
 	for (cell=tria.begin_active(); cell!= endc;++cell)
 	  {
-            //if (  cell->material_id() == wall_sur_ID1 ||
-            //      cell->material_id() == wall_sur_ID2 ||
-            //      cell->material_id() == wall_sur_ID3 )//( cell->center().distance(Point<3>(0.0,0.0,0.0)) <
+            //if (  cell->material_id() == free_sur_ID1 ||
+            //      cell->material_id() == free_sur_ID2 ||
+            //      cell->material_id() == free_sur_ID3 )//( cell->center().distance(Point<3>(0.0,0.0,0.0)) <
             //     fmax(6.0*boat_model.boatWetLength/pow(2.0,double(cycles_counter)),boat_model.boatWetLength) )
             //   {
 	       if (cell->extent_in_direction(0) > max_aspect_ratio*cell->extent_in_direction(1))
@@ -2922,7 +2922,7 @@ void NumericalTowingTank::remove_mesh_anisotropy(Triangulation<2,3> &tria)
 		     refinedCellCounter++;
 		     }
 	          }
-             //  }
+            //   }
 	  }
      //cout<<refinedCellCounter<<endl;
      tria.execute_coarsening_and_refinement();
@@ -3172,19 +3172,27 @@ for (unsigned int i=0; i<num_refinements;++i)
 				  	      vector_dh, ref_points);
     generate_double_nodes_set();
     full_mesh_treatment();
-    make_edges_conformal(true);
-    make_edges_conformal(true);
+
+    if (no_boat)
+       {
+       make_edges_conformal(false);
+       make_edges_conformal(false);
+       }
+    else
+       {
+       make_edges_conformal(true);
+       make_edges_conformal(true);
+       }   
     }
+
 /*
-for (unsigned int i=0; i<4-num_refinements;++i)
+for (unsigned int i=0; i<3;++i)
     {
     tria_it cell = tria.begin_active(), endc = tria.end();
     for (cell=tria.begin_active(); cell!= endc;++cell)
         {
-        if ( (cell->material_id() == wall_sur_ID1 ||
-              cell->material_id() == wall_sur_ID2 ||
-              cell->material_id() == wall_sur_ID3 ) &&
-             ((cell->center()(0) < -1.95) && (cell->center()(2) < -0.15)) )
+        if ( cell->material_id() == inflow_sur_ID1 ||
+             cell->material_id() == inflow_sur_ID2  )
             cell->set_refine_flag();
         }
     tria.execute_coarsening_and_refinement();

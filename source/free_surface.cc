@@ -4483,7 +4483,7 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
       loc_supg_mass_matrix[i].resize(dofs_per_cell);
       }
 
-  double eta_dry = 0.0;
+  double eta_dry = 1.0;
   double lh = 0.0;
   double transom_draft = fabs(comp_dom.boat_model.PointCenterTransom(2));
   //double transom_draft = ref_transom_wet_surface/(fabs(comp_dom.boat_model.PointLeftTransom(1))+
@@ -4525,6 +4525,7 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
    
   for (; cell!=endc; ++cell)
       {
+
       //if (cell->material_id() == comp_dom.free_sur_ID1 ||
       //    cell->material_id() == comp_dom.free_sur_ID2 ||
       //    cell->material_id() == comp_dom.free_sur_ID3 ||
@@ -4843,11 +4844,16 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
              transom_added_pressure = (1-eta_dry)*fad_double(g*q_init(2));
              //if (q_eta.val() > 1e-5)
              //cout<<"Later: "<<q_point(2)*gg(2)<<endl;
-             
+             fad_double wave_damping_pressure = 0.0;
+             if (comp_dom.no_boat && q_point(0).val() > 0.0)
+                wave_damping_pressure = -fad_double(1)*pow(q_point(0).val(),2.0)/pow(50.0,2.0)*q_dphi_dn;
+
              eta_dot_rhs_fun[q] = phi_grad*Point<3,fad_double>(fad_double(0.0),fad_double(0.0),fad_double(1.0)) +
                                   eta_grad*(q_nodes_vel-fluid_vel[q]);
              phi_dot_rhs_fun[q] = phi_grad*phi_grad/2 - q_point*gg + phi_surf_grad_corrected*(q_nodes_vel-fluid_vel[q])-breaking_wave_added_pressure
-                                   + (1-eta_dry)*fad_double(g*q_init(2));//+ transom_added_pressure;
+                                   + (1-eta_dry)*fad_double(g*q_init(2)) + wave_damping_pressure;
+             // as of now the presence of (1-eta_dry)*fad_double(g*q_init(2)) makes not possilbe to start the simulation with a precribed wave
+             // (initial_free_surface should be created BEFORE the wave shape is imposed) 
              q_JxW[q] = q_jac_det*ref_fe_v.JxW(q);
 
              //cout<<cell<<" "<<q<<" "<<phi_dot_rhs_fun[q]<<endl;
@@ -4869,7 +4875,7 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
              if (cell->material_id() == comp_dom.free_sur_ID1 ||
                  cell->material_id() == comp_dom.free_sur_ID2 ||
                  cell->material_id() == comp_dom.free_sur_ID3 )
-                {
+                { //cout<<q<<"   "<<phi_dot_rhs_fun[q].val()<<endl;
                 for (unsigned int i=0;i<dofs_per_cell;++i)
                     {
                     Point<3,fad_double> N_i_surf_grad(d11*ref_fe_v.shape_grad(i,q)[0]+d12*ref_fe_v.shape_grad(i,q)[1],
@@ -4884,8 +4890,8 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
                     local_DphiDt_rhs(i) += (phi_dot_rhs_fun[q]*N_i_supg*q_JxW[q]).val();
                     local_DphiDt_rhs_2(i) += (eta_dot_rhs_fun[q]*N_i_supg*q_JxW[q]).val();
                     //local_DphiDt_rhs_4(i) += (breaking_wave_added_pressure*fad_double(ref_fe_v.shape_value(i,q))*q_JxW[q]).val();
-                    local_DphiDt_rhs_4(i) += (transom_added_pressure*fad_double(ref_fe_v.shape_value(i,q))*q_JxW[q]).val();
-                
+                    //local_DphiDt_rhs_4(i) += (transom_added_pressure*fad_double(ref_fe_v.shape_value(i,q))*q_JxW[q]).val();
+                    local_DphiDt_rhs_4(i) += (wave_damping_pressure*fad_double(ref_fe_v.shape_value(i,q))*q_JxW[q]).val();
                     //cout<<q<<"  "<<i<<"   "<<phi_grad(2)<<"    "<<eta_grad<<"    "<<q_nodes_vel-fluid_vel[q]<<endl;
                     //cout<<q<<"  "<<i<<"   "<<N_i_surf_grad<<"    "<<fluid_vel[q]/fluid_vel_norm<<"   "<<cell->diameter()/sqrt(2)<<endl;
                     //cout<<q<<"  "<<i<<"   "<<N_i_supg.val()<<"   "<<phi_dot_rhs_fun[q].val()<<"   "<<q_JxW[q].val()<<endl;
@@ -4937,12 +4943,15 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
                 {
                 for (unsigned int i=0;i<dofs_per_cell;++i)
                     {
-                    fad_double k=4.0269; fad_double omega=6.2832; fad_double h=1;  fad_double a=0.02;
-                    fad_double inflow_norm_pot_grad = omega*a*cosh(k*(q_point(2)+h))/sinh(k*h)*cos(k*q_point(0)-omega*t);
-                    if (t<10)
-                       inflow_norm_pot_grad *= 0.5*sin(3.141592654*(t)/10-3.141592654/2)+0.5;
+                    //fad_double k=0.62994; fad_double omega=2.4835; fad_double h=5.5;  fad_double a=0.1;
+                    //fad_double inflow_norm_pot_grad = omega*a*cosh(k*(q_point(2)+h))/sinh(k*h)*cos(k*q_point(0)-omega*t);
+                    //fad_double inflow_norm_pot_grad = k*a*cos(k*q_point(0)-omega*t);
+                    //if (t<40.0)
+                    //   inflow_norm_pot_grad *= 0.5*sin(3.141592654*(t)/40.0-3.141592654/2)+0.5;
                     //cout<<q<<"  "<<i<<"   "<<inflow_norm_pot_grad.val()<<"  x: "<<q_point(0).val()<<"  z: "<<q_point(2).val()<<endl; 
-                    loc_dphi_dn_res[i] -= inflow_norm_pot_grad*fad_double(ref_fe_v.shape_value(i,q))*q_JxW[q];
+                    //loc_dphi_dn_res[i] -= inflow_norm_pot_grad*fad_double(ref_fe_v.shape_value(i,q))*q_JxW[q];
+                    loc_dphi_dn_res[i] -= -(inflow_norm_potential_grad.value(Point<3>(q_point(0).val(),q_point(1).val(),q_point(2).val())))*
+                                           fad_double(ref_fe_v.shape_value(i,q))*q_JxW[q];
                     //cout<<q<<"  "<<i<<"   "<<-(q_normal*Point<3,fad_double>(fad_double(Vinf(0)),fad_double(Vinf(1)),fad_double(Vinf(2)))).val()<<"    "<<cell->center()<<"    "<<endl;
                     //cout<<q<<"  "<<i<<"   "<<N_i_surf_grad<<"    "<<fluid_vel[q]/fluid_vel_norm<<"   "<<cell->diameter()/sqrt(2)<<endl;
                     //cout<<q<<"  "<<i<<"   "<<N_i_supg.val()<<"   "<<phi_dot_res_fun[q].val()<<"   "<<q_JxW[q].val()<<endl;
