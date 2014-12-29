@@ -46,7 +46,10 @@ enum GeometryFlags
     left_side                 = 0x0800,   
 				    // transom on water or boat
     transom_on_boat           = 0x1000,
-    transom_on_water          = 0x2000   
+    transom_on_water          = 0x2000,
+                                    // pressure condition nodes
+    pressure                  = 0x4000,
+    near_pressure                  = 0x8000
   };
 
 
