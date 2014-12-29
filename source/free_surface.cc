@@ -480,10 +480,9 @@ void FreeSurface<dim>::initial_conditions(Vector<double> &dst) {
           min_diameter = fmin(min_diameter,2*sqrt(area/3.1415));
           }
        }
-cout<<"Check: "<<endl;
 
   cout<<"Min Diameter Corrected: "<<min_diameter<<endl;
-cout<<"Check: "<<inflow_norm_potential_grad.value(Point<3>(-5.0,0,0))<<endl;
+
   std::vector<Point<dim> > displaced_support_points(comp_dom.dh.n_dofs());
   DoFTools::map_dofs_to_support_points<dim-1, dim>( *comp_dom.mapping, comp_dom.dh, displaced_support_points);
 
@@ -528,7 +527,7 @@ cout<<"Check: "<<inflow_norm_potential_grad.value(Point<3>(-5.0,0,0))<<endl;
              (comp_dom.flags[i] & inflow)
              {
              bem_dphi_dn(i) = inflow_norm_potential_grad.value(support_points[i]);
-             cout<<i<<" "<<"   Point: "<<support_points[i]<<"   BC Val: "<<inflow_norm_potential_grad.value(support_points[i])<<endl;
+             //cout<<i<<" "<<"   Point: "<<support_points[i]<<"   BC Val: "<<inflow_norm_potential_grad.value(support_points[i])<<endl;
              }
           else
              {
@@ -3738,7 +3737,8 @@ int FreeSurface<dim>::jacobian(const double t,
   Vector<double> bem_bc(comp_dom.dh.n_dofs());
   for (unsigned int i=0; i<comp_dom.dh.n_dofs(); i++)
       {
-      if (comp_dom.flags[i] & water)
+      if (comp_dom.flags[i] & water ||
+          comp_dom.flags[i] & pressure)
          bem_bc(i) = phi(i);
       else
          bem_bc(i) = dphi_dn(i);
@@ -3762,6 +3762,30 @@ int FreeSurface<dim>::jacobian(const double t,
          }
       }
 
+     // trying a fix for water/pressure nodes (water side)
+      for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
+          {
+          if ( (comp_dom.flags[i] & water) &&  (comp_dom.flags[i] & near_pressure) )
+             {
+             std::set<unsigned int> duplicates = comp_dom.double_nodes_set[i];
+             duplicates.erase(i);
+             unsigned int count=0;
+             bem_bc(i) = 0;
+             for (std::set<unsigned int>::iterator pos = duplicates.begin(); pos !=duplicates.end(); pos++)
+                 if (comp_dom.flags[*pos] & pressure)
+                    count++;
+                 
+             for (std::set<unsigned int>::iterator pos = duplicates.begin(); pos !=duplicates.end(); pos++)
+                 {
+                 if (comp_dom.flags[*pos] & pressure)
+                    {
+                    bem_bc(i) += phi(*pos)/count;
+                    }
+                 }
+             bem_phi(i) = bem_bc(i);
+             }
+          } 
+
   bem.solve_system(bem_phi, bem_dphi_dn, bem_bc);
   
 /*
@@ -3782,7 +3806,7 @@ int FreeSurface<dim>::jacobian(const double t,
   for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
       {
       if ( (!constraints.is_constrained(i)) &&
-           (comp_dom.flags[i] & water) &&
+           ((comp_dom.flags[i] & water) || (comp_dom.flags[i] & pressure)) &&
            (!(comp_dom.flags[i] & transom_on_water)))
          {//cout<<i+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()<<" ***  "<<bem_dphi_dn(i)<<endl;
          dst(i+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()) = bem_dphi_dn(i) - dphi_dn(i);
@@ -4287,7 +4311,8 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
      Vector<double> bem_bc(comp_dom.dh.n_dofs());
      for (unsigned int i=0; i<comp_dom.dh.n_dofs(); i++)
          {
-         if (comp_dom.flags[i] & water)
+         if ((comp_dom.flags[i] & water) ||
+             (comp_dom.flags[i] & pressure) )
             bem_bc(i) = phi(i);
          else
             bem_bc(i) = dphi_dn(i);
@@ -4316,6 +4341,37 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
              bem_dphi_dn(i) = bem_bc(i);
              }
           }   
+     // trying a fix for water/pressure nodes (water side)
+      for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
+          {
+          if ( (comp_dom.flags[i] & water) &&  (comp_dom.flags[i] & near_pressure) )
+             {
+             std::set<unsigned int> duplicates = comp_dom.double_nodes_set[i];
+             duplicates.erase(i);
+             //cout<<i<<" "<<bem_bc(i)<<" "<<phi(i)<<" "<<dphi_dn(i)<<endl;
+             unsigned int count=0;
+             bem_bc(i) = 0;
+             jacobian_matrix.add(i+comp_dom.vector_dh.n_dofs(),
+                                 i+comp_dom.vector_dh.n_dofs(),
+                                 -1.0);
+             for (std::set<unsigned int>::iterator pos = duplicates.begin(); pos !=duplicates.end(); pos++)
+                 if (comp_dom.flags[*pos] & pressure)
+                    count++;
+                 
+             for (std::set<unsigned int>::iterator pos = duplicates.begin(); pos !=duplicates.end(); pos++)
+                 {
+                 if (comp_dom.flags[*pos] & pressure)
+                    {
+                    bem_bc(i) += phi(*pos)/count;
+                    jacobian_matrix.add(i+comp_dom.vector_dh.n_dofs(),
+                                        *pos+comp_dom.vector_dh.n_dofs(),
+                                        1.0/count);
+                    //cout<<*pos<<" ("<<i<<") "<<bem_bc(i)<<" "<<phi(*pos)<<" "<<dphi_dn(*pos)<<"  ? "<<count<<endl;
+                    }
+                 }
+             bem_phi(i) = bem_bc(i);
+             }
+          }     
 
 
      if ( (sync_bem_with_geometry == true) || (new_time_step) )
@@ -4844,16 +4900,6 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
              transom_added_pressure = (1-eta_dry)*fad_double(g*q_init(2));
              //if (q_eta.val() > 1e-5)
              //cout<<"Later: "<<q_point(2)*gg(2)<<endl;
-             fad_double wave_damping_pressure = 0.0;
-             if (comp_dom.no_boat && q_point(0).val() > 0.0)
-                wave_damping_pressure = -fad_double(1)*pow(q_point(0).val(),2.0)/pow(50.0,2.0)*q_dphi_dn;
-
-             eta_dot_rhs_fun[q] = phi_grad*Point<3,fad_double>(fad_double(0.0),fad_double(0.0),fad_double(1.0)) +
-                                  eta_grad*(q_nodes_vel-fluid_vel[q]);
-             phi_dot_rhs_fun[q] = phi_grad*phi_grad/2 - q_point*gg + phi_surf_grad_corrected*(q_nodes_vel-fluid_vel[q])-breaking_wave_added_pressure
-                                   + (1-eta_dry)*fad_double(g*q_init(2)) + wave_damping_pressure;
-             // as of now the presence of (1-eta_dry)*fad_double(g*q_init(2)) makes not possilbe to start the simulation with a precribed wave
-             // (initial_free_surface should be created BEFORE the wave shape is imposed) 
              q_JxW[q] = q_jac_det*ref_fe_v.JxW(q);
 
              //cout<<cell<<" "<<q<<" "<<phi_dot_rhs_fun[q]<<endl;
@@ -4876,6 +4922,15 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
                  cell->material_id() == comp_dom.free_sur_ID2 ||
                  cell->material_id() == comp_dom.free_sur_ID3 )
                 { //cout<<q<<"   "<<phi_dot_rhs_fun[q].val()<<endl;
+                fad_double wave_damping_pressure = 0.0;
+                //if (comp_dom.no_boat && q_point(0).val() > 0.0)
+                //   wave_damping_pressure = -fad_double(1)*pow(q_point(0).val(),2.0)/pow(50.0,2.0)*q_dphi_dn;
+
+                eta_dot_rhs_fun[q] = phi_grad*Point<3,fad_double>(fad_double(0.0),fad_double(0.0),fad_double(1.0)) +
+                                     eta_grad*(q_nodes_vel-fluid_vel[q]);
+                phi_dot_rhs_fun[q] = phi_grad*phi_grad/2 - q_point*gg + phi_surf_grad_corrected*(q_nodes_vel-fluid_vel[q])-
+                                     breaking_wave_added_pressure
+                                     + (1-eta_dry)*fad_double(g*q_init(2)) + wave_damping_pressure;
                 for (unsigned int i=0;i<dofs_per_cell;++i)
                     {
                     Point<3,fad_double> N_i_surf_grad(d11*ref_fe_v.shape_grad(i,q)[0]+d12*ref_fe_v.shape_grad(i,q)[1],
@@ -4895,6 +4950,53 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
                     //cout<<q<<"  "<<i<<"   "<<phi_grad(2)<<"    "<<eta_grad<<"    "<<q_nodes_vel-fluid_vel[q]<<endl;
                     //cout<<q<<"  "<<i<<"   "<<N_i_surf_grad<<"    "<<fluid_vel[q]/fluid_vel_norm<<"   "<<cell->diameter()/sqrt(2)<<endl;
                     //cout<<q<<"  "<<i<<"   "<<N_i_supg.val()<<"   "<<phi_dot_rhs_fun[q].val()<<"   "<<q_JxW[q].val()<<endl;
+                    
+                    //cout<<q<<"  "<<i<<" "<<q_JxW[q]<<endl;
+                    for (unsigned int j=0;j<dofs_per_cell;++j)
+                        {
+                        //loc_eta_res[i] += fad_double(ref_fe_v.shape_value(j,q))*coors_dot[3*j+2]*N_i_supg*q_JxW[q];
+                        //loc_phi_res[i] += fad_double(ref_fe_v.shape_value(j,q))*phis_dot[j]*N_i_supg*q_JxW[q];
+                        //local_DphiDt_matrix.add(i,j,ref_fe_v.shape_value(j,q)*(N_i_supg*q_JxW[q]).val());
+                        loc_supg_mass_matrix[i][j] += fad_double(ref_fe_v.shape_value(j,q))*N_i_supg*q_JxW[q];
+                        Point<3,fad_double> N_j_surf_grad(d11*ref_fe_v.shape_grad(j,q)[0]+d12*ref_fe_v.shape_grad(j,q)[1],
+                                                          d21*ref_fe_v.shape_grad(j,q)[0]+d22*ref_fe_v.shape_grad(j,q)[1],
+                                                          d31*ref_fe_v.shape_grad(j,q)[0]+d32*ref_fe_v.shape_grad(j,q)[1]);
+                        loc_stiffness_matrix[i][j] += N_i_surf_grad*N_j_surf_grad*q_JxW[q];
+                        }
+                    //if (fmax(abs(loc_eta_res[i].val()),abs(loc_phi_res[i].val()))>1e-6)
+                    //   cout<<q<<"  "<<i<<"   "<<loc_eta_res[i].val()<<"("<<coors_dot[3*i+2].val()<<")  "<<loc_phi_res[i].val()<<"("<<phis_dot[i].val()<<")  "<<endl;   
+                    }
+                
+                }
+
+             if (cell->material_id() == comp_dom.pressure_sur_ID )
+                { //cout<<q<<"   "<<phi_dot_rhs_fun[q].val()<<endl;
+                fad_double k=0.62994; fad_double omega=2.4835; fad_double h=5.5;  fad_double a=0.05;
+                fad_double dphi_dt = -omega*omega*a/k*cosh(k*(q_point(2)+h))/sinh(k*h)*cos(k*q_point(0)-omega*t);
+                Point<3, fad_double> grad_phi(omega*a*cosh(k*(q_point(2)+h))/sinh(k*h)*cos(k*q_point(0)-omega*t),
+                                              0.0,
+                                              omega*a*sinh(k*(q_point(2)+h))/sinh(k*h)*cos(k*q_point(0)-omega*t)); 
+
+                fad_double pressure = (dphi_dt - fad_double(0.5)*(grad_phi*grad_phi) -grad_phi(0)*Vinf(0)-grad_phi(1)*Vinf(1)-grad_phi(2)*Vinf(2) - q_point*gg)*fad_double(rho);
+                phi_dot_rhs_fun[q] = -pressure/fad_double(rho) + phi_grad*phi_grad/2 - q_point*gg +
+                                     phi_grad*(q_nodes_vel-fluid_vel[q]);
+                for (unsigned int i=0;i<dofs_per_cell;++i)
+                    {
+                    Point<3,fad_double> N_i_surf_grad(d11*ref_fe_v.shape_grad(i,q)[0]+d12*ref_fe_v.shape_grad(i,q)[1],
+                                                     d21*ref_fe_v.shape_grad(i,q)[0]+d22*ref_fe_v.shape_grad(i,q)[1],
+                                                     d31*ref_fe_v.shape_grad(i,q)[0]+d32*ref_fe_v.shape_grad(i,q)[1]);
+                    fad_double N_i_supg = fad_double(ref_fe_v.shape_value(i,q)) +
+                                          N_i_surf_grad*fluid_vel[q]/fluid_vel_norm*cell->diameter()/sqrt(2);
+                    loc_phi_res[i] -= phi_dot_rhs_fun[q]*N_i_supg*q_JxW[q];
+                    loc_x_smooth_res[i] -= blend_factor*0*fad_double(ref_fe_v.shape_value(i,q))*q_JxW[q];
+                    loc_y_smooth_res[i] -= blend_factor*0*fad_double(ref_fe_v.shape_value(i,q))*q_JxW[q];
+                    local_DphiDt_rhs(i) += (phi_dot_rhs_fun[q]*N_i_supg*q_JxW[q]).val();
+                    //local_DphiDt_rhs_4(i) += (breaking_wave_added_pressure*fad_double(ref_fe_v.shape_value(i,q))*q_JxW[q]).val();
+                    //local_DphiDt_rhs_4(i) += (transom_added_pressure*fad_double(ref_fe_v.shape_value(i,q))*q_JxW[q]).val();
+                    local_DphiDt_rhs_4(i) += (0*fad_double(ref_fe_v.shape_value(i,q))*q_JxW[q]).val();
+                    //cout<<q<<"  "<<i<<"   ("<<phi_surf_grad_corrected(0).val()<<","<<phi_surf_grad_corrected(1).val()<<","<<phi_surf_grad_corrected(2).val()<<")    ("<<q_nodes_vel(0).val()-fluid_vel[q](0).val()<<","<<q_nodes_vel(1).val()-fluid_vel[q](1).val()<<","<<q_nodes_vel(2).val()-fluid_vel[q](2).val()<<")"<<endl;
+                    //cout<<q<<"  "<<i<<"   "<<N_i_surf_grad<<"    "<<fluid_vel[q]/fluid_vel_norm<<"   "<<cell->diameter()/sqrt(2)<<endl;
+                    //cout<<q<<"  "<<i<<"   "<<N_i_supg.val()<<"   "<<phi_dot_rhs_fun[q].val()<<"   "<<q_JxW[q].val()<<"   "<<loc_phi_res[i].val()<<endl;
                     
                     //cout<<q<<"  "<<i<<" "<<q_JxW[q]<<endl;
                     for (unsigned int j=0;j<dofs_per_cell;++j)
@@ -4975,7 +5077,8 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
                  cell->material_id() != comp_dom.free_sur_ID2 &&
                  cell->material_id() != comp_dom.free_sur_ID3 &&
                  cell->material_id() != comp_dom.inflow_sur_ID1 &&
-                 cell->material_id() != comp_dom.inflow_sur_ID2)
+                 cell->material_id() != comp_dom.inflow_sur_ID2 &&
+                 cell->material_id() != comp_dom.pressure_sur_ID)
                 {
                 for (unsigned int i=0;i<dofs_per_cell;++i)
                     {
@@ -5040,11 +5143,12 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
                      loc_y_smooth_res[i] += loc_stiffness_matrix[i][j]*(y_displs[j]-(1-blend_factor)*comp_dom.old_map_points(3*local_dof_indices[j]+1));
                      }
                  if ( !constraints.is_constrained(local_dof_indices[i]) &&
-                      !(comp_dom.flags[local_dof_indices[i]] & transom_on_water) )
+                      !(comp_dom.flags[local_dof_indices[i]] & transom_on_water))
                     {
                     unsigned int ii = local_dof_indices[i];
                     eta_res[ii] += loc_eta_res[i].val();
-                    phi_res[ii] += loc_phi_res[i].val();
+                    if ( !(comp_dom.flags[local_dof_indices[i]] & near_pressure) )
+                       phi_res[ii] += loc_phi_res[i].val();
                     //cout<<"* "<<cell<<" "<<local_dof_indices[i]<<" "<<loc_phi_res[i]<<endl;
                     for (unsigned int j=0;j<dofs_per_cell;++j)
                         {
@@ -5070,16 +5174,19 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
                         //   } 
                         //for (unsigned int k=0; k<dim; ++k)
                         //cout<<"ooo "<<loc_phi_res[i].fastAccessDx(3*j+k)<<endl;
-                        for (unsigned int k=0; k<dim; ++k)
-                            jacobian_matrix.add(ii+comp_dom.vector_dh.n_dofs(),
-                                                3*jj+k,
-                                                loc_phi_res[i].fastAccessDx(3*j+k));
-                        jacobian_matrix.add(ii+comp_dom.vector_dh.n_dofs(),
-                                            jj+comp_dom.vector_dh.n_dofs(),
-                                            loc_phi_res[i].fastAccessDx(3*dofs_per_cell+j));
-                        jacobian_matrix.add(ii+comp_dom.vector_dh.n_dofs(),
-                                            jj+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs(),
-                                            loc_phi_res[i].fastAccessDx(4*dofs_per_cell+j));                                                       
+                        if ( !(comp_dom.flags[local_dof_indices[i]] & near_pressure) )
+                           {
+                           for (unsigned int k=0; k<dim; ++k)
+                               jacobian_matrix.add(ii+comp_dom.vector_dh.n_dofs(),
+                                                   3*jj+k,
+                                                   loc_phi_res[i].fastAccessDx(3*j+k));
+                           jacobian_matrix.add(ii+comp_dom.vector_dh.n_dofs(),
+                                               jj+comp_dom.vector_dh.n_dofs(),
+                                               loc_phi_res[i].fastAccessDx(3*dofs_per_cell+j));
+                           jacobian_matrix.add(ii+comp_dom.vector_dh.n_dofs(),
+                                               jj+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                               loc_phi_res[i].fastAccessDx(4*dofs_per_cell+j));
+                           }                                                       
                         for (unsigned int k=0; k<dim; ++k)
                             jacobian_dot_matrix.add(3*ii+2,
                                                     3*jj+k,
@@ -5090,16 +5197,19 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
                         jacobian_dot_matrix.add(3*ii+2,
                                                 jj+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs(),
                                                 loc_eta_res[i].fastAccessDx(9*dofs_per_cell+j));
-                        for (unsigned int k=0; k<dim; ++k)
-                            jacobian_dot_matrix.add(ii+comp_dom.vector_dh.n_dofs(),
-                                                    3*jj+k,
-                                                    loc_phi_res[i].fastAccessDx(5*dofs_per_cell+3*j+k));
-                        jacobian_dot_matrix.add(ii+comp_dom.vector_dh.n_dofs(),
-                                                jj+comp_dom.vector_dh.n_dofs(),
-                                                loc_phi_res[i].fastAccessDx(8*dofs_per_cell+j));
-                        jacobian_dot_matrix.add(ii+comp_dom.vector_dh.n_dofs(),
-                                                jj+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs(),
-                                                loc_phi_res[i].fastAccessDx(9*dofs_per_cell+j));
+                        if ( !(comp_dom.flags[local_dof_indices[i]] & near_pressure) )
+                           {
+                           for (unsigned int k=0; k<dim; ++k)
+                               jacobian_dot_matrix.add(ii+comp_dom.vector_dh.n_dofs(),
+                                                       3*jj+k,
+                                                       loc_phi_res[i].fastAccessDx(5*dofs_per_cell+3*j+k));
+                           jacobian_dot_matrix.add(ii+comp_dom.vector_dh.n_dofs(),
+                                                   jj+comp_dom.vector_dh.n_dofs(),
+                                                   loc_phi_res[i].fastAccessDx(8*dofs_per_cell+j));
+                           jacobian_dot_matrix.add(ii+comp_dom.vector_dh.n_dofs(),
+                                                   jj+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                                   loc_phi_res[i].fastAccessDx(9*dofs_per_cell+j));
+                           }
                         }                     
                     }
                  if ( !(constraints.is_constrained(local_dof_indices[i])) &&
@@ -5133,6 +5243,59 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
                                             loc_y_smooth_res[i].fastAccessDx(4*dofs_per_cell+j));
                         }                     
                     }
+                 }
+             }
+         if (cell->material_id() == comp_dom.pressure_sur_ID)
+             {
+             for (unsigned int i=0;i<dofs_per_cell;++i)
+                 {
+                 for (unsigned int j=0;j<dofs_per_cell;++j)
+                     {
+                     loc_phi_res[i] += loc_supg_mass_matrix[i][j]*phis_dot[j];
+                     //if (fabs(t<0.005)<1e-4) {cout<<cell<<" "<<i<<" "<<phis_dot[j]<<endl;}
+                     }
+                 if ( !constraints.is_constrained(local_dof_indices[i]) )
+                    {
+                    unsigned int ii = local_dof_indices[i];
+                    phi_res[ii] += loc_phi_res[i].val();
+                    //cout<<"* "<<cell<<" "<<local_dof_indices[i]<<" "<<loc_phi_res[i]<<endl;
+                    for (unsigned int j=0;j<dofs_per_cell;++j)
+                        {
+                        unsigned int jj = local_dof_indices[j];
+                        //if (local_dof_indices[i]==44)
+                        //   {
+                        //   cout<<"44!!!: "<<cell<<endl;
+                        //   for (unsigned int k=0; k<dim; ++k)
+                        //       cout<<3*jj+k<<" ";
+                        //   cout<<jj+comp_dom.vector_dh.n_dofs()<<" ";
+                        //   cout<<jj+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()<<" ";
+                        //   cout<<endl;
+                        //   } 
+                        //for (unsigned int k=0; k<dim; ++k)
+                        //cout<<"ooo "<<loc_phi_res[i].fastAccessDx(3*j+k)<<endl;
+                        for (unsigned int k=0; k<dim; ++k)
+                            jacobian_matrix.add(ii+comp_dom.vector_dh.n_dofs(),
+                                                3*jj+k,
+                                                loc_phi_res[i].fastAccessDx(3*j+k));
+                        jacobian_matrix.add(ii+comp_dom.vector_dh.n_dofs(),
+                                            jj+comp_dom.vector_dh.n_dofs(),
+                                            loc_phi_res[i].fastAccessDx(3*dofs_per_cell+j));
+                        jacobian_matrix.add(ii+comp_dom.vector_dh.n_dofs(),
+                                            jj+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                            loc_phi_res[i].fastAccessDx(4*dofs_per_cell+j));                                                       
+                        for (unsigned int k=0; k<dim; ++k)
+                            jacobian_dot_matrix.add(ii+comp_dom.vector_dh.n_dofs(),
+                                                    3*jj+k,
+                                                    loc_phi_res[i].fastAccessDx(5*dofs_per_cell+3*j+k));
+                        jacobian_dot_matrix.add(ii+comp_dom.vector_dh.n_dofs(),
+                                                jj+comp_dom.vector_dh.n_dofs(),
+                                                loc_phi_res[i].fastAccessDx(8*dofs_per_cell+j));
+                        jacobian_dot_matrix.add(ii+comp_dom.vector_dh.n_dofs(),
+                                                jj+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                                loc_phi_res[i].fastAccessDx(9*dofs_per_cell+j));
+                        }                     
+                    }
+
                  }
              }
          if (cell->material_id() != comp_dom.free_sur_ID1 &&
@@ -5284,7 +5447,7 @@ for (unsigned int i=0; i<this->n_dofs(); ++i)
      double residual_counter_7 = 0;
      double residual_counter_8 = 0;
      double residual_counter_9 = 0;
-
+     double residual_counter_10 = 0;
 
      for(unsigned int i=0; i<sys_comp.size(); ++i)
         switch((int) sys_comp(i)) 
@@ -5343,6 +5506,11 @@ for (unsigned int i=0; i<this->n_dofs(); ++i)
                  //std::cout<<"i --> "<<i<<" (9) "<<dst(i)<<std::endl;
 	         residual_counter_9 += fabs(dst(i)*dst(i));
 	         break;
+   	  case 10:
+	         dst(i) = bem_phi(i-comp_dom.vector_dh.n_dofs()) - src_yy(i);
+                 //std::cout<<"i --> "<<i<<" (10) "<<dst(i)<<" ("<<bem_phi(i-comp_dom.vector_dh.n_dofs())<<" vs "<<src_yy(i)<<")"<<std::endl;
+	         residual_counter_10 += fabs(dst(i)*dst(i));
+                 break;
 	  default:
 	         Assert(false, ExcInternalError());
 	         break;
@@ -5358,7 +5526,7 @@ for (unsigned int i=0; i<this->n_dofs(); ++i)
      std::cout << "Current algebraic potential normal gradient bem residual: " << sqrt(residual_counter_7) << std::endl;
      std::cout << "Current algebraic free surface coords x residual: " << sqrt(residual_counter_8) << std::endl;
      std::cout << "Current algebraic free surface coords y residual: " << sqrt(residual_counter_9) << std::endl;
-    
+     std::cout << "Current algebraic pressure/free surf phi residual: " << sqrt(residual_counter_10) << std::endl;    
      static unsigned int res_evals = 0;
      res_evals++;
      std::cout << "Residual evaluations: " << res_evals << std::endl;
@@ -5470,8 +5638,8 @@ for (unsigned int i=0; i<this->n_dofs(); ++i)
 for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
     {
     if ( (!constraints.is_constrained(i)) &&
-         (comp_dom.flags[i] & water) &&
-         ( !(comp_dom.flags[i] & transom_on_water) ) )
+         ((comp_dom.flags[i] & water) || (comp_dom.flags[i] & pressure)) &&
+         (!(comp_dom.flags[i] & transom_on_water))   )
        {
        jacobian_preconditioner_matrix.set(i+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs(),
                                           i+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs(),
@@ -5498,8 +5666,9 @@ for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
 
 
 cout<<"Building preconditioner"<<endl;
+
 /*
-//if (fabs(t-0.9)<0.00001)
+//if (fabs(t-0.08)<0.00001)
 {
 for (unsigned int i=0; i<this->n_dofs(); ++i)
     for (SparsityPattern::iterator c=jacobian_sparsity_pattern.begin(i); c!=jacobian_sparsity_pattern.end(i); ++c)
@@ -5532,13 +5701,15 @@ Vector<double> & FreeSurface<dim>::differential_components()
                                        //                 vertical coors not on free surface)
                                        // 1: X differential (vertical non constrained free surface coors) 
 				       // 2: phi algebraic (on neumann boundaries, non constrained nodes)
-                                       // 3: phi differential (non constrained nodes on dirichlet boundaries / free surface)
+                                       // 3: phi differential (non constrained nodes on dirichlet pressure boundaries / free surface)
 				       // 4: dphi/dn on boat or inflow coming from L2 projection (algebraic)
                                        // 5: dphi/dn algebraic (constrained nodes)
                                        // 6: phi algebraic (on constrained nodes)
-                                       // 7: dphi/dn algebraic on water coming from BEM solution (non constrained nodes)
+                                       // 7: dphi/dn algebraic on water/pressure coming from BEM solution (non constrained nodes)
                                        // 8: X algebraic coming from x position smoothing
-                                       // 9: X algebraic coming from y position smoothing 
+                                       // 9: X algebraic coming from y position smoothing
+                                       // 10: phi algebraic (imposed equal to water counterpart on pressure side of
+                                       //     pressure/water interface) 
       
       //let's start with the nodes positions dofs
       for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
@@ -5566,7 +5737,7 @@ Vector<double> & FreeSurface<dim>::differential_components()
                 }
              // all other are edges dofs and have first and second algebraic components, third is differential
              else
-                {// only exception is when node is a transom_on_water node. in such case it's all salgebraic
+                {// only exception is when node is a transom_on_water node. in such case it's all algebraic
                 if (comp_dom.vector_flags[3*i] & transom_on_water)
                    {
                    for (unsigned int j=0; j<dim; ++j)
@@ -5618,6 +5789,12 @@ Vector<double> & FreeSurface<dim>::differential_components()
                 diff_comp(i+comp_dom.vector_dh.n_dofs()) = 0;
                 alg_comp(i+comp_dom.vector_dh.n_dofs()) = 1; 
                 }
+             else if (comp_dom.flags[i] & near_pressure)
+                {
+                diff_comp(i+comp_dom.vector_dh.n_dofs()) = 0;
+                alg_comp(i+comp_dom.vector_dh.n_dofs()) = 1;
+                sys_comp(i+comp_dom.vector_dh.n_dofs()) = 10; 
+                }
              else
                 {
                 diff_comp(i+comp_dom.vector_dh.n_dofs()) = 1;
@@ -5626,18 +5803,28 @@ Vector<double> & FreeSurface<dim>::differential_components()
                 }
              }
           else
-          // if node is not on free surface, it's algebraic for sure
+          // if node is not on free surface, it's algebraic for sure, unless it's a pressure node
+          // in that case potential is differential 
              {
-             diff_comp(i+comp_dom.vector_dh.n_dofs()) = 0;
-             alg_comp(i+comp_dom.vector_dh.n_dofs()) = 1;
-             sys_comp(i+comp_dom.vector_dh.n_dofs()) = 2;
+             if ( comp_dom.flags[i] & pressure )
+                {
+                diff_comp(i+comp_dom.vector_dh.n_dofs()) = 1;
+                alg_comp(i+comp_dom.vector_dh.n_dofs()) = 0;
+                sys_comp(i+comp_dom.vector_dh.n_dofs()) = 3; 
+                }
+             else
+                {
+                diff_comp(i+comp_dom.vector_dh.n_dofs()) = 0;
+                alg_comp(i+comp_dom.vector_dh.n_dofs()) = 1;
+                sys_comp(i+comp_dom.vector_dh.n_dofs()) = 2;
+                }
              } 
           }
 
        // let's take care of the potential normal derivative dofs
       for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
 	  {// in this case all dofs are algebraic components
-          if (!(comp_dom.flags[i] & water))
+          if (!(comp_dom.flags[i] & water) && !(comp_dom.flags[i] & pressure))
              {// neumann boundary condition on boat surface is treated separately
              if (constraints.is_constrained(i) )
 	        {// if node is constrained, it is component 5
@@ -5849,6 +6036,26 @@ Vector<double> & FreeSurface<dim>::differential_components()
                 {
                 jacobian_sparsity_pattern.add(*pos,*pos);
                 jacobian_sparsity_pattern.add(*pos,i);
+                }
+            }
+         }
+
+     // this cycle is to impose the value of potential on the free surface
+     // side of pressure/free surface interface 
+     for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
+         {
+         if ( (comp_dom.flags[i] & water) &&
+              (comp_dom.flags[i] & near_pressure) )
+            {//cout<<"c "<<i<<endl;
+            std::set<unsigned int> duplicates = comp_dom.double_nodes_set[i];
+            duplicates.erase(i); 
+            for (std::set<unsigned int>::iterator pos = duplicates.begin(); pos !=duplicates.end(); pos++)
+                {
+                if (comp_dom.flags[*pos] & pressure)
+                   {
+                   jacobian_sparsity_pattern.add(comp_dom.vector_dh.n_dofs()+i,comp_dom.vector_dh.n_dofs()+ *pos);
+                   jacobian_sparsity_pattern.add(comp_dom.vector_dh.n_dofs()+i,comp_dom.vector_dh.n_dofs()+i);
+                   }
                 }
             }
          }

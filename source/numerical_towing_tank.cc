@@ -575,7 +575,7 @@ if (no_boat)
 {
 
 Lx_domain = 100.0;
-Ly_domain = 5.5/4.0;
+Ly_domain = 5.5/2.0;
 Lz_domain = 5.5;
 
 vertices.resize(24);
@@ -1127,7 +1127,7 @@ void NumericalTowingTank::generate_double_nodes_set()
   other_nodes.reinit(dh.n_dofs());
   for (unsigned int i=0; i<dh.n_dofs();++i)
       {
-      if (flags[i] & water )
+      if (flags[i] & water || flags[i] & pressure)
          surface_nodes(i) = 1;
       else
          other_nodes(i) = 1;
@@ -1201,6 +1201,7 @@ void NumericalTowingTank::compute_nodes_flags()
   unsigned int wall_sur_ID2 = 4; 
   unsigned int inflow_sur_ID1 = 9;
   unsigned int inflow_sur_ID2 = 10;
+  unsigned int pressure_sur_ID = 11;
 
 
   cell_it
@@ -1406,6 +1407,13 @@ std::vector<unsigned int> vector_local_dof_indices (vector_fe.dofs_per_cell);
 	for(unsigned int j=0; j<vector_fe.dofs_per_cell; ++j)
 	  vector_flags[vector_dofs[j]] |= inflow;
       }
+    else if ((cell->material_id() == pressure_sur_ID ))
+      {
+	for(unsigned int j=0; j<fe.dofs_per_cell; ++j)
+	  flags[dofs[j]] |= pressure;
+	for(unsigned int j=0; j<vector_fe.dofs_per_cell; ++j)
+	  vector_flags[vector_dofs[j]] |= pressure;
+      }
     else
       {
 	for(unsigned int j=0; j<fe.dofs_per_cell; ++j)
@@ -1449,6 +1457,10 @@ std::vector<unsigned int> vector_local_dof_indices (vector_fe.dofs_per_cell);
 	    {
             flags[i] |= near_inflow;
             }
+          else if (flags[*it] & pressure)
+	    {
+            flags[i] |= near_pressure;
+            }
 	  else
 	    flags[i] |= near_walls;
 	}
@@ -1477,6 +1489,10 @@ std::vector<unsigned int> vector_local_dof_indices (vector_fe.dofs_per_cell);
 	  else if (vector_flags[*it] & inflow)
 	    {
             vector_flags[i] |= near_inflow;
+            }
+	  else if (vector_flags[*it] & pressure)
+	    {
+            vector_flags[i] |= near_pressure;
             }
 	  else
 	    vector_flags[i] |= near_walls;

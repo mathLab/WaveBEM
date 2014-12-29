@@ -103,6 +103,7 @@ void ComputationalDomain<dim>::declare_parameters (ParameterHandler &prm)
    prm.declare_entry("Inflow Surface 1 ID", "0", Patterns::Integer());
    prm.declare_entry("Inflow Surface 2 ID", "0", Patterns::Integer());
    prm.declare_entry("Inflow Surface 3 ID", "0", Patterns::Integer());
+   prm.declare_entry("Pressure Surface ID", "0", Patterns::Integer());
    prm.declare_entry("Free Surface Edge On Boat ID", "0", Patterns::Integer());
   }
   prm.leave_subsection();
@@ -140,6 +141,7 @@ void ComputationalDomain<dim>::parse_parameters (ParameterHandler &prm)
    inflow_sur_ID1 = prm.get_integer("Inflow Surface 1 ID");
    inflow_sur_ID2 = prm.get_integer("Inflow Surface 2 ID");
    inflow_sur_ID3 = prm.get_integer("Inflow Surface 3 ID");
+   pressure_sur_ID = prm.get_integer("Pressure Surface ID");
    free_sur_edge_on_boat_ID = prm.get_integer("Free Surface Edge On Boat ID"); 
   }
   prm.leave_subsection();

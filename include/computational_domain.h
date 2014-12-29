@@ -268,6 +268,7 @@ class ComputationalDomain
     unsigned int inflow_sur_ID1;
     unsigned int inflow_sur_ID2;
     unsigned int inflow_sur_ID3;
+    unsigned int pressure_sur_ID;
     unsigned int free_sur_edge_on_boat_ID;
 				     
 				     // number of levels of the octree
