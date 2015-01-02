@@ -575,7 +575,7 @@ if (no_boat)
 {
 
 Lx_domain = 100.0;
-Ly_domain = 5.5/2.0;
+Ly_domain = 5.5/4.0;
 Lz_domain = 5.5;
 
 vertices.resize(24);
@@ -1195,13 +1195,6 @@ void NumericalTowingTank::compute_nodes_flags()
 
   double tol = 1e-8;
 
-  unsigned int free_sur_ID1 = 5;
-  unsigned int free_sur_ID2 = 6; 
-  unsigned int wall_sur_ID1 = 3;
-  unsigned int wall_sur_ID2 = 4; 
-  unsigned int inflow_sur_ID1 = 9;
-  unsigned int inflow_sur_ID2 = 10;
-  unsigned int pressure_sur_ID = 11;
 
 
   cell_it

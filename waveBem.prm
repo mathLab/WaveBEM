@@ -104,7 +104,7 @@ set Keep BEM in sync with geometry  = false
 
 # La mesh viene raffinata adattativamente durante la simulazione. Cio viene fatto
 # ogni Remeshing period secondi
-set Remeshing period		    = 30.0
+set Remeshing period		    = 300.0
 
 # Lascia 1. Vuol dire che la mesh sulla barca non viene mai raffinata/deraffinata durante le
 # simulazioni. Mettere significa lasciare il raffinamento libero di toccare la mesh
@@ -229,7 +229,8 @@ end
 
 # Questo ignoralo: va eliminato
 subsection Initial Wave Potential 3d
-  set Function constants  = 
+  set Function constants  = k=0.62994, omega=2.4835, h=5.5, g=9.81, a=0.05, pi=3.141592654
+  set Function expression = a*omega/k*cosh(k*(z+h))/sinh(k*h)*cos(k*x-omega*t)*if(t < 20, 0.5*sin(pi*(t)/20-pi/2)+0.5, 1 )
   set Function expression = 0 
   set Variable names      = x,y,z,t
 end
@@ -289,7 +290,7 @@ end
 # Questo ignoralo: va eliminato
 subsection Inflow Normal Potential Gradient 3d
   set Function constants  = k=0.62994, omega=2.4835, h=5.5, g=9.81, a=0.05, pi=3.141592654
-  set Function expression = 0 #( a*g*k/omega*cosh(k*(z+h))/sinh(k*h)*cos(k*x-omega*t)-3/4*a^2*k^2*g/omega*cosh(2*k*(z+h))/sinh(2*k*h)^3/cosh(k*h)*cos(2*(k*x-omega*t)) )*if(t < 40, 0.5*sin(pi*(t)/40-pi/2)+0.5, 1 )
+  set Function expression = 0#( a*g*k/omega*cosh(k*(z+h))/sinh(k*h)*cos(k*x-omega*t)-3/4*a^2*k^2*g/omega*cosh(2*k*(z+h))/sinh(2*k*h)^3/cosh(k*h)*cos(2*(k*x-omega*t)) )*if(t < 40, 0.5*sin(pi*(t)/40-pi/2)+0.5, 1 )
   set Variable names      = x,y,z,t
 end
 
