@@ -1230,7 +1230,7 @@ void BEMProblem<dim>::assemble_preconditioner()
        local_gradients_matrix = 0;
        local_gradients_rhs = 0;
        const std::vector<Point<dim> > &vector_node_normals = vector_fe_v.get_normal_vectors();
-       fe_v.get_function_grads(phi, phi_surf_grads);
+       fe_v.get_function_gradients(phi, phi_surf_grads);
        unsigned int comp_i, comp_j;
 
 

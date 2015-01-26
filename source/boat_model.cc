@@ -171,7 +171,7 @@ void BoatModel::start_iges_model(std::string igesFileName,
 				 double middle_keel_length,
                                  unsigned int number_of_transom_edges)
 {
-  feature_edges_detection();
+  //feature_edges_detection();
 
 				   //let's read the (iges) hull shape from file
   sh =read_IGES(igesFileName,scale);
@@ -324,7 +324,7 @@ Standard_Boolean OK = ICW.Write ("shape.igs");
 
 
 				   //here we extract the keel edge from the hull shape
-  keel_edge = extract_xz_edges(sh,1e-4,30);
+  keel_edge = extract_xz_edges(sh,3e-2,100);
 				   //here we extract the transom edge from the right hull shape
   right_transom_edge = extract_transom_edges(sh,number_of_transom_edges,1e-2);
                                    //here we extract the transom edge from the right hull shape
