@@ -274,6 +274,9 @@ public:
                       const Vector<double> & solution,
                       const Vector<double> & pressure);
 
+  void compute_internal_velocities(const Vector<double> & phi,
+                                   const Vector<double> & dphi_dn);
+
   Vector<double>& get_diameters();
 
   inline unsigned int Rhs_evaluations_counter()

@@ -6387,10 +6387,10 @@ void FreeSurface<dim>::compute_DXDt_and_DphiDt(double time,
          //}
     
      
-     fe_v.get_function_grads((const Vector<double>&)phi, DphiDt_phi_surf_grads);
+     fe_v.get_function_gradients((const Vector<double>&)phi, DphiDt_phi_surf_grads);
      fe_v.get_function_values(dphi_dn, DphiDt_phi_norm_grads);
-     fe_v.get_function_grads((const Vector<double>&)phi, vector_phi_surf_grads);
-     fe_v.get_function_grads(elevations, vector_eta_surf_grads);
+     fe_v.get_function_gradients((const Vector<double>&)phi, vector_phi_surf_grads);
+     fe_v.get_function_gradients(elevations, vector_eta_surf_grads);
      fe_v.get_function_values(dphi_dn, vector_phi_norm_grads);
      vector_fe_v.get_function_values(nodes_velocities, quad_nodes_velocities);
 
@@ -6690,7 +6690,7 @@ void FreeSurface<dim>::compute_potential_gradients(Vector<double> &complete_pote
      local_vector_matrix = 0;
      local_complete_gradient_rhs = 0;
      
-     fe_v.get_function_grads((const Vector<double>&)phi, vector_phi_surf_grads);
+     fe_v.get_function_gradients((const Vector<double>&)phi, vector_phi_surf_grads);
      fe_v.get_function_values(dphi_dn, vector_phi_norm_grads);
 
 
@@ -6864,7 +6864,7 @@ void FreeSurface<dim>::compute_pressure(Vector<double> & press,
      local_DphiDt_rhs_comp_3 = 0;
      local_DphiDt_rhs_comp_4 = 0;
 
-     fe_v.get_function_grads((const Vector<double>&)phi, DphiDt_phi_surf_grads);
+     fe_v.get_function_gradients((const Vector<double>&)phi, DphiDt_phi_surf_grads);
      fe_v.get_function_values((const Vector<double>&)dphi_dn, DphiDt_phi_norm_grads);
      fe_v.get_function_values(v_x, DphiDt_v_x_values);
      fe_v.get_function_values(v_y, DphiDt_v_y_values);
@@ -7710,9 +7710,124 @@ ICW.ComputeModel();
 Standard_Boolean OK = ICW.Write ("free_surf.igs");
 */
 
+compute_internal_velocities(phi,dphi_dn);
 
+
+}
+
+
+template <int dim>
+void FreeSurface<dim>::compute_internal_velocities(const Vector<double> &phi,
+                                                   const Vector<double> &dphi_dn)
+{
+
+   unsigned int n_points;
+
+   // Create streamobject
+   ifstream infile;
+   infile.open("points.txt");
+
+   // Exit if file opening failed
+   if (!infile.is_open())
+      {
+      cerr<<"Opening failed"<<endl;
+      exit(1);
+      }
+
+    // Get number of points
+    infile >> n_points;
+
+    std::vector< Point<3> > points(n_points,Point<3>(0.0,0.0,0.0));
+    std::vector< Point<3> > velocities(n_points,Point<3>(0.0,0.0,0.0));
+
+    unsigned int count = 0;
+    while (!infile.eof())
+          {
+          infile >> points[count](0) >> points[count](1) >> points[count](2);
+          ++count;
+          }
+    infile.close();
+    
+ 
+
+
+   comp_dom.update_support_points();
+
+
+   FEValues<dim-1,dim> fe_v(*comp_dom.mapping, comp_dom.fe, *comp_dom.quadrature,
+			    update_values | update_gradients |
+			    update_cell_normal_vectors |
+			    update_quadrature_points |
+			    update_JxW_values);
+
+
+   const unsigned int n_q_points = fe_v.n_quadrature_points;
+   const unsigned int  dofs_per_cell   = comp_dom.fe.dofs_per_cell;
+   std::vector<unsigned int> local_dof_indices (dofs_per_cell);
+      
+   std::vector<double> q_phi(n_q_points);
+   std::vector<double> q_dphi_dn(n_q_points);
    
 
+
+   cell_it
+   cell = comp_dom.dh.begin_active(),
+   endc = comp_dom.dh.end();
+
+   for (; cell!=endc; ++cell)
+     {
+     fe_v.reinit(cell);
+
+     fe_v.get_function_values(dphi_dn, q_dphi_dn);
+     fe_v.get_function_values(phi, q_phi);
+     const std::vector<Point<dim> > &quad_nodes = fe_v.get_quadrature_points();
+     const std::vector<Point<dim> > &quad_nodes_normals = fe_v.get_normal_vectors();
+
+     for (unsigned int i=0; i<n_points; ++i)
+         {
+         fad_double x,y,z;
+         x = points[i](0);
+         y = points[i](1);
+         z = points[i](2);
+
+         x.diff(0,3);  
+         y.diff(1,3);
+         z.diff(2,3);
+
+         for (unsigned int q=0; q<n_q_points; ++q)
+             {
+
+             Point <dim, fad_double > r(quad_nodes[q](0)-x,quad_nodes[q](1)-y,quad_nodes[q](2)-z);
+
+             fad_double G = fad_double(1.0/(4.0*numbers::PI))/r.norm();
+
+             fad_double dG_dn = -(r(0)*fad_double(quad_nodes_normals[q](0))+
+                                  r(1)*fad_double(quad_nodes_normals[q](1))+
+                                  r(2)*fad_double(quad_nodes_normals[q](2)))/(fad_double(4.0*numbers::PI)*pow(r.norm(),3.0));
+
+     
+             //cout<<"G: "<<G.val()<<"  "<<G_x_plus<<"  "<<G_z_plus<<endl;
+         
+             Point<dim> grad_G(G.fastAccessDx(0),G.fastAccessDx(1),G.fastAccessDx(2));
+             Point<dim> grad_dG_dn(dG_dn.fastAccessDx(0),dG_dn.fastAccessDx(1),dG_dn.fastAccessDx(2));
+
+             velocities[i] += (q_dphi_dn[q]*grad_G - q_phi[q]*grad_dG_dn)*fe_v.JxW(q);
+
+             }
+
+         }
+
+     }
+
+
+  for (unsigned int i=0; i<n_points; ++i)
+      cout<<i<<"  P("<<points[i]<<")   grad_phi("<<velocities[i]<<") "<<endl;
+
+  ofstream myfile;
+  myfile.open ("velocities.txt");
+  for (unsigned int i=0; i<n_points; ++i)
+      myfile<<velocities[i]<<endl;
+  myfile.close();
 }
 
 template <int dim>
