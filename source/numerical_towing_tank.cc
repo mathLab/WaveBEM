@@ -292,6 +292,7 @@ void NumericalTowingTank::read_domain ()
   cout<<"Hey: "<<iges_file_name<<endl;
   cout<<iges_file_name.compare("NO_BOAT")<<endl;
   if (!iges_file_name.compare("NO_BOAT"))
+  //if (true)
      {
      no_boat = true;
      line_smoothers.resize(0);

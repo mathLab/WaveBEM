@@ -1,5 +1,5 @@
 # nome (con path) del file iges da aprire
-set Iges file name                  = utilities/fc_ship.iges
+set Iges file name                  =  utilities/fc_ship.iges
 
 # dislocamento (mettere 0 se non si vuole spostare la barca rispetto
 # alla posizione verticale in cui si trova nel file iges)
@@ -58,7 +58,7 @@ set Back mesh inclination coeff     = 1.0
 # Le celle della barca vengono raffinate globalmente, ovvero ciascuna cella viene
 # divisa in 4 celle. Questa procedura viene ripetuta un numero di volte deciso 
 # da questo numero 
-set Number of boat initial uniform refinements = 2
+set Number of boat initial uniform refinements = 0
 
 # Dopo che la barca è stata raffinata uniformemente, viene svolto un ultimo ciclo
 # di raffinamenti locali, basato sulla distanza di ciascuna cella dalla superficie
@@ -71,7 +71,7 @@ set Initial curvature based refinements fraction = 0.2
 
 # Il raffinamento basato sulla distanza cella/CAD può essere ripetuto per
 # un numero di cicli qui specificato da utente
-set Number of boat initial curvature based refinements = 3
+set Number of boat initial curvature based refinements = 0
 
 # Questo non toccarlo. E' una vecchia opzione che devo togliere
 set Node displacement type          = semilagrangian
@@ -81,7 +81,7 @@ set Node displacement type          = semilagrangian
 # salvato sarà nominato nomefile_10.vtu). Saranno poi salvati un file con desinenza
 # _force.txt contenente tutte le forze per ciascun salvataggio, ed un file
 # _water_line.txt contenente le coordinate dei nodi in comune tra barca e acqua
-set Output file name                = OPENSHIP/fc_ship_Fr02
+set Output file name                = OPENSHIP/wave_tank_interface_test
 
 # Massimo numero di time steps: non molto utile, lo leverò
 set Maximum number of steps         = 10000
@@ -150,7 +150,7 @@ subsection Boundary Conditions ID Numbers
   set Inflow Surface 1 ID = 9
   set Inflow Surface 2 ID = 10
   set Inflow Surface 3 ID = 0
-  set Pressure Surface ID = 22 # 11
+  set Pressure Surface ID = 11
   set Free Surface Edge On Boat ID = 20
 end
 
@@ -275,7 +275,7 @@ subsection Wind function 3d
 #  set Function constants  = k=0.017298 # sqrt(g l)/1000 test Hull Full Scale
 #  set Function constants  = k=0.025966 # sqrt(g l)/1000 Macolino Full Scale
   set Function constants  = k=0.040968 # sqrt(g l)/1000 Fc Ship Full Scale
-  set Function expression = 0200*k; 0; 0 #*if(t < 4, 0.5*sin(3.141592654*(t)/4-3.141592654/2)+0.5, 1 ); 0; 0
+  set Function expression = 0000*k; 0; 0 #*if(t < 4, 0.5*sin(3.141592654*(t)/4-3.141592654/2)+0.5, 1 ); 0; 0
 #  set Function constants  = k=0.62994, omega=2.4835, h=5.5, g=9.81, a=0.01
 #  set Function expression = 0200*k*if(t < 4, 0.5*sin(3.141592654*(t)/4-3.141592654/2)+0.5, 1 ); 0; 0
   set Variable names      = x,y,z,t
@@ -291,7 +291,7 @@ end
 # Questo ignoralo: va eliminato
 subsection Inflow Normal Potential Gradient 3d
   set Function constants  = k=0.62994, omega=2.4835, h=5.5, g=9.81, a=0.05, pi=3.141592654
-  set Function expression = 0#( a*g*k/omega*cosh(k*(z+h))/sinh(k*h)*cos(k*x-omega*t)-3/4*a^2*k^2*g/omega*cosh(2*k*(z+h))/sinh(2*k*h)^3/cosh(k*h)*cos(2*(k*x-omega*t)) )*if(t < 40, 0.5*sin(pi*(t)/40-pi/2)+0.5, 1 )
+  set Function expression = ( a*g*k/omega*cosh(k*(z+h))/sinh(k*h)*cos(k*x-omega*t) )*if(t < 20, 0.5*sin(pi*(t)/20-pi/2)+0.5, 1 )
   set Variable names      = x,y,z,t
 end
 
