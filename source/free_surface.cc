@@ -4510,7 +4510,7 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
       {
       if (comp_dom.flags[i] & pressure && !(comp_dom.flags[i] & near_water) )
          {
-         double k=0.62994; double omega=2.4835; double h=5.5;  double a=0.03;
+         double k=0.62994; double omega=2.4835; double h=5.5;  double a=0.00;
          double time_factor = 1.0;
          double time_factor_deriv = 0.0;
          double ramp_length = 20.0;
