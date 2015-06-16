@@ -24,13 +24,13 @@
 
 
 
-//#include <lac/vector.h>		 
-//#include <lac/sparse_direct.h>
-//#include <lac/constraint_matrix.h>
-//#include <lac/solver_cg.h>
-//#include <lac/vector_view.h>
-//#include <grid/grid_refinement.h>
-//#include <numerics/matrices.h>
+//#include <deal.II/lac/vector.h>		 
+//#include <deal.II/lac/sparse_direct.h>
+//#include <deal.II/lac/constraint_matrix.h>
+//#include <deal.II/lac/solver_cg.h>
+//#include <deal.II/lac/vector_view.h>
+//#include <deal.II/grid/grid_refinement.h>
+//#include <deal.II/numerics/matrices.h>
 
 #include <Sacado.hpp>
 #include "../include/free_surface.h"
@@ -38,7 +38,7 @@
 #include "../include/restart_nonlinear_problem_alg.h"
 #include "newton_solver.h"
 
-#include <numerics/fe_field_function.h>
+#include <deal.II/numerics/fe_field_function.h>
 
 #include <GeomPlate_BuildPlateSurface.hxx>
 #include <GeomPlate_PointConstraint.hxx>
@@ -350,6 +350,7 @@ void FreeSurface<dim>::initial_conditions(Vector<double> &dst) {
         lh = 5.0; 
         //lh = 0.1135*pow(FrT,3.025)*pow(transom_aspect_ratio,0.4603)*pow(ReT,-0.1514);
         //lh = 0.3265*pow(FrT,3.0) - 1.7216*pow(FrT,2.0) + 2.7593*FrT;
+     cout<<FrT<<" "<<transom_aspect_ratio<<" "<<ReT<<endl;
      cout<<"****eta_dry: "<<eta_dry<<endl;
 
 
@@ -678,10 +679,10 @@ void FreeSurface<dim>::initial_conditions(Vector<double> &dst) {
                           {
                           vertices.push_back(comp_dom.ref_points[3*index_0]);
                           vertices.push_back(comp_dom.ref_points[3*index_1]);
-                          vertices.push_back(comp_dom.ref_points[3*index_1]-
-                                             Point<3>(0.0,0.0,comp_dom.ref_points[3*index_1](2)));
-                          vertices.push_back(comp_dom.support_points[index_0]-
-                                             Point<3>(0.0,0.0,comp_dom.ref_points[3*index_0](2)));
+                          vertices.push_back(comp_dom.ref_points[3*index_1]+
+                                             -1.0*Point<3>(0.0,0.0,comp_dom.ref_points[3*index_1](2)));
+                          vertices.push_back(comp_dom.support_points[index_0]+
+                                             -1.0*Point<3>(0.0,0.0,comp_dom.ref_points[3*index_0](2)));
                           cells.resize(cells.size()+1);
                           cells[cells.size()-1].vertices[0]=4*(cells.size()-1)+0;
                           cells[cells.size()-1].vertices[1]=4*(cells.size()-1)+1;
@@ -692,10 +693,10 @@ void FreeSurface<dim>::initial_conditions(Vector<double> &dst) {
                           {
                           vertices.push_back(comp_dom.support_points[index_1]);
                           vertices.push_back(comp_dom.support_points[index_0]);
-                          vertices.push_back(comp_dom.support_points[index_0]-
-                                             Point<3>(0.0,0.0,comp_dom.ref_points[3*index_0](2)));
-                          vertices.push_back(comp_dom.support_points[index_1]-
-                                             Point<3>(0.0,0.0,comp_dom.ref_points[3*index_1](2)));
+                          vertices.push_back(comp_dom.support_points[index_0]+
+                                             -1.0*Point<3>(0.0,0.0,comp_dom.ref_points[3*index_0](2)));
+                          vertices.push_back(comp_dom.support_points[index_1]+
+                                             -1.0*Point<3>(0.0,0.0,comp_dom.ref_points[3*index_1](2)));
                           cells.resize(cells.size()+1);
                           cells[cells.size()-1].vertices[0]=4*(cells.size()-1)+0;
                           cells[cells.size()-1].vertices[1]=4*(cells.size()-1)+1;
@@ -1406,6 +1407,7 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
         lh = 5.0; 
         //lh = 0.1135*pow(FrT,3.025)*pow(transom_aspect_ratio,0.4603)*pow(ReT,-0.1514);
         //lh = 0.3265*pow(FrT,3.0) - 1.7216*pow(FrT,2.0) + 2.7593*FrT;
+     
      cout<<"****eta_dry: "<<eta_dry<<endl;
 
      for(unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
@@ -1571,10 +1573,10 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
                           {
                           vertices.push_back(comp_dom.ref_points[3*index_0]);
                           vertices.push_back(comp_dom.ref_points[3*index_1]);
-                          vertices.push_back(comp_dom.ref_points[3*index_1]-
-                                             Point<3>(0.0,0.0,comp_dom.ref_points[3*index_1](2)));
-                          vertices.push_back(comp_dom.support_points[index_0]-
-                                             Point<3>(0.0,0.0,comp_dom.ref_points[3*index_0](2)));
+                          vertices.push_back(comp_dom.ref_points[3*index_1]+
+                                             -1.0*Point<3>(0.0,0.0,comp_dom.ref_points[3*index_1](2)));
+                          vertices.push_back(comp_dom.support_points[index_0]+
+                                             -1.0*Point<3>(0.0,0.0,comp_dom.ref_points[3*index_0](2)));
                           cells.resize(cells.size()+1);
                           cells[cells.size()-1].vertices[0]=4*(cells.size()-1)+0;
                           cells[cells.size()-1].vertices[1]=4*(cells.size()-1)+1;
@@ -1585,10 +1587,10 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
                           {
                           vertices.push_back(comp_dom.support_points[index_1]);
                           vertices.push_back(comp_dom.support_points[index_0]);
-                          vertices.push_back(comp_dom.support_points[index_0]-
-                                             Point<3>(0.0,0.0,comp_dom.ref_points[3*index_0](2)));
-                          vertices.push_back(comp_dom.support_points[index_1]-
-                                             Point<3>(0.0,0.0,comp_dom.ref_points[3*index_1](2)));
+                          vertices.push_back(comp_dom.support_points[index_0]+
+                                             -1.0*Point<3>(0.0,0.0,comp_dom.ref_points[3*index_0](2)));
+                          vertices.push_back(comp_dom.support_points[index_1]+
+                                             -1.0*Point<3>(0.0,0.0,comp_dom.ref_points[3*index_1](2)));
                           cells.resize(cells.size()+1);
                           cells[cells.size()-1].vertices[0]=4*(cells.size()-1)+0;
                           cells[cells.size()-1].vertices[1]=4*(cells.size()-1)+1;
@@ -4672,9 +4674,9 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
              for (unsigned int j=0; j<3; ++j)
                  {
                  coors[3*i+j] = comp_dom.support_points[local_dof_indices[i]](j);
-                 coors[3*i+j].diff(3*i+j,10*dofs_per_cell);
+                 (coors[3*i+j]).diff(3*i+j,10*dofs_per_cell);
                  coors_dot[3*i+j] = nodes_velocities(3*local_dof_indices[i]+j);
-                 coors_dot[3*i+j].diff(3*i+j+5*dofs_per_cell,10*dofs_per_cell);
+                 (coors_dot[3*i+j]).diff(3*i+j+5*dofs_per_cell,10*dofs_per_cell);
                  }
          for (unsigned int i=0; i<dofs_per_cell; ++i)
              {
@@ -7362,13 +7364,13 @@ void FreeSurface<dim>::compute_pressure(Vector<double> & press,
                           vertices.push_back(comp_dom.ref_points[3*index_1]);
                           //cout<<comp_dom.ref_points[3*index_1]<<" / "<<elem->face(f)->vertex(1)<<endl;
                           transom_pressure_vect.push_back(pressure_1);
-                          vertices.push_back(comp_dom.ref_points[3*index_1]-
-                                             Point<3>(0.0,0.0,(1-eta_dry)*comp_dom.ref_points[3*index_1](2)));
+                          vertices.push_back(comp_dom.ref_points[3*index_1]+
+                                             -1.0*Point<3>(0.0,0.0,(1-eta_dry)*comp_dom.ref_points[3*index_1](2)));
                           //cout<<comp_dom.ref_points[3*index_1]-
                           //                   Point<3>(0.0,0.0,(1-eta_dry)*comp_dom.ref_points[3*index_1](2))<<endl;
                           transom_pressure_vect.push_back(0.0);
-                          vertices.push_back(comp_dom.ref_points[3*index_0]-
-                                             Point<3>(0.0,0.0,(1-eta_dry)*comp_dom.ref_points[3*index_0](2)));
+                          vertices.push_back(comp_dom.ref_points[3*index_0]+
+                                              -1.0*Point<3>(0.0,0.0,(1-eta_dry)*comp_dom.ref_points[3*index_0](2)));
                           //cout<<comp_dom.ref_points[3*index_0]-
                           //                   Point<3>(0.0,0.0,(1-eta_dry)*comp_dom.ref_points[3*index_0](2))<<endl;
                           transom_pressure_vect.push_back(0.0);
@@ -7384,11 +7386,11 @@ void FreeSurface<dim>::compute_pressure(Vector<double> & press,
                           transom_pressure_vect.push_back(pressure_1);
                           vertices.push_back(comp_dom.ref_points[3*index_0]);
                           transom_pressure_vect.push_back(pressure_0);
-                          vertices.push_back(comp_dom.ref_points[3*index_0]-
-                                             Point<3>(0.0,0.0,(1-eta_dry)*comp_dom.ref_points[3*index_0](2)));
+                          vertices.push_back(comp_dom.ref_points[3*index_0]+
+                                             -1.0*Point<3>(0.0,0.0,(1-eta_dry)*comp_dom.ref_points[3*index_0](2)));
                           transom_pressure_vect.push_back(0.0);
-                          vertices.push_back(comp_dom.ref_points[3*index_1]-
-                                             Point<3>(0.0,0.0,(1-eta_dry)*comp_dom.ref_points[3*index_1](2)));
+                          vertices.push_back(comp_dom.ref_points[3*index_1]+
+                                             -1.0*Point<3>(0.0,0.0,(1-eta_dry)*comp_dom.ref_points[3*index_1](2)));
                           transom_pressure_vect.push_back(0.0);
                           cells.resize(cells.size()+1);
                           cells[cells.size()-1].vertices[0]=4*(cells.size()-1)+0;

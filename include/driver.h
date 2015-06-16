@@ -2,10 +2,10 @@
 #define driver_h
 
 
-#include <numerics/data_out.h>
-#include <numerics/vector_tools.h>
-#include <numerics/solution_transfer.h>
-#include <base/utilities.h>
+#include <deal.II/numerics/data_out.h>
+#include <deal.II/numerics/vector_tools.h>
+#include <deal.II/numerics/solution_transfer.h>
+#include <deal.II/base/utilities.h>
 				 // And here are a few C++ standard header
 				 // files that we will need:
 #include <cmath>

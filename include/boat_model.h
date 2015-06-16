@@ -3,11 +3,12 @@
 #define boat_model_h				 
 
 #include <fstream>
-#include <base/logstream.h>
 #include <iostream>
 #include <cmath>
 #include <limits>
 #include <vector>
+
+#include <deal.II/base/logstream.h>
 
 #include "occ_utilities.h"
 #include "occ_normal_projection.h"

@@ -7,7 +7,7 @@
 #include <complex>
 
 #include <gsl/gsl_matrix.h>
-#include <base/point.h>
+#include <deal.II/base/point.h>
 
 #include "ass_leg_function.h"
 

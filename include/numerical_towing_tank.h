@@ -22,11 +22,12 @@
 #define numerical_towing_tank_h
 
 #include <fstream>
-#include <base/logstream.h>
 #include <iostream>
 #include <cmath>
 #include <limits>
 #include <vector>
+
+#include <deal.II/base/logstream.h>
 
 #include "occ_utilities.h"
 #include "occ_normal_projection.h"
@@ -79,20 +80,20 @@
 #include <GeomLib_Tool.hxx>
 #include <GCPnts_AbscissaPoint.hxx>
 #include <GeomConvert_CompCurveToBSplineCurve.hxx>
+
 #include <deal.II/grid/grid_reordering.h>
 #include <deal.II/grid/grid_tools.h>
-
-#include <grid/tria.h>
-#include <grid/tria_accessor.h>
-#include <grid/grid_out.h>
-#include <grid/tria_iterator.h>
-#include <grid/grid_generator.h>
-#include <grid/tria_boundary_lib.h>
-
+#include <deal.II/grid/tria.h>
+#include <deal.II/grid/tria_accessor.h>
+#include <deal.II/grid/grid_out.h>
+#include <deal.II/grid/tria_iterator.h>
+#include <deal.II/grid/grid_generator.h>
+#include <deal.II/grid/tria_boundary_lib.h>
+#include <deal.II/base/point.h>
 #include "occ_line_smoothing.h"
 #include "surface_smoothing.h"
 #include "computational_domain.h"
-#include <base/point.h>
+
 
 class NumericalTowingTank : public ComputationalDomain<3>
 {

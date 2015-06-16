@@ -2,7 +2,7 @@
 #include <gsl/gsl_math.h>
 
 #include "multipole_expansion.h"
-#include <base/point.h>
+#include <deal.II/base/point.h>
 
 
 gsl_matrix* MultipoleExpansion::A_n_m = MultipoleExpansion::A_n_m_Matrix(20);
@@ -96,7 +96,7 @@ for (int n = 0; n < int(this->p)+1 ; n++)
 void MultipoleExpansion::Add(const double strength, const dealii::Point<3> point)
 
 {
-		dealii::Point<3> pointRelPos = point - this->center;
+		dealii::Point<3> pointRelPos = point + -1.0*this->center;
 		double rho = sqrt(pointRelPos.square());
 		double cos_alpha_ = pointRelPos(2)/rho;
 		double beta = atan2(pointRelPos(1),pointRelPos(0));
@@ -119,7 +119,7 @@ void MultipoleExpansion::Add(const double strength, const dealii::Point<3> point
 void MultipoleExpansion::AddNormDer(const double strength, const dealii::Point<3> point, const dealii::Point<3> normal)
 
 {
-		dealii::Point<3> pointRelPos = point - this->center;
+		dealii::Point<3> pointRelPos = point + -1.0*this->center;
 		dealii::Point<3> normVersor = normal/sqrt(normal.square());
 		double rho = sqrt(pointRelPos.square());
 		double dRhodN = (pointRelPos/rho)*normVersor;
@@ -153,7 +153,7 @@ void MultipoleExpansion::Add(const MultipoleExpansion *child) //translation of a
 
 {
 		gsl_matrix *A_n_m = this->GetA_n_m();
-		dealii::Point<3> blockRelPos = child->center - this->center;
+		dealii::Point<3> blockRelPos = child->center + -1.0*this->center;
 		double rho = sqrt(blockRelPos.square());
 		double cos_alpha_ = blockRelPos(2)/rho;
 		double beta = atan2(blockRelPos(1),blockRelPos(0));
@@ -204,7 +204,7 @@ double MultipoleExpansion::Evaluate(const dealii::Point<3> evalPoint)
 {
 
 		std::complex <double> fieldValue(0.,0.);
-		dealii::Point<3> blockRelPos = evalPoint - this->center;
+		dealii::Point<3> blockRelPos = evalPoint + -1.0*this->center;
 		double rho = sqrt(blockRelPos.square());
 		double cos_alpha_ = blockRelPos(2)/rho;
 		double beta = atan2(blockRelPos(1),blockRelPos(0));
