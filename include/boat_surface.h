@@ -2,9 +2,9 @@
 #ifndef boat_surface_h
 #define boat_surface_h				 
 
-#include <base/point.h>
-#include <base/parameter_handler.h>
-#include <grid/tria_boundary.h>
+#include <deal.II/base/point.h>
+#include <deal.II/base/parameter_handler.h>
+#include <deal.II/grid/tria_boundary.h>
 
 
 using namespace dealii;

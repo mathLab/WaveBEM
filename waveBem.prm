@@ -1,5 +1,5 @@
 # nome (con path) del file iges da aprire
-set Iges file name                  =  utilities/fc_ship.iges
+set Iges file name                  =  utilities/testHull_full_scale.iges
 
 # dislocamento (mettere 0 se non si vuole spostare la barca rispetto
 # alla posizione verticale in cui si trova nel file iges)
@@ -14,7 +14,7 @@ set Assigned trim (rad)             = 0.0
 # Per ora è l'utente che deve specificare, dopo avere guardato il file iges, da quanti edges
 # è composta una eventiale transom stern. Se la barca non ha transom stern, questo parametro è
 # ininfluente
-set Number of transom edges         = 9
+set Number of transom edges         = 3
 
 # Per prima cosa: per chiglia intendo la bspline che rappresenta la curva di intersezione tra barca
 # e piano di simmetria.
@@ -266,7 +266,7 @@ end
 subsection Wind function 3d
 #  set Function constants  = k=0.004952272206 # sqrt(g l)/1000 wigley
 #  set Function constants  = k=0.034584 # sqrt(g l)/1000 series 60 full scale
-#  set Function constants  = k=0.0074909 # sqrt(g l)/1000 goteborg
+  set Function constants  = k=0.0074909 # sqrt(g l)/1000 goteborg
 #  set Function constants  = k=0.0084500 # sqrt(g l)/1000 kcs
 #  set Function constants  = k=0.0073569 # sqrt(g l)/1000 kvlcc2m
 #  set Function constants  = k=0.0092538 # sqrt(g l)/1000 comacina
@@ -274,8 +274,8 @@ subsection Wind function 3d
 #  set Function constants  = k=0.0049917 # sqrt(g l)/1000 test Hull
 #  set Function constants  = k=0.017298 # sqrt(g l)/1000 test Hull Full Scale
 #  set Function constants  = k=0.025966 # sqrt(g l)/1000 Macolino Full Scale
-  set Function constants  = k=0.040968 # sqrt(g l)/1000 Fc Ship Full Scale
-  set Function expression = 0000*k; 0; 0 #*if(t < 4, 0.5*sin(3.141592654*(t)/4-3.141592654/2)+0.5, 1 ); 0; 0
+#  set Function constants  = k=0.040968 # sqrt(g l)/1000 Fc Ship Full Scale
+  set Function expression = 0280*k; 0; 0 #*if(t < 4, 0.5*sin(3.141592654*(t)/4-3.141592654/2)+0.5, 1 ); 0; 0
 #  set Function constants  = k=0.62994, omega=2.4835, h=5.5, g=9.81, a=0.01
 #  set Function expression = 0200*k*if(t < 4, 0.5*sin(3.141592654*(t)/4-3.141592654/2)+0.5, 1 ); 0; 0
   set Variable names      = x,y,z,t

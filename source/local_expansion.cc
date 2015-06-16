@@ -111,7 +111,7 @@ void LocalExpansion::Add(const LocalExpansion *parent) // translation of local e
 {
 		gsl_matrix *A_n_m = this->GetA_n_m();
 		unsigned int p = this->p;
-		dealii::Point<3> blockRelPos = parent->GetCenter() - this->center;
+		dealii::Point<3> blockRelPos = parent->GetCenter() + -1.0*this->center;
 		double rho = sqrt(blockRelPos.square());
 		double cos_alpha_ = blockRelPos(2)/rho;
 		double beta = atan2(blockRelPos(1),blockRelPos(0));
@@ -160,7 +160,7 @@ void LocalExpansion::Add(const MultipoleExpansion *multipole) // multipole conve
 
 {
 		gsl_matrix *A_n_m = this->GetA_n_m();
-		dealii::Point<3> blockRelPos = multipole->GetCenter() - this->center;
+		dealii::Point<3> blockRelPos = multipole->GetCenter() + -1.0*this->center;
 		double rho = sqrt(blockRelPos.square());
 		double cos_alpha_ = blockRelPos(2)/rho;
 		double beta = atan2(blockRelPos(1),blockRelPos(0));
@@ -205,7 +205,7 @@ double LocalExpansion::Evaluate(const dealii::Point<3> evalPoint)
 
 		unsigned int p = this->p;	
 		std::complex <double> fieldValue = std::complex <double>(0.,0.);
-		dealii::Point<3> blockRelPos = evalPoint - this->center;
+		dealii::Point<3> blockRelPos = evalPoint + -1.0*this->center;
 		double rho = sqrt(blockRelPos.square());
 		double cos_alpha_ = blockRelPos(2)/rho;
 		double beta = atan2(blockRelPos(1),blockRelPos(0));

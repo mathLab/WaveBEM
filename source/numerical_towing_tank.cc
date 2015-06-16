@@ -18,8 +18,8 @@
 
 #include "../include/numerical_towing_tank.h"
 #include "../include/boat_surface.h"
-#include <numerics/matrix_tools.h>
-#include <grid/grid_refinement.h>
+#include <deal.II/numerics/matrix_tools.h>
+#include <deal.II/grid/grid_refinement.h>
 
 using namespace dealii;
 using namespace OpenCascade;

@@ -1,43 +1,43 @@
 #ifndef octree_block_h
 #define octree_block_h
 
-#include <base/smartpointer.h>
-#include <base/convergence_table.h>
-#include <base/quadrature_lib.h>
-#include <base/quadrature_selector.h>
-#include <base/parsed_function.h>
-#include <base/utilities.h>
-#include <base/point.h>
+#include <deal.II/base/smartpointer.h>
+#include <deal.II/base/convergence_table.h>
+#include <deal.II/base/quadrature_lib.h>
+#include <deal.II/base/quadrature_selector.h>
+#include <deal.II/base/parsed_function.h>
+#include <deal.II/base/utilities.h>
+#include <deal.II/base/point.h>
 
-#include <lac/full_matrix.h>
-#include <lac/sparse_matrix.h>
-#include <lac/matrix_lib.h>
-#include <lac/vector.h>
-#include <lac/solver_control.h>
-#include <lac/solver_gmres.h>
-#include <lac/precondition.h>
+#include <deal.II/lac/full_matrix.h>
+#include <deal.II/lac/sparse_matrix.h>
+#include <deal.II/lac/matrix_lib.h>
+#include <deal.II/lac/vector.h>
+#include <deal.II/lac/solver_control.h>
+#include <deal.II/lac/solver_gmres.h>
+#include <deal.II/lac/precondition.h>
 
-#include <grid/tria.h>
-#include <grid/tria_iterator.h>
-#include <grid/tria_accessor.h>
-#include <grid/grid_generator.h>
-#include <grid/grid_in.h>
-#include <grid/grid_out.h>
-#include <grid/tria_boundary_lib.h>
+#include <deal.II/grid/tria.h>
+#include <deal.II/grid/tria_iterator.h>
+#include <deal.II/grid/tria_accessor.h>
+#include <deal.II/grid/grid_generator.h>
+#include <deal.II/grid/grid_in.h>
+#include <deal.II/grid/grid_out.h>
+#include <deal.II/grid/tria_boundary_lib.h>
 
-#include <dofs/dof_handler.h>
-#include <dofs/dof_accessor.h>
-#include <dofs/dof_tools.h>
-#include <dofs/dof_renumbering.h>
-#include <fe/fe_q.h>
-#include <fe/fe_values.h>
-#include <fe/fe_system.h>
-#include <fe/mapping_q1_eulerian.h>
-#include <fe/mapping_q1.h>
+#include <deal.II/dofs/dof_handler.h>
+#include <deal.II/dofs/dof_accessor.h>
+#include <deal.II/dofs/dof_tools.h>
+#include <deal.II/dofs/dof_renumbering.h>
+#include <deal.II/fe/fe_q.h>
+#include <deal.II/fe/fe_values.h>
+#include <deal.II/fe/fe_system.h>
+#include <deal.II/fe/mapping_q1_eulerian.h>
+#include <deal.II/fe/mapping_q1.h>
 
-#include <numerics/data_out.h>
-#include <numerics/vector_tools.h>
-#include <numerics/solution_transfer.h>
+#include <deal.II/numerics/data_out.h>
+#include <deal.II/numerics/vector_tools.h>
+#include <deal.II/numerics/solution_transfer.h>
 
 				 // And here are a few C++ standard header
 				 // files that we will need:

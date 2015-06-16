@@ -87,22 +87,22 @@
 #include <deal.II/grid/grid_reordering.h>
 #include <deal.II/grid/grid_tools.h>
 
-#include <grid/tria.h>
-#include <grid/tria_accessor.h>
-#include <grid/grid_out.h>
-#include <grid/tria_iterator.h>
-#include <grid/grid_generator.h>
-#include <grid/tria_boundary_lib.h>
-#include <dofs/dof_handler.h>
-#include <dofs/dof_accessor.h>
-#include <dofs/dof_tools.h>
-#include <dofs/dof_renumbering.h>
-#include <fe/fe_q.h>
-#include <fe/fe_values.h>
-#include <fe/fe_system.h>
-#include <fe/mapping_q_eulerian.h>
-#include <fe/mapping_q.h>
-#include <numerics/vector_tools.h>
+#include <deal.II/grid/tria.h>
+#include <deal.II/grid/tria_accessor.h>
+#include <deal.II/grid/grid_out.h>
+#include <deal.II/grid/tria_iterator.h>
+#include <deal.II/grid/grid_generator.h>
+#include <deal.II/grid/tria_boundary_lib.h>
+#include <deal.II/dofs/dof_handler.h>
+#include <deal.II/dofs/dof_accessor.h>
+#include <deal.II/dofs/dof_tools.h>
+#include <deal.II/dofs/dof_renumbering.h>
+#include <deal.II/fe/fe_q.h>
+#include <deal.II/fe/fe_values.h>
+#include <deal.II/fe/fe_system.h>
+#include <deal.II/fe/mapping_q_eulerian.h>
+#include <deal.II/fe/mapping_q.h>
+#include <deal.II/numerics/vector_tools.h>
 
 
 using namespace dealii;
