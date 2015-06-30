@@ -1,5 +1,5 @@
 # nome (con path) del file iges da aprire
-set Iges file name                  =  utilities/testHull_full_scale.iges
+set Iges file name                  =  utilities/goteborgExperiments.iges
 
 # dislocamento (mettere 0 se non si vuole spostare la barca rispetto
 # alla posizione verticale in cui si trova nel file iges)
@@ -14,7 +14,7 @@ set Assigned trim (rad)             = 0.0
 # Per ora è l'utente che deve specificare, dopo avere guardato il file iges, da quanti edges
 # è composta una eventiale transom stern. Se la barca non ha transom stern, questo parametro è
 # ininfluente
-set Number of transom edges         = 3
+set Number of transom edges         = 1
 
 # Per prima cosa: per chiglia intendo la bspline che rappresenta la curva di intersezione tra barca
 # e piano di simmetria.
@@ -58,7 +58,7 @@ set Back mesh inclination coeff     = 1.0
 # Le celle della barca vengono raffinate globalmente, ovvero ciascuna cella viene
 # divisa in 4 celle. Questa procedura viene ripetuta un numero di volte deciso 
 # da questo numero 
-set Number of boat initial uniform refinements = 0
+set Number of boat initial uniform refinements = 2
 
 # Dopo che la barca è stata raffinata uniformemente, viene svolto un ultimo ciclo
 # di raffinamenti locali, basato sulla distanza di ciascuna cella dalla superficie
@@ -71,7 +71,7 @@ set Initial curvature based refinements fraction = 0.2
 
 # Il raffinamento basato sulla distanza cella/CAD può essere ripetuto per
 # un numero di cicli qui specificato da utente
-set Number of boat initial curvature based refinements = 0
+set Number of boat initial curvature based refinements = 3
 
 # Questo non toccarlo. E' una vecchia opzione che devo togliere
 set Node displacement type          = semilagrangian
@@ -81,7 +81,7 @@ set Node displacement type          = semilagrangian
 # salvato sarà nominato nomefile_10.vtu). Saranno poi salvati un file con desinenza
 # _force.txt contenente tutte le forze per ciascun salvataggio, ed un file
 # _water_line.txt contenente le coordinate dei nodi in comune tra barca e acqua
-set Output file name                = OPENSHIP/wave_tank_interface_test
+set Output file name                = OPENSHIP/DTMB_Fr028_fine_test
 
 # Massimo numero di time steps: non molto utile, lo leverò
 set Maximum number of steps         = 10000
@@ -104,7 +104,7 @@ set Keep BEM in sync with geometry  = false
 
 # La mesh viene raffinata adattativamente durante la simulazione. Cio viene fatto
 # ogni Remeshing period secondi
-set Remeshing period		    = 300.0
+set Remeshing period		    = 1.0
 
 # Lascia 1. Vuol dire che la mesh sulla barca non viene mai raffinata/deraffinata durante le
 # simulazioni. Mettere significa lasciare il raffinamento libero di toccare la mesh
@@ -147,10 +147,10 @@ subsection Boundary Conditions ID Numbers
   set Wall Surface 1 ID = 3
   set Wall Surface 2 ID = 4
   set Wall Surface 3 ID = 0
-  set Inflow Surface 1 ID = 9
-  set Inflow Surface 2 ID = 10
+  set Inflow Surface 1 ID = 0
+  set Inflow Surface 2 ID = 0
   set Inflow Surface 3 ID = 0
-  set Pressure Surface ID = 11
+  set Pressure Surface ID = 0
   set Free Surface Edge On Boat ID = 20
 end
 
@@ -277,7 +277,7 @@ subsection Wind function 3d
 #  set Function constants  = k=0.040968 # sqrt(g l)/1000 Fc Ship Full Scale
   set Function expression = 0280*k; 0; 0 #*if(t < 4, 0.5*sin(3.141592654*(t)/4-3.141592654/2)+0.5, 1 ); 0; 0
 #  set Function constants  = k=0.62994, omega=2.4835, h=5.5, g=9.81, a=0.01
-#  set Function expression = 0200*k*if(t < 4, 0.5*sin(3.141592654*(t)/4-3.141592654/2)+0.5, 1 ); 0; 0
+#  set Function expression = 0280*k*if(t < 4, 0.5*sin(3.141592654*(t)/4-3.141592654/2)+0.5, 1 ); 0; 0
   set Variable names      = x,y,z,t
 end
 
@@ -291,7 +291,8 @@ end
 # Questo ignoralo: va eliminato
 subsection Inflow Normal Potential Gradient 3d
   set Function constants  = k=0.62994, omega=2.4835, h=5.5, g=9.81, a=0.05, pi=3.141592654
-  set Function expression = ( a*g*k/omega*cosh(k*(z+h))/sinh(k*h)*cos(k*x-omega*t) )*if(t < 20, 0.5*sin(pi*(t)/20-pi/2)+0.5, 1 )
+  #set Function expression = ( a*g*k/omega*cosh(k*(z+h))/sinh(k*h)*cos(k*x-omega*t) )*if(t < 20, 0.5*sin(pi*(t)/20-pi/2)+0.5, 1 )
+  Function constants  = 0
   set Variable names      = x,y,z,t
 end
 
