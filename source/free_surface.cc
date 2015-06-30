@@ -3864,7 +3864,7 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
     static double old_time = -1000;
     dst = 0;
 
-
+/*
     if (t != old_time)
        {
        //comp_dom.old_map_points = comp_dom.map_points;
@@ -5084,7 +5084,7 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
                     //loc_dphi_dn_res[i] -= inflow_norm_pot_grad*fad_double(ref_fe_v.shape_value(i,q))*q_JxW[q];
                     loc_dphi_dn_res[i] -= -(inflow_norm_potential_grad.value(Point<3>(q_point(0).val(),q_point(1).val(),q_point(2).val())))*
                                            fad_double(ref_fe_v.shape_value(i,q))*q_JxW[q];
-                    //cout<<q<<"  "<<i<<"   "<<-(q_normal*Point<3,fad_double>(fad_double(Vinf(0)),fad_double(Vinf(1)),fad_double(Vinf(2)))).val()<<"    "<<cell->center()<<"    "<<endl;
+                    //cout<<q<<"  "<<i<<"   "<<-(inflow_norm_potential_grad.value(Point<3>(q_point(0).val(),q_point(1).val(),q_point(2).val())))<<"    "<<cell->center()<<"    "<<endl;
                     //cout<<q<<"  "<<i<<"   "<<N_i_surf_grad<<"    "<<fluid_vel[q]/fluid_vel_norm<<"   "<<cell->diameter()/sqrt(2)<<endl;
                     //cout<<q<<"  "<<i<<"   "<<N_i_supg.val()<<"   "<<phi_dot_res_fun[q].val()<<"   "<<q_JxW[q].val()<<endl;
                     local_DphiDt_rhs_3(i) += inflow_norm_potential_grad.value(Point<3>(q_point(0).val(),q_point(1).val(),q_point(2).val()))*
@@ -7712,7 +7712,7 @@ ICW.ComputeModel();
 Standard_Boolean OK = ICW.Write ("free_surf.igs");
 */
 
-compute_internal_velocities(phi,dphi_dn);
+//compute_internal_velocities(phi,dphi_dn);
 
 
 }
