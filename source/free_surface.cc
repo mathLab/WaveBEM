@@ -46,6 +46,7 @@
 #include <Geom_Surface.hxx>
 #include <BRepBuilderAPI_MakeFace.hxx>
 #include <GeomPlate_Surface.hxx>
+#include <BRepAdaptor_Curve.hxx>
 
 typedef Sacado::Fad::DFad<double> fad_double;
 
@@ -2672,6 +2673,9 @@ setup_jacobian_prec(t,y,yp,0.0);
          				   //this is the horizontal plane
             Handle(Geom_Plane) horPlane = new Geom_Plane(0.,0.,1.,-dP0(2));
             Handle(Geom_Curve) curve;
+            TopLoc_Location L = comp_dom.boat_model.reference_loc;
+            TopLoc_Location L_inv = L.Inverted();
+            horPlane->Transform(L_inv.Transformation());
             if (comp_dom.boat_model.is_transom)
                {
                if (k==3 || k==4)
@@ -2686,6 +2690,9 @@ setup_jacobian_prec(t,y,yp,0.0);
                curve = comp_dom.boat_model.equiv_keel_bspline;
                }
 
+            TopoDS_Edge edge = BRepBuilderAPI_MakeEdge(curve);
+            edge.Location(L);
+            BRepAdaptor_Curve AC(edge);
             gp_Pnt P;
             gp_Vec V1;
             GeomAPI_IntCS Intersector(curve, horPlane);
@@ -2696,15 +2703,20 @@ setup_jacobian_prec(t,y,yp,0.0);
             double t,u,v;
             for (int j=0; j<npoints;++j)
                 {
-                Point<3> inters = Pnt(Intersector.Point(j+1));
+                gp_Pnt int_point = Intersector.Point(j+1);
+                int_point.Transform(L.Transformation());
+                Point<3> inters = Pnt(int_point);
                 Intersector.Parameters(j+1,u,v,t);
                 if (dP0.distance(inters) < minDistance)
                    {
                    minDistance = dP0.distance(inters);
                    dP = inters;
-                   curve->D1(t,P,V1);
+                   AC.D1(t,P,V1);
                    }
                 }
+            //cout<<"Check plane-curve intersection:"<<endl;
+            //cout<<"Origin: "<<dP0<<"   Proj: "<<dP<<"  dist: "<<minDistance<<endl;
+            //cout<<Pnt(P)<<endl;
             /*
             // here temporarily for kcs hull tests
             if (minDistance > 0.5*comp_dom.boat_model.boatWetLength)
@@ -4186,6 +4198,9 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
          				   //this is the horizontal plane
             Handle(Geom_Plane) horPlane = new Geom_Plane(0.,0.,1.,-dP0(2));
             Handle(Geom_Curve) curve;
+            TopLoc_Location L = comp_dom.boat_model.reference_loc;
+            TopLoc_Location L_inv = L.Inverted();
+            horPlane->Transform(L_inv.Transformation());
             if (comp_dom.boat_model.is_transom)
                {
                if (k==3 || k==4)
@@ -4199,25 +4214,34 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
                {
                curve = comp_dom.boat_model.equiv_keel_bspline;
                }
-            GeomAPI_IntCS Intersector(curve, horPlane);
+
+            TopoDS_Edge edge = BRepBuilderAPI_MakeEdge(curve);
+            edge.Location(L);
+            BRepAdaptor_Curve AC(edge);
             gp_Pnt P;
             gp_Vec V1;
+            GeomAPI_IntCS Intersector(curve, horPlane);
             int npoints = Intersector.NbPoints();
-            AssertThrow((npoints != 0), ExcMessage("Keel or transom curve is not intersecting with horizontal plane!"));
 
+            AssertThrow((npoints != 0), ExcMessage("Keel or transom curve is not intersecting with horizontal plane!"));
             double minDistance=1e7;
             double t,u,v;
             for (int j=0; j<npoints;++j)
                 {
-                Point<3> inters = Pnt(Intersector.Point(j+1));
+                gp_Pnt int_point = Intersector.Point(j+1);
+                int_point.Transform(L.Transformation());
+                Point<3> inters = Pnt(int_point);
                 Intersector.Parameters(j+1,u,v,t);
                 if (dP0.distance(inters) < minDistance)
                    {
                    minDistance = dP0.distance(inters);
                    dP = inters;
-                   curve->D1(t,P,V1);
+                   AC.D1(t,P,V1);
                    }
                 }
+            //cout<<"Check plane-curve intersection:"<<endl;
+            //cout<<"Origin: "<<dP0<<"   Proj: "<<dP<<"  dist: "<<minDistance<<endl;
+            //cout<<Pnt(P)<<endl;
             /*
             // here temporarily for kcs hull tests
             if (minDistance > 0.5*comp_dom.boat_model.boatWetLength)

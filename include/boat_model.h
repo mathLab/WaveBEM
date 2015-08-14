@@ -43,6 +43,8 @@ class BoatModel{
 
     Point<3> compute_hydrostatic_moment(const double &sink);
 
+    void set_current_position(const double &sink);
+
 //private: 
 				     // keel intersection with undisturbed free surface at bow
     Point<3>  PointFrontTop;
@@ -83,7 +85,8 @@ class BoatModel{
     TopoDS_Shape left_undist_water_line;
 				     // this is the undisturbed left water surface
     TopoDS_Shape undisturbed_water_surface_face; 
-
+                                     // location of the translated curves (for roto-translated hull)
+    TopLoc_Location reference_loc;
 				     // surface normal projector on boat surface right side
     OpenCascade::NormalProjection<2> *boat_surface_right;
 				     // surface normal projector on boat surface left side

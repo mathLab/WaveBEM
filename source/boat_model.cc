@@ -83,6 +83,7 @@
 #include <TColStd_Array1OfInteger.hxx>
 #include <GeomConvert.hxx>
 #include <Geom_BSplineSurface.hxx>
+#include <BRepAdaptor_Curve.hxx>
 
 #include <deal.II/grid/grid_reordering.h>
 #include <deal.II/grid/grid_tools.h>
@@ -278,12 +279,14 @@ void BoatModel::start_iges_model(std::string igesFileName,
      gp_Vec vert_displ(0.0,0.0,-sink); 
      gp_Trsf vert_translation;
      vert_translation.SetTranslation(vert_displ);
-     BRepBuilderAPI_GTransform right_vert_transl(sh_copy, vert_translation);
+     BRepBuilderAPI_Transform right_vert_transl(sh_copy, vert_translation);
      sh = right_vert_transl.Shape();
-     BRepBuilderAPI_GTransform left_vert_transl(refl_sh_copy, vert_translation);
+     BRepBuilderAPI_Transform left_vert_transl(refl_sh_copy, vert_translation);
      refl_sh = left_vert_transl.Shape();
+
+
      }
-/*
+
      Point<3> hs_force = compute_hydrostatic_force(0.0);
      Point<3> hs_moment = compute_hydrostatic_moment(0.0);
 
@@ -302,15 +305,15 @@ void BoatModel::start_iges_model(std::string igesFileName,
                                   //the rotation and translation are combined in a single transformation
      gp_Trsf Tcomp = translation*rotation;
                                   //the transformation is applied to the two sides of the boat
-     BRepBuilderAPI_GTransform right_transf(sh, Tcomp);
+     BRepBuilderAPI_Transform right_transf(sh, Tcomp);
      sh = right_transf.Shape();
-     BRepBuilderAPI_GTransform left_transf(refl_sh, Tcomp);
+     BRepBuilderAPI_Transform left_transf(refl_sh, Tcomp);
      refl_sh = left_transf.Shape();
-*/   
+   
 
 
      cout<<"The hull has been placed in the correct position"<<endl;
-     Point<3> hs_force = compute_hydrostatic_force(0.0);
+     hs_force = compute_hydrostatic_force(0.0);
                                    //now the boat is in the correct position 
 // These lines can be used to dump the keel edge (or other shapes) on an .igs file
 /*
@@ -324,9 +327,9 @@ Standard_Boolean OK = ICW.Write ("shape.igs");
 
 
 				   //here we extract the keel edge from the hull shape
-  keel_edge = extract_xz_edges(sh,3e-2,100);
+  keel_edge = extract_xz_edges(sh,3e-4,100);
 				   //here we extract the transom edge from the right hull shape
-  right_transom_edge = extract_transom_edges(sh,number_of_transom_edges,1e-2);
+  right_transom_edge = extract_transom_edges(sh,number_of_transom_edges,1e-4);
                                    //here we extract the transom edge from the right hull shape
                                    //by applying
                                    //to the right water line the y mirroring transformation
@@ -345,7 +348,7 @@ Standard_Boolean OK = ICW.Write ("transom.igs");
 //*/
 				   //here we extract the undisturbed right water line from
                                    //the hull shape
-  intersect_plane(sh,right_undist_water_line,0.0,0.0,1.0,0.0,1e-2); // 1e-2 tolerance for comacina
+  intersect_plane(sh,right_undist_water_line,0.0,0.0,1.0,0.0,1e-4); // 1e-2 tolerance for comacina
 				   //here we extract the undisturbed left water line from
                                    //the hull shape by applying
                                    //to the right water line the y mirroring transformation
@@ -387,21 +390,38 @@ Standard_Boolean OK = ICW.Write ("transom.igs");
   std::vector<gp_Pnt> intPoints(2);
 				   //this is the xy plane
   Handle(Geom_Plane) xyPlane = new Geom_Plane(0.,0.,1.,0.);
+
 				   // here we intersect the keel with
 				   // the xy plane
 
   TopExp_Explorer edgeExplorer(keel_edge, TopAbs_EDGE);
   TopoDS_Edge edge =  TopoDS::Edge(edgeExplorer.Current());
+  edge.Location(keel_edge.Location());
+  this->reference_loc = keel_edge.Location();
+  BRepAdaptor_Curve gg_curve(edge);
   equiv_keel_bspline = BRep_Tool::Curve(edge,L,First,Last);
+  gp_Trsf L_transformation = L.Transformation(); 
+  TopLoc_Location L_inv = L.Inverted();
+  gp_Trsf L_inv_transformation = L_inv.Transformation(); 
+
+  xyPlane->Transform(L_inv.Transformation());
   
+  cout<<First<<" "<<Last<<endl;
+  cout<<"TTEESSTT1a: "<<Pnt(equiv_keel_bspline->Value(Last))<<endl;
+  cout<<"TTEESSTT1b: "<<Pnt(gg_curve.Value(gg_curve.LastParameter()))<<endl;
+  cout<<"TTEESSTT2a: "<<Pnt(equiv_keel_bspline->Value(First))<<endl;
+  cout<<"TTEESSTT2b: "<<Pnt(gg_curve.Value(gg_curve.FirstParameter()))<<endl;
   TopExp_Explorer edge3Explorer(left_transom_edge, TopAbs_EDGE);
   TopoDS_Edge edge3 =  TopoDS::Edge(edge3Explorer.Current());
   left_transom_bspline = BRep_Tool::Curve(edge3,L,First,Last);
   //cout<<First<<" "<<Last<<endl;
+  gp_Pnt pntCtrTrsm;
   if (left_transom_bspline->Value(First).Z() > left_transom_bspline->Value(Last).Z())
-     PointCenterTransom = Pnt(left_transom_bspline->Value(Last));
+     pntCtrTrsm = left_transom_bspline->Value(Last);
   else
-     PointCenterTransom = Pnt(left_transom_bspline->Value(First));
+     pntCtrTrsm = left_transom_bspline->Value(First);
+  pntCtrTrsm.Transform(L_transformation);
+  PointCenterTransom = Pnt(pntCtrTrsm);
   //cout<<"TTEESSTT1: "<<Pnt(left_transom_bspline->Value(Last))<<endl;
   //cout<<"TTEESSTT2: "<<Pnt(left_transom_bspline->Value(First))<<endl;
 
@@ -418,27 +438,28 @@ Standard_Boolean OK = ICW.Write ("transom.igs");
   gp_Pnt transomLeft(0.0,0.0,0.0);
   gp_Pnt transomRight(0.0,0.0,0.0);
 
-      				   //this is the xy plane
-    Handle(Geom_Plane) xyPlane1 = new Geom_Plane(0.,0.,1.,0.);
-    GeomAPI_IntCS IntersectorLeft(left_transom_bspline, xyPlane1);
-    				   //this is the xy plane
-    Handle(Geom_Plane) xyPlane2 = new Geom_Plane(0.,0.,1.,0.);    
-    GeomAPI_IntCS IntersectorRight(right_transom_bspline, xyPlane2);
+    GeomAPI_IntCS IntersectorLeft(left_transom_bspline, xyPlane);    
+    GeomAPI_IntCS IntersectorRight(right_transom_bspline, xyPlane);
 
 
-  cout<<"npoints "<<npoints<<endl;
+    cout<<"Number of keel intersections with xy plane: "<<npoints<<endl;
+
   if (npoints == 2)
     {
     is_transom = false;
-    if (Intersector.Point(1).X() < Intersector.Point(2).X())
+    gp_Pnt Point1 = Intersector.Point(1);
+    gp_Pnt Point2 = Intersector.Point(2);
+    Point1.Transform(L_transformation);
+    Point2.Transform(L_transformation);
+    if (Point1.X() < Point2.X())
        {
-       gpFront = Intersector.Point(1);
-       gpBack = Intersector.Point(2);
+       gpFront = Point1;
+       gpBack = Point2;
        }
     else
        {
-       gpFront = Intersector.Point(2);
-       gpBack = Intersector.Point(1);
+       gpFront = Point2;
+       gpBack = Point1;
        }
     boatWetLength = fabs(gpBack.X()-gpFront.X());
     Point<3> far(50*boatWetLength,0.0,0.0);
@@ -450,7 +471,7 @@ Standard_Boolean OK = ICW.Write ("transom.igs");
     {
     
     is_transom = true;
-    cout<<"Number of keel intersections with xy plane: "<<npoints<<endl;
+
 
     if( (IntersectorLeft.NbPoints() != 1) || (IntersectorRight.NbPoints() != 1))
         AssertThrow((IntersectorLeft.NbPoints() == 1) && (IntersectorRight.NbPoints() == 1),
@@ -459,8 +480,11 @@ Standard_Boolean OK = ICW.Write ("transom.igs");
     cout<<"Transom Point Right: "<<Pnt(IntersectorRight.Point(1))<<endl;
     cout<<"Transom Point Center: "<<PointCenterTransom<<endl;
     transomLeft = IntersectorLeft.Point(1);
+    transomLeft.Transform(L_transformation);
     transomRight = IntersectorRight.Point(1);
+    transomRight.Transform(L_transformation);
     gpFront = Intersector.Point(1);
+    gpFront.Transform(L_transformation);
     gpBack = Pnt(PointCenterTransom);
     boatWetLength = fabs((transomLeft.X()+transomRight.X())/2.0-gpFront.X());
     Point<3> junction = (Pnt(transomLeft) + Pnt(transomRight))/2.0;
@@ -536,10 +560,9 @@ Standard_Boolean OK = ICW.Write ("transom.igs");
   PointFrontTop = Pnt(gpFront);
 
   PointBackTop= Pnt(gpBack);				  
-
   PointBackBot = boat_keel->arclength_projection(PointBackTop, PointFrontTop,
   						 back_keel_length); 
-  	  
+
   PointFrontBot = boat_keel->arclength_projection(PointBackTop, PointFrontTop,
   						  1.0-front_keel_length);
 
@@ -784,6 +807,15 @@ cout<<"UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU"<<endl;
       boatWetSurface = wet_surface;
       return hydrostatic_force;
 }
+
+void BoatModel::set_current_position(const double &sink)
+{
+
+
+
+}
+
+
 
 
 Point<3> BoatModel::compute_hydrostatic_moment(const double &sink)
