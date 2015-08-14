@@ -3,13 +3,13 @@ set Iges file name                  =  utilities/goteborgExperiments.iges
 
 # dislocamento (mettere 0 se non si vuole spostare la barca rispetto
 # alla posizione verticale in cui si trova nel file iges)
-set Boat displacement (Kg)          = 0.0
+set Boat displacement (Kg)          = 0.0 #674.077471967
 
 # se si conosce il valore di affondamento idrodinamico da aggiungere a quello idrostatico, inserirlo qui
-set Assigned sink (m)               = 0.0
+set Assigned sink (m)               = 0.03
 
 # se si conosce il valore di angolo di beccheggio idrodinamico da aggiungere a quello idrostatico, inserirlo qui
-set Assigned trim (rad)             = 0.0
+set Assigned trim (rad)             = 0.02
 
 # Per ora è l'utente che deve specificare, dopo avere guardato il file iges, da quanti edges
 # è composta una eventiale transom stern. Se la barca non ha transom stern, questo parametro è
@@ -58,7 +58,7 @@ set Back mesh inclination coeff     = 1.0
 # Le celle della barca vengono raffinate globalmente, ovvero ciascuna cella viene
 # divisa in 4 celle. Questa procedura viene ripetuta un numero di volte deciso 
 # da questo numero 
-set Number of boat initial uniform refinements = 2
+set Number of boat initial uniform refinements = 1
 
 # Dopo che la barca è stata raffinata uniformemente, viene svolto un ultimo ciclo
 # di raffinamenti locali, basato sulla distanza di ciascuna cella dalla superficie
@@ -71,7 +71,7 @@ set Initial curvature based refinements fraction = 0.2
 
 # Il raffinamento basato sulla distanza cella/CAD può essere ripetuto per
 # un numero di cicli qui specificato da utente
-set Number of boat initial curvature based refinements = 3
+set Number of boat initial curvature based refinements = 0
 
 # Questo non toccarlo. E' una vecchia opzione che devo togliere
 set Node displacement type          = semilagrangian
@@ -291,8 +291,8 @@ end
 # Questo ignoralo: va eliminato
 subsection Inflow Normal Potential Gradient 3d
   set Function constants  = k=0.62994, omega=2.4835, h=5.5, g=9.81, a=0.05, pi=3.141592654
-  #set Function expression = ( a*g*k/omega*cosh(k*(z+h))/sinh(k*h)*cos(k*x-omega*t) )*if(t < 20, 0.5*sin(pi*(t)/20-pi/2)+0.5, 1 )
-  Function constants  = 0
+  set Function expression = 0 #( a*g*k/omega*cosh(k*(z+h))/sinh(k*h)*cos(k*x-omega*t) )*if(t < 20, 0.5*sin(pi*(t)/20-pi/2)+0.5, 1 )
+  #Function constants  = 0
   set Variable names      = x,y,z,t
 end
 

@@ -1651,6 +1651,7 @@ void NumericalTowingTank::initialize_smoother()
 
   curves.resize(7);
   on_curve_option.resize(7);
+  ref_locations.resize(7);
   
   // parameters for front keel smoothing
   base_points[0]   = boat_model.PointFrontBot;
@@ -1658,6 +1659,7 @@ void NumericalTowingTank::initialize_smoother()
   curves[0] = boat_model.equiv_keel_bspline;
   boundary_ids[0] = 30;
   on_curve_option[0] = true;
+  ref_locations[0] = boat_model.reference_loc;
 
   // parameters for rear keel/left transom smoothing
   if (boat_model.is_transom)
@@ -1667,6 +1669,7 @@ void NumericalTowingTank::initialize_smoother()
      curves[1] = boat_model.left_transom_bspline;
      boundary_ids[1] = 32;
      on_curve_option[1] = true;
+     ref_locations[1] = boat_model.reference_loc;
      }
   else
      {
@@ -1675,6 +1678,7 @@ void NumericalTowingTank::initialize_smoother()
      curves[1] = boat_model.equiv_keel_bspline;
      boundary_ids[1] = 32;
      on_curve_option[1] = true;
+     ref_locations[1] = boat_model.reference_loc;
      }
 
   // parameters for rear keel/right transom smoothing
@@ -1685,6 +1689,7 @@ void NumericalTowingTank::initialize_smoother()
      curves[2] = boat_model.right_transom_bspline;
      boundary_ids[2] = 37;
      on_curve_option[2] = true;
+     ref_locations[2] = boat_model.reference_loc;
      }
   else
      {
@@ -1693,6 +1698,7 @@ void NumericalTowingTank::initialize_smoother()
      curves[2] = boat_model.equiv_keel_bspline;
      boundary_ids[2] = 32;
      on_curve_option[2] = true;
+     ref_locations[2] = boat_model.reference_loc;
      }
 
   // parameters for front right water line smoothing
@@ -1758,6 +1764,7 @@ void NumericalTowingTank::initialize_smoother()
       double smoother_tolerance = boat_model.boatWetLength*1e-3;
       line_smoothers[i] = new LineSmoothing(smoothing_map_points,
 	  				    curves[i],
+                                            ref_locations[i],
                                             vector_dh,
 					    boundary_dofs[i],
 					    base_point_ids[i],
