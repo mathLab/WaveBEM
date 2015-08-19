@@ -309,7 +309,7 @@ void BoatModel::start_iges_model(std::string igesFileName,
      sh = right_transf.Shape();
      BRepBuilderAPI_Transform left_transf(refl_sh, Tcomp);
      refl_sh = left_transf.Shape();
-   
+
 
 
      cout<<"The hull has been placed in the correct position"<<endl;
@@ -398,6 +398,7 @@ Standard_Boolean OK = ICW.Write ("transom.igs");
   TopoDS_Edge edge =  TopoDS::Edge(edgeExplorer.Current());
   edge.Location(keel_edge.Location());
   this->reference_loc = keel_edge.Location();
+  this->current_loc =  keel_edge.Location();
   BRepAdaptor_Curve gg_curve(edge);
   equiv_keel_bspline = BRep_Tool::Curve(edge,L,First,Last);
   gp_Trsf L_transformation = L.Transformation(); 
@@ -406,11 +407,6 @@ Standard_Boolean OK = ICW.Write ("transom.igs");
 
   xyPlane->Transform(L_inv.Transformation());
   
-  cout<<First<<" "<<Last<<endl;
-  cout<<"TTEESSTT1a: "<<Pnt(equiv_keel_bspline->Value(Last))<<endl;
-  cout<<"TTEESSTT1b: "<<Pnt(gg_curve.Value(gg_curve.LastParameter()))<<endl;
-  cout<<"TTEESSTT2a: "<<Pnt(equiv_keel_bspline->Value(First))<<endl;
-  cout<<"TTEESSTT2b: "<<Pnt(gg_curve.Value(gg_curve.FirstParameter()))<<endl;
   TopExp_Explorer edge3Explorer(left_transom_edge, TopAbs_EDGE);
   TopoDS_Edge edge3 =  TopoDS::Edge(edge3Explorer.Current());
   left_transom_bspline = BRep_Tool::Curve(edge3,L,First,Last);
@@ -811,6 +807,31 @@ cout<<"UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU"<<endl;
 void BoatModel::set_current_position(const double &sink)
 {
 
+                                  //here we prepare the rotation of the boat of the requested trim angle     
+     //gp_Pnt rot_center(0.0,0.0,0.0);
+     //gp_Dir rot_dir(0.0,1.0,0.0);
+     //gp_Ax1 rot_axis(rot_center, rot_dir);
+     //gp_Trsf rotation;
+     //rotation.SetRotation(rot_axis,assigned_trim);
+                                  //we first get the full transformation currently applied to the shape
+     TopLoc_Location prev_L = sh.Location(); 
+     gp_Trsf prev_Transf = prev_L.Transformation();
+
+                                  //here we prepare the translation of the boat of the requested sink
+     gp_Trsf translation;
+     gp_Vec vrt_displ(0.0,0.0,sink);
+     translation.SetTranslation(vrt_displ);
+                                  //the rotation and translation are combined in a single transformation
+     gp_Trsf new_Transf = translation*prev_Transf;
+     TopLoc_Location new_L(new_Transf);
+
+                                  //the transformation is applied to the two sides of the boat
+     sh.Location(new_L);
+     refl_sh.Location(new_L);
+     right_transom_edge.Location(new_L);
+     left_transom_edge.Location(new_L);
+     keel_edge.Location(new_L);
+     current_loc = new_L;
 
 
 }

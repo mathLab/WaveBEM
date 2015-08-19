@@ -279,6 +279,8 @@ void FreeSurface<dim>::reinit() {
 template <int dim>
 void FreeSurface<dim>::initial_conditions(Vector<double> &dst) {
 
+  comp_dom.boat_model.set_current_position(0.03);
+
   // da trattare il caso di dumped solution (continuazione conto salvato)
   initial_time = 0.0;
   initial_wave_shape.set_time(initial_time);
@@ -295,8 +297,7 @@ void FreeSurface<dim>::initial_conditions(Vector<double> &dst) {
       Vinf(i) = instantWindValue(i);
   std::cout<<std::endl<<"Initial conditions: simulation time= "<<initial_time<<"   Vinf= ";
   instantWindValue.print(std::cout,4,false,true);
-  std::cout<<std::endl;
- cout<<"Check: "<<endl;
+
   std::vector<Point<dim> > support_points(comp_dom.dh.n_dofs());
   DoFTools::map_dofs_to_support_points<dim-1, dim>( *comp_dom.mapping, comp_dom.dh, support_points);
   std::vector<Point<dim> > vector_support_points(comp_dom.vector_dh.n_dofs());
@@ -322,7 +323,7 @@ void FreeSurface<dim>::initial_conditions(Vector<double> &dst) {
   for(unsigned int i=0; i<comp_dom.vector_dh.n_dofs(); ++i)
       {
       comp_dom.map_points(i) -= geom_res(i);
-      //std::cout<<i<<" "<<dst(i)<<std::endl;
+      //std::cout<<i<<" "<<geom_res(i)<<"  | "<<comp_dom.map_points(i)<<std::endl;
       } 
 
 
@@ -2673,7 +2674,7 @@ setup_jacobian_prec(t,y,yp,0.0);
          				   //this is the horizontal plane
             Handle(Geom_Plane) horPlane = new Geom_Plane(0.,0.,1.,-dP0(2));
             Handle(Geom_Curve) curve;
-            TopLoc_Location L = comp_dom.boat_model.reference_loc;
+            TopLoc_Location L = comp_dom.boat_model.current_loc;
             TopLoc_Location L_inv = L.Inverted();
             horPlane->Transform(L_inv.Transformation());
             if (comp_dom.boat_model.is_transom)
@@ -4192,14 +4193,18 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
         for (unsigned int k=3; k<7; ++k)
             { 
             unsigned int i = comp_dom.moving_point_ids[k];
+            //cout<<"Moving point id: "<<i<<endl;
             {
             Point <3> dP0 = comp_dom.support_points[i];
             Point <3> dP;
          				   //this is the horizontal plane
             Handle(Geom_Plane) horPlane = new Geom_Plane(0.,0.,1.,-dP0(2));
             Handle(Geom_Curve) curve;
-            TopLoc_Location L = comp_dom.boat_model.reference_loc;
+            TopLoc_Location L = comp_dom.boat_model.current_loc;
             TopLoc_Location L_inv = L.Inverted();
+            //gp_Pnt test_point(0.0,0.0,0.0);
+            //test_point.Transform(L_inv.Transformation());
+            //cout<<"####### "<<Pnt(test_point)<<endl;
             horPlane->Transform(L_inv.Transformation());
             if (comp_dom.boat_model.is_transom)
                {

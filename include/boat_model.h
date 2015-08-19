@@ -85,8 +85,12 @@ class BoatModel{
     TopoDS_Shape left_undist_water_line;
 				     // this is the undisturbed left water surface
     TopoDS_Shape undisturbed_water_surface_face; 
-                                     // location of the translated curves (for roto-translated hull)
+                                     // location of the translated shapes (for hull roto-translated
+                                     // in HYDROSTATIC position)
     TopLoc_Location reference_loc;
+                                     // location of the translated curves (for hull roto-translated
+                                     //in CURRENT position)
+    TopLoc_Location current_loc;
 				     // surface normal projector on boat surface right side
     OpenCascade::NormalProjection<2> *boat_surface_right;
 				     // surface normal projector on boat surface left side
