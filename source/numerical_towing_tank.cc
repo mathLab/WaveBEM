@@ -20,6 +20,7 @@
 #include "../include/boat_surface.h"
 #include <deal.II/numerics/matrix_tools.h>
 #include <deal.II/grid/grid_refinement.h>
+#include <BRepAdaptor_Curve.hxx>
 
 using namespace dealii;
 using namespace OpenCascade;
@@ -1651,7 +1652,7 @@ void NumericalTowingTank::initialize_smoother()
 
   curves.resize(7);
   on_curve_option.resize(7);
-  ref_locations.resize(7);
+  smoothers_locations.resize(7,NULL);
   
   // parameters for front keel smoothing
   base_points[0]   = boat_model.PointFrontBot;
@@ -1659,7 +1660,7 @@ void NumericalTowingTank::initialize_smoother()
   curves[0] = boat_model.equiv_keel_bspline;
   boundary_ids[0] = 30;
   on_curve_option[0] = true;
-  ref_locations[0] = boat_model.reference_loc;
+  smoothers_locations[0] = &boat_model.current_loc;
 
   // parameters for rear keel/left transom smoothing
   if (boat_model.is_transom)
@@ -1669,7 +1670,7 @@ void NumericalTowingTank::initialize_smoother()
      curves[1] = boat_model.left_transom_bspline;
      boundary_ids[1] = 32;
      on_curve_option[1] = true;
-     ref_locations[1] = boat_model.reference_loc;
+     smoothers_locations[1] = &boat_model.current_loc;
      }
   else
      {
@@ -1678,7 +1679,7 @@ void NumericalTowingTank::initialize_smoother()
      curves[1] = boat_model.equiv_keel_bspline;
      boundary_ids[1] = 32;
      on_curve_option[1] = true;
-     ref_locations[1] = boat_model.reference_loc;
+     smoothers_locations[1] = &boat_model.current_loc;
      }
 
   // parameters for rear keel/right transom smoothing
@@ -1689,7 +1690,7 @@ void NumericalTowingTank::initialize_smoother()
      curves[2] = boat_model.right_transom_bspline;
      boundary_ids[2] = 37;
      on_curve_option[2] = true;
-     ref_locations[2] = boat_model.reference_loc;
+     smoothers_locations[2] = &boat_model.current_loc;
      }
   else
      {
@@ -1698,7 +1699,7 @@ void NumericalTowingTank::initialize_smoother()
      curves[2] = boat_model.equiv_keel_bspline;
      boundary_ids[2] = 32;
      on_curve_option[2] = true;
-     ref_locations[2] = boat_model.reference_loc;
+     smoothers_locations[2] = &boat_model.current_loc;
      }
 
   // parameters for front right water line smoothing
@@ -1764,7 +1765,7 @@ void NumericalTowingTank::initialize_smoother()
       double smoother_tolerance = boat_model.boatWetLength*1e-3;
       line_smoothers[i] = new LineSmoothing(smoothing_map_points,
 	  				    curves[i],
-                                            ref_locations[i],
+                                            smoothers_locations[i],
                                             vector_dh,
 					    boundary_dofs[i],
 					    base_point_ids[i],
@@ -1786,6 +1787,7 @@ void NumericalTowingTank::update_smoother()
   curves[0] = boat_model.equiv_keel_bspline;
   boundary_ids[0] = 30;
   on_curve_option[0] = true;
+  smoothers_locations[0] = &boat_model.current_loc;
 
   // parameters for rear keel/left transom smoothing
   if (boat_model.is_transom)
@@ -1795,6 +1797,7 @@ void NumericalTowingTank::update_smoother()
      curves[1] = boat_model.left_transom_bspline;
      boundary_ids[1] = 32;
      on_curve_option[1] = true;
+     smoothers_locations[1] = &boat_model.current_loc;
      }
   else
      {
@@ -1803,6 +1806,7 @@ void NumericalTowingTank::update_smoother()
      curves[1] = boat_model.equiv_keel_bspline;
      boundary_ids[1] = 32;
      on_curve_option[1] = true;
+     smoothers_locations[1] = &boat_model.current_loc;
      }
 
   // parameters for rear keel/right transom smoothing
@@ -1813,6 +1817,7 @@ void NumericalTowingTank::update_smoother()
      curves[2] = boat_model.right_transom_bspline;
      boundary_ids[2] = 37;
      on_curve_option[2] = true;
+     smoothers_locations[2] = &boat_model.current_loc;
      }
   else
      {
@@ -1821,6 +1826,7 @@ void NumericalTowingTank::update_smoother()
      curves[2] = boat_model.equiv_keel_bspline;
      boundary_ids[2] = 32;
      on_curve_option[2] = true;
+     smoothers_locations[2] = &boat_model.current_loc;
      }
 
   // parameters for front right water line smoothing
@@ -2121,48 +2127,60 @@ vector_constraints.distribute(smoothing_map_points);
 //this takes care of the bow and stern nodes 
 if (only_surf_smoothing == false)
 for (unsigned int k=3; k<7; ++k)
-    { 
-    unsigned int i = moving_point_ids[k];
-    //cout<<k<<" "<<i<<" "<<support_points[i]<<endl;
-         {
-         Point <3> dP0 = support_points[i];
-         Point <3> dP; 
+            { 
+            unsigned int i = moving_point_ids[k];
+            {
+            Point <3> dP0 = support_points[i];
+            Point <3> dP;
          				   //this is the horizontal plane
-         Handle(Geom_Plane) horPlane = new Geom_Plane(0.,0.,1.,-dP0(2));
-         Handle(Geom_Curve) curve;
-         if (boat_model.is_transom)
-            {
-            if (k==3 || k==4)
-               curve = boat_model.equiv_keel_bspline;
-            else if (k == 6)
-               curve = boat_model.left_transom_bspline;
+            Handle(Geom_Plane) horPlane = new Geom_Plane(0.,0.,1.,-dP0(2));
+            Handle(Geom_Curve) curve;
+            TopLoc_Location L = boat_model.current_loc;
+            TopLoc_Location L_inv = L.Inverted();
+            
+            horPlane->Transform(L_inv.Transformation());
+            if (boat_model.is_transom)
+               {
+               if (k==3 || k==4)
+                  curve = boat_model.equiv_keel_bspline;
+               else if (k == 6)
+                  curve = boat_model.left_transom_bspline;
+               else
+                  curve = boat_model.right_transom_bspline;
+               }
             else
-               curve = boat_model.right_transom_bspline;
-            }
-         else
-            {
-            curve = boat_model.equiv_keel_bspline;
-            }
-         GeomAPI_IntCS Intersector(curve, horPlane);
-         int npoints = Intersector.NbPoints();
-         AssertThrow((npoints != 0), ExcMessage("Keel or transom curve is not intersecting with horizontal plane!"));
-         //cout<<"Number of intersections: "<<npoints<<endl;
-         double minDistance=1e7;
-         gp_Pnt P;
-         gp_Vec V1;
-         double t,u,v;
-         for (int j=0; j<npoints;++j)
-             {
-             Point<3> inters = Pnt(Intersector.Point(j+1));
-             Intersector.Parameters(j+1,u,v,t);
+               {
+               curve = boat_model.equiv_keel_bspline;
+               }
 
-             if (dP0.distance(inters) < minDistance)
+            TopoDS_Edge edge = BRepBuilderAPI_MakeEdge(curve);
+            edge.Location(L);
+            BRepAdaptor_Curve AC(edge);
+            gp_Pnt P;
+            gp_Vec V1;
+            GeomAPI_IntCS Intersector(curve, horPlane);
+            int npoints = Intersector.NbPoints();
+
+            AssertThrow((npoints != 0), ExcMessage("Keel or transom curve is not intersecting with horizontal plane!"));
+            double minDistance=1e7;
+            double t,u,v;
+            for (int j=0; j<npoints;++j)
                 {
-                minDistance = dP0.distance(inters);
-                dP = inters;
-                curve->D1(t,P,V1);
+                gp_Pnt int_point = Intersector.Point(j+1);
+                int_point.Transform(L.Transformation());
+                Point<3> inters = Pnt(int_point);
+                Intersector.Parameters(j+1,u,v,t);
+                if (dP0.distance(inters) < minDistance)
+                   {
+                   minDistance = dP0.distance(inters);
+                   dP = inters;
+                   AC.D1(t,P,V1);
+                   }
                 }
-             }
+            //cout<<"Check plane-curve intersection:"<<endl;
+            //cout<<"Origin: "<<dP0<<"   Proj: "<<dP<<"  dist: "<<minDistance<<endl;
+            //cout<<Pnt(P)<<endl;
+          /*
           // here temporarily for kcs hull tests
             if (minDistance > 0.5*boat_model.boatWetLength)
                {
@@ -2189,12 +2207,12 @@ for (unsigned int k=3; k<7; ++k)
                   }
                cout<<"New part two: "<<dP<<" | "<<V1.X()<<" "<<V1.Y()<<" "<<V1.Z()<<" | "<<dP0<<endl;
                }
-         
+         */
          std::set<unsigned int> duplicates = double_nodes_set[i];
           //duplicates.erase(i); 
           for (std::set<unsigned int>::iterator pos = duplicates.begin(); pos !=duplicates.end(); pos++)
               {
-	      smoothing_map_points(3*(*pos)) = dP(0)-ref_points[3*(*pos)](0);
+              smoothing_map_points(3*(*pos)) = dP(0)-ref_points[3*(*pos)](0);
               smoothing_map_points(3*(*pos)+1) = dP(1)-ref_points[3*(*pos)](1);
               smoothing_map_points(3*(*pos)+2) = dP(2)-ref_points[3*(*pos)](2);
               edges_tangents[3*(*pos)] = V1.X();
@@ -2225,7 +2243,6 @@ for (unsigned int i=0; i<vector_dh.n_dofs(); ++i)
     }
              
 //////////////////////////////////////////
-
                              // line smoothing on keel/transom is performed here and modifies smoothing_map_points
                               // it ONLY moves nodes on the LEFT side of the keel
 for(unsigned int i=0; i<3; ++i)
@@ -2249,7 +2266,6 @@ for(unsigned int i=0; i<3; ++i)
           
           }
    }
-
                               // line smoothing on water_lines is performed here and modifies smoothing_map_points
                               // it ONLY moves nodes on the water that are also near_boat
 if (only_surf_smoothing == false)

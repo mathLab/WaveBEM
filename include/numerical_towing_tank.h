@@ -255,7 +255,7 @@ std::vector<Handle(Geom_Curve)> curves;
 std::vector<bool> on_curve_option;
                                    // locations are needed when reference configuration
                                    // is roto-translated
-std::vector<TopLoc_Location> ref_locations;
+std::vector< TopLoc_Location *> smoothers_locations;
  				   // nodes flags on the scalar dof_handler
 std::vector<GeometryFlags> flags;
  				   // nodes flags on the vector dof_handler

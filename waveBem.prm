@@ -6,7 +6,7 @@ set Iges file name                  =  utilities/goteborgExperiments.iges
 set Boat displacement (Kg)          = 0.0 #674.077471967
 
 # se si conosce il valore di affondamento idrodinamico da aggiungere a quello idrostatico, inserirlo qui
-set Assigned sink (m)               = 0.03
+set Assigned sink (m)               = 0.02
 
 # se si conosce il valore di angolo di beccheggio idrodinamico da aggiungere a quello idrostatico, inserirlo qui
 set Assigned trim (rad)             = 0.02
@@ -81,7 +81,7 @@ set Node displacement type          = semilagrangian
 # salvato sarà nominato nomefile_10.vtu). Saranno poi salvati un file con desinenza
 # _force.txt contenente tutte le forze per ciascun salvataggio, ed un file
 # _water_line.txt contenente le coordinate dei nodi in comune tra barca e acqua
-set Output file name                = OPENSHIP/DTMB_Fr028_fine_test
+set Output file name                = OPENSHIP/DTMB_Fr028_fine_test_disp
 
 # Massimo numero di time steps: non molto utile, lo leverò
 set Maximum number of steps         = 10000
