@@ -804,7 +804,7 @@ cout<<"UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU"<<endl;
       return hydrostatic_force;
 }
 
-void BoatModel::set_current_position(const double &sink)
+gp_Trsf BoatModel::set_current_position(const double &sink)
 {
 
                                   //here we prepare the rotation of the boat of the requested trim angle     
@@ -814,15 +814,19 @@ void BoatModel::set_current_position(const double &sink)
      //gp_Trsf rotation;
      //rotation.SetRotation(rot_axis,assigned_trim);
                                   //we first get the full transformation currently applied to the shape
-     TopLoc_Location prev_L = sh.Location(); 
+     TopLoc_Location prev_L = reference_loc; 
      gp_Trsf prev_Transf = prev_L.Transformation();
 
                                   //here we prepare the translation of the boat of the requested sink
      gp_Trsf translation;
      gp_Vec vrt_displ(0.0,0.0,sink);
      translation.SetTranslation(vrt_displ);
+
+
+     gp_Trsf this_transf = translation;
+
                                   //the rotation and translation are combined in a single transformation
-     gp_Trsf new_Transf = translation*prev_Transf;
+     gp_Trsf new_Transf = this_transf*prev_Transf;
      TopLoc_Location new_L(new_Transf);
 
                                   //the transformation is applied to the two sides of the boat
@@ -833,7 +837,7 @@ void BoatModel::set_current_position(const double &sink)
      keel_edge.Location(new_L);
      current_loc = new_L;
 
-
+     return current_loc.Transformation();
 }
 
 

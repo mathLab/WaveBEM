@@ -453,7 +453,7 @@ private:
                               // won't be refined.
   double adaptive_ref_limit;
 
-
+  TopLoc_Location restart_hull_location;
 
 
 };
