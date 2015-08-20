@@ -253,7 +253,7 @@ std::vector<Handle(Geom_Curve)> curves;
                                    // call of smoothing routine. false for keel smoothings
                                    // true for water line smoothings 
 std::vector<bool> on_curve_option;
-                                   // locations are needed when reference configuration
+                                   // locations are needed when current hull configuration
                                    // is roto-translated
 std::vector< TopLoc_Location *> smoothers_locations;
  				   // nodes flags on the scalar dof_handler
@@ -301,6 +301,9 @@ Vector<double> smoothing_map_points;
 Vector<double> initial_map_points;
                                    // the euler vector obtained right after each restart
 Vector<double> old_map_points;
+                                   // the euler vector updated at each time step to account for rigid
+                                   // motions of the hull
+Vector<double> rigid_motion_map_points;
                                    // x domain dimension
 double Lx_domain;
                                    // y domain dimension

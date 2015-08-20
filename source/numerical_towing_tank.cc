@@ -133,6 +133,7 @@ void NumericalTowingTank::refine_and_resize()
   map_points.reinit(vector_dh.n_dofs());
   smoothing_map_points.reinit(vector_dh.n_dofs());
   old_map_points.reinit(vector_dh.n_dofs());
+  rigid_motion_map_points.reinit(vector_dh.n_dofs());
   initial_map_points.reinit(vector_dh.n_dofs()); 
   ref_points.resize(vector_dh.n_dofs());
   DoFTools::map_dofs_to_support_points<2,3>(StaticMappingQ1<2,3>::mapping,
@@ -240,6 +241,7 @@ void NumericalTowingTank::refine_and_resize()
       map_points.reinit(vector_dh.n_dofs());
       smoothing_map_points.reinit(vector_dh.n_dofs());
       old_map_points.reinit(vector_dh.n_dofs());
+      rigid_motion_map_points.reinit(vector_dh.n_dofs());
       initial_map_points.reinit(vector_dh.n_dofs());
       ref_points.resize(vector_dh.n_dofs());
       DoFTools::map_dofs_to_support_points<2,3>(StaticMappingQ1<2,3>::mapping,
@@ -2109,7 +2111,7 @@ for (unsigned int i=0; i<dh.n_dofs(); ++i)
 void NumericalTowingTank::evaluate_ref_surf_distances(Vector <double> &distances,
                                                       const bool only_surf_smoothing)
 {
-
+cout<<"Evaluating boat surf distances"<<endl;
                              // we update the vector with the support points
 update_support_points();
                              // we now update the vector of mesh normals at nodes
@@ -2616,6 +2618,7 @@ distances.add(map_points);
 
 compute_normals_at_nodes(smoothing_map_points);
 old_iges_normals = iges_normals;
+cout<<"Done evaluating boat surf distances"<<endl;
 }
 
 
@@ -2822,6 +2825,7 @@ cout<<"dofs before: "<<dh.n_dofs()<<endl;
      map_points.reinit(vector_dh.n_dofs());
      smoothing_map_points.reinit(vector_dh.n_dofs());
      old_map_points.reinit(vector_dh.n_dofs());
+     rigid_motion_map_points.reinit(vector_dh.n_dofs());
      initial_map_points.reinit(vector_dh.n_dofs());
      ref_points.resize(vector_dh.n_dofs());
      DoFTools::map_dofs_to_support_points<2,3>(StaticMappingQ1<2,3>::mapping,
@@ -2912,6 +2916,7 @@ double tol=1e-7;
         map_points.reinit(vector_dh.n_dofs());
         smoothing_map_points.reinit(vector_dh.n_dofs());
         old_map_points.reinit(vector_dh.n_dofs());
+        rigid_motion_map_points.reinit(vector_dh.n_dofs());
         initial_map_points.reinit(vector_dh.n_dofs());
         ref_points.resize(vector_dh.n_dofs());
         DoFTools::map_dofs_to_support_points<2,3>(StaticMappingQ1<2,3>::mapping,
@@ -2965,6 +2970,7 @@ void NumericalTowingTank::remove_mesh_anisotropy(Triangulation<2,3> &tria)
      map_points.reinit(vector_dh.n_dofs());
      smoothing_map_points.reinit(vector_dh.n_dofs());
      old_map_points.reinit(vector_dh.n_dofs());
+     rigid_motion_map_points.reinit(vector_dh.n_dofs());
      initial_map_points.reinit(vector_dh.n_dofs());
      ref_points.resize(vector_dh.n_dofs());
      DoFTools::map_dofs_to_support_points<2,3>(StaticMappingQ1<2,3>::mapping,
@@ -3024,6 +3030,7 @@ void NumericalTowingTank::remove_mesh_anisotropy(Triangulation<2,3> &tria)
      map_points.reinit(vector_dh.n_dofs());
      smoothing_map_points.reinit(vector_dh.n_dofs());
      old_map_points.reinit(vector_dh.n_dofs());
+     rigid_motion_map_points.reinit(vector_dh.n_dofs());
      initial_map_points.reinit(vector_dh.n_dofs());
      ref_points.resize(vector_dh.n_dofs());
      DoFTools::map_dofs_to_support_points<2,3>(StaticMappingQ1<2,3>::mapping,
@@ -3076,6 +3083,7 @@ void NumericalTowingTank::remove_mesh_anisotropy(Triangulation<2,3> &tria)
      map_points.reinit(vector_dh.n_dofs());
      smoothing_map_points.reinit(vector_dh.n_dofs());
      old_map_points.reinit(vector_dh.n_dofs());
+     rigid_motion_map_points.reinit(vector_dh.n_dofs());
      initial_map_points.reinit(vector_dh.n_dofs());
      ref_points.resize(vector_dh.n_dofs());
      DoFTools::map_dofs_to_support_points<2,3>(StaticMappingQ1<2,3>::mapping,
@@ -3135,6 +3143,7 @@ void NumericalTowingTank::remove_mesh_anisotropy(Triangulation<2,3> &tria)
      map_points.reinit(vector_dh.n_dofs());
      smoothing_map_points.reinit(vector_dh.n_dofs());
      old_map_points.reinit(vector_dh.n_dofs());
+     rigid_motion_map_points.reinit(vector_dh.n_dofs());
      initial_map_points.reinit(vector_dh.n_dofs());
      ref_points.resize(vector_dh.n_dofs());
      DoFTools::map_dofs_to_support_points<2,3>(StaticMappingQ1<2,3>::mapping,
@@ -3199,6 +3208,7 @@ for (unsigned int i=0; i<num_refinements;++i)
     map_points.reinit(vector_dh.n_dofs());
     smoothing_map_points.reinit(vector_dh.n_dofs());
     old_map_points.reinit(vector_dh.n_dofs());
+    rigid_motion_map_points.reinit(vector_dh.n_dofs());
     initial_map_points.reinit(vector_dh.n_dofs());
     ref_points.resize(vector_dh.n_dofs());
     DoFTools::map_dofs_to_support_points<2,3>(StaticMappingQ1<2,3>::mapping,
@@ -3234,6 +3244,7 @@ for (unsigned int i=0; i<3;++i)
     map_points.reinit(vector_dh.n_dofs());
     smoothing_map_points.reinit(vector_dh.n_dofs());
     old_map_points.reinit(vector_dh.n_dofs());
+    rigid_motion_map_points.reinit(vector_dh.n_dofs());
     initial_map_points.reinit(vector_dh.n_dofs());
     ref_points.resize(vector_dh.n_dofs());
     DoFTools::map_dofs_to_support_points<2,3>(StaticMappingQ1<2,3>::mapping,
@@ -3266,6 +3277,7 @@ for (unsigned int i=0; i<4;++i)
     map_points.reinit(vector_dh.n_dofs());
     smoothing_map_points.reinit(vector_dh.n_dofs());
     old_map_points.reinit(vector_dh.n_dofs());
+    rigid_motion_map_points.reinit(vector_dh.n_dofs());
     initial_map_points.reinit(vector_dh.n_dofs());
     ref_points.resize(vector_dh.n_dofs());
     DoFTools::map_dofs_to_support_points<2,3>(StaticMappingQ1<2,3>::mapping,
@@ -3300,6 +3312,7 @@ for (unsigned int k=0; k<1; ++k)
     map_points.reinit(vector_dh.n_dofs());
     smoothing_map_points.reinit(vector_dh.n_dofs());
     old_map_points.reinit(vector_dh.n_dofs());
+    rigid_motion_map_points.reinit(vector_dh.n_dofs());
     initial_map_points.reinit(vector_dh.n_dofs());
     ref_points.resize(vector_dh.n_dofs());
     DoFTools::map_dofs_to_support_points<2,3>(StaticMappingQ1<2,3>::mapping,
