@@ -64,6 +64,15 @@ class BoatModel{
 				     // this point is intersection of right transom edge with undisturbed free surface 
     Point<3> PointRightTransom;
 				     // this point is the base point of the transom edge (intersection with symmetry plane) 
+    Point<3> CurrentPointCenterTransom;
+				     // this point is intersection of left transom edge with undisturbed free surface
+                                     // in current hull configuration
+    Point<3> CurrentPointLeftTransom;
+				     // this point is intersection of right transom edge with undisturbed free surface
+                                     // in current hull configuration
+    Point<3> CurrentPointRightTransom;
+				     // this point is the base point of the transom edge (intersection with symmetry plane)
+                                     // in current hull configuration
     Point<3> PointCenterTransom;
 				     // this is the wet length of the boat
     double boatWetLength;
