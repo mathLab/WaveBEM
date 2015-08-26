@@ -2315,7 +2315,7 @@ for (unsigned int i=0; i<dh.n_dofs(); ++i)
                                                                                  intermadiate_point_pos,
                                                                                  direction);  // hor normal dir projection
        //cout<<i<<"(rw) -->  ("<<proj_node<<") Vs ("<<vector_support_points[3*i]<<") + n("<<iges_normals[i]<<")"<<endl;
-       //cout<<i<<"(rw) -->  ("<<proj_node<<") Vs ("<<intermediate_point_pos<<")"<<endl;
+       //cout<<i<<"(rw) -->  ("<<proj_node<<") Vs ("<<intermadiate_point_pos<<")"<<endl;
        for (unsigned int j=0; j<2; ++j)
            smoothing_map_points(3*i+j) = proj_node(j) - ref_points[3*i](j);
        // we're doing this thing on the water side, but the iges_normal and iges_mean curvature belong to the boat side
@@ -2619,6 +2619,9 @@ distances.add(map_points);
 compute_normals_at_nodes(smoothing_map_points);
 old_iges_normals = iges_normals;
 cout<<"Done evaluating boat surf distances"<<endl;
+
+
+
 }
 
 

@@ -817,7 +817,7 @@ gp_Trsf BoatModel::set_current_position(const double &sink)
      TopLoc_Location prev_L = reference_loc; 
      gp_Trsf prev_Transf = prev_L.Transformation();
 
-                                  //here we prepare the translation of the boat of the requested sink
+                                  // here we prepare the translation of the boat of the requested sink
      gp_Trsf translation;
      gp_Vec vrt_displ(0.0,0.0,sink);
      translation.SetTranslation(vrt_displ);
@@ -825,17 +825,62 @@ gp_Trsf BoatModel::set_current_position(const double &sink)
 
      gp_Trsf this_transf = translation;
 
-                                  //the rotation and translation are combined in a single transformation
+                                  // the rotation and translation are combined in a single transformation
      gp_Trsf new_Transf = this_transf*prev_Transf;
      TopLoc_Location new_L(new_Transf);
 
-                                  //the transformation is applied to the two sides of the boat
+                                  // the transformation is applied to the two sides of the boat
      sh.Location(new_L);
      refl_sh.Location(new_L);
      right_transom_edge.Location(new_L);
      left_transom_edge.Location(new_L);
      keel_edge.Location(new_L);
      current_loc = new_L;
+
+
+     if (is_transom)
+        {
+                                  // we now want to compute the intersection of the transom edges with the
+                                  // hull in the current configurations
+         Handle(Geom_Plane) xyPlane = new Geom_Plane(0.,0.,1.,0.);
+
+         xyPlane->Transform(current_loc.Inverted());
+  
+
+         //cout<<First<<" "<<Last<<endl;
+         gp_Pnt pntCtrTrsm;
+         if (left_transom_bspline->Value(left_transom_bspline->FirstParameter()).Z() >
+             left_transom_bspline->Value(left_transom_bspline->LastParameter()).Z())
+            pntCtrTrsm = left_transom_bspline->Value(left_transom_bspline->LastParameter());
+         else
+         pntCtrTrsm = left_transom_bspline->Value(left_transom_bspline->FirstParameter());
+         pntCtrTrsm.Transform(current_loc);
+         CurrentPointCenterTransom = Pnt(pntCtrTrsm);
+
+         gp_Pnt transomLeft(0.0,0.0,0.0);
+         gp_Pnt transomRight(0.0,0.0,0.0);
+
+         GeomAPI_IntCS IntersectorLeft(left_transom_bspline, xyPlane);    
+         GeomAPI_IntCS IntersectorRight(right_transom_bspline, xyPlane);
+         if( (IntersectorLeft.NbPoints() != 1) || (IntersectorRight.NbPoints() != 1))
+             AssertThrow((IntersectorLeft.NbPoints() == 1) && (IntersectorRight.NbPoints() == 1),
+                    ExcMessage("Transom edges don't possess a single intersection with horizontal plane: is transom not immersed any more?"));
+         transomLeft = IntersectorLeft.Point(1);
+         transomRight = IntersectorRight.Point(1);
+         transomLeft.Transform(current_loc);
+         transomRight.Transform(current_loc);
+         CurrentPointLeftTransom = Pnt(transomLeft);
+         CurrentPointRightTransom = Pnt(transomRight);
+
+         cout<<"Curent Hull Transformation Transom Point Left: "<<CurrentPointLeftTransom<<endl;
+         cout<<"Curent Hull Transformation Transom Point Right: "<<CurrentPointRightTransom<<endl;
+         cout<<"Curent Hull Transformation Transom Point Center: "<<CurrentPointCenterTransom<<endl;
+
+         }
+
+
+
+
 
      return current_loc.Transformation();
 }
