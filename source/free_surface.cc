@@ -62,6 +62,31 @@ void FreeSurface<dim>::declare_parameters(ParameterHandler &prm) {
   prm.declare_entry("Dumping period", "1", Patterns::Double());
   prm.declare_entry("Restore from file", "", Patterns::Anything());
   prm.declare_entry("Keep BEM in sync with geometry", "true", Patterns::Bool());
+
+  prm.declare_entry("Is x-translation imposed", "true", Patterns::Bool());
+  prm.enter_subsection("Hull x-axis translation");
+  {
+    Functions::ParsedFunction<1>::declare_parameters(prm, 1);
+    prm.set("Function expression", "0");
+  }
+  prm.leave_subsection();
+
+  prm.declare_entry("Is y-translation imposed", "true", Patterns::Bool());
+  prm.enter_subsection("Hull y-axis translation");
+  {
+    Functions::ParsedFunction<1>::declare_parameters(prm, 1);
+    prm.set("Function expression", "0");
+  }
+  prm.leave_subsection();
+
+  prm.declare_entry("Is z-translation imposed", "true", Patterns::Bool());
+  prm.enter_subsection("Hull z-axis translation");
+  {
+    Functions::ParsedFunction<1>::declare_parameters(prm, 1);
+    prm.set("Function expression", "0");
+  }
+  prm.leave_subsection();
+
   prm.enter_subsection("Wind function 2d");
   {
     Functions::ParsedFunction<2>::declare_parameters(prm, 2);
@@ -178,6 +203,27 @@ void FreeSurface<dim>::parse_parameters(ParameterHandler &prm) {
   }
   prm.leave_subsection();
 
+  is_hull_x_translation_imposed = prm.get_bool("Is x-translation imposed");
+  prm.enter_subsection("Hull x-axis translation");
+  {
+    hull_x_axis_translation.parse_parameters(prm);
+  }
+  prm.leave_subsection();
+
+  is_hull_y_translation_imposed = prm.get_bool("Is y-translation imposed");
+  prm.enter_subsection("Hull y-axis translation");
+  {
+    hull_y_axis_translation.parse_parameters(prm);
+  }
+  prm.leave_subsection();
+
+  is_hull_z_translation_imposed = prm.get_bool("Is z-translation imposed");
+  prm.enter_subsection("Hull z-axis translation");
+  {
+    hull_z_axis_translation.parse_parameters(prm);
+  }
+  prm.leave_subsection();
+
   prm.enter_subsection(std::string("Initial Wave Shape ")+
 		       Utilities::int_to_string(dim)+std::string("d"));
   {
@@ -229,9 +275,9 @@ template <int dim>
 void FreeSurface<dim>::reinit() {
     
   dofs_number = comp_dom.vector_dh.n_dofs() + // nodes positions
-                comp_dom.dh.n_dofs() +          // nodes potential
-                comp_dom.dh.n_dofs();           // nodes normal potential grandient
-   
+                comp_dom.dh.n_dofs() +        // nodes potential
+                comp_dom.dh.n_dofs() +        // nodes normal potential grandient
+                6;                            // these are the dofs needed for hull rigid velocities and displacements
   
   DXDt_and_DphiDt_vector.reinit(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()); 
 
@@ -260,12 +306,12 @@ void FreeSurface<dim>::reinit() {
   working_nodes_velocities.reinit(comp_dom.vector_dh.n_dofs());
   nodes_pos_res.reinit(comp_dom.vector_dh.n_dofs());
   nodes_ref_surf_dist.reinit(comp_dom.vector_dh.n_dofs());
-  nodes_diff_jac_x_delta.reinit(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
-  nodes_alg_jac_x_delta.reinit(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
-  dae_nonlin_residual.reinit(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
-  dae_linear_step_residual.reinit(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
-  current_sol.reinit(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
-  current_sol_dot.reinit(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
+  nodes_diff_jac_x_delta.reinit(dofs_number);
+  nodes_alg_jac_x_delta.reinit(dofs_number);
+  dae_nonlin_residual.reinit(dofs_number);
+  dae_linear_step_residual.reinit(dofs_number);
+  current_sol.reinit(dofs_number);
+  current_sol_dot.reinit(dofs_number);
   bem_residual.reinit(comp_dom.dh.n_dofs());
   bem_phi.reinit(comp_dom.dh.n_dofs());
   bem_dphi_dn.reinit(comp_dom.dh.n_dofs());
@@ -279,7 +325,6 @@ void FreeSurface<dim>::reinit() {
 template <int dim>
 void FreeSurface<dim>::initial_conditions(Vector<double> &dst) {
 
-  gp_Trsf curr_transf = comp_dom.boat_model.set_current_position(0.0);
   // da trattare il caso di dumped solution (continuazione conto salvato)
   initial_time = 0.0;
   initial_wave_shape.set_time(initial_time);
@@ -287,6 +332,59 @@ void FreeSurface<dim>::initial_conditions(Vector<double> &dst) {
   initial_norm_potential_grad.set_time(initial_time);
   inflow_norm_potential_grad.set_time(initial_time);
   wind.set_time(initial_time);
+
+  dst.reinit(dofs_number);
+
+  Point<1> time(initial_time);
+  Point<1> delta_t(1e-5);
+
+  if (is_hull_x_translation_imposed)
+     {
+     restart_hull_displacement(0) = hull_x_axis_translation.value(time);
+     dst(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()+3) = restart_hull_displacement(0);
+     //double vel = ( hull_x_axis_translation.value(time+delta_t) -
+     //               hull_x_axis_translation.value(time+(-1.0*delta_t)) ) / 2.0 / delta_t(0);
+     double vel = 0.0;
+     cout<<"VELX: "<<vel<<endl;
+     dst(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()) = vel;
+     }
+  else
+   restart_hull_displacement(0) = 0.0;
+
+  if (is_hull_y_translation_imposed)
+     {
+     restart_hull_displacement(1) = hull_y_axis_translation.value(time);
+     dst(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()+4) = restart_hull_displacement(1);
+     //double vel = ( hull_y_axis_translation.value(time+delta_t) -
+     //               hull_y_axis_translation.value(time+(-1.0*delta_t)) ) / 2.0 / delta_t(0);
+     double vel = 0.0;
+     cout<<"VELY: "<<vel<<endl;
+     dst(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()+1) = vel;
+     }
+  else
+   restart_hull_displacement(1) = 0.0;
+
+  if (is_hull_z_translation_imposed)
+     {
+     restart_hull_displacement(2) = hull_z_axis_translation.value(time);
+     dst(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()+5) = restart_hull_displacement(2);
+     //double vel = ( hull_z_axis_translation.value(time+delta_t) -
+     //               hull_z_axis_translation.value(time+(-1.0*delta_t)) ) / 2.0 / delta_t(0);
+     double vel = 0.01*2.0*dealii::numbers::PI*cos(2.0*dealii::numbers::PI*initial_time);
+     cout<<"VELZ: "<<vel<<endl;
+     dst(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()+2) = vel;
+     }
+  else
+   restart_hull_displacement(2) = 0.0;
+
+  gp_Trsf curr_transf = comp_dom.boat_model.set_current_position(restart_hull_displacement,0.0);
+  restart_hull_location = curr_transf;
+  restart_transom_center_point = comp_dom.boat_model.CurrentPointCenterTransom; 
+  restart_transom_left_point = comp_dom.boat_model.CurrentPointLeftTransom;
+  restart_transom_right_point = comp_dom.boat_model.CurrentPointRightTransom;
+  restart_transom_left_tangent = comp_dom.boat_model.current_left_transom_tangent;
+  restart_transom_right_tangent = comp_dom.boat_model.current_right_transom_tangent;
+
   
   Vector<double> instantWindValue(dim);
   Point<dim> zero(0,0,0);
@@ -302,7 +400,6 @@ void FreeSurface<dim>::initial_conditions(Vector<double> &dst) {
   std::vector<Point<dim> > vector_support_points(comp_dom.vector_dh.n_dofs());
   DoFTools::map_dofs_to_support_points<dim-1, dim>( *comp_dom.mapping, comp_dom.vector_dh, vector_support_points);
 
-  dst.reinit(dofs_number);
 
   for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
       {
@@ -351,7 +448,7 @@ void FreeSurface<dim>::initial_conditions(Vector<double> &dst) {
         lh = 5.0; 
         //lh = 0.1135*pow(FrT,3.025)*pow(transom_aspect_ratio,0.4603)*pow(ReT,-0.1514);
         //lh = 0.3265*pow(FrT,3.0) - 1.7216*pow(FrT,2.0) + 2.7593*FrT;
-     cout<<FrT<<" "<<transom_aspect_ratio<<" "<<ReT<<endl;
+     cout<<"FrT: "<<FrT<<"  Tar: "<<transom_aspect_ratio<<"  ReT: "<<ReT<<endl;
      cout<<"****eta_dry: "<<eta_dry<<endl;
 
 
@@ -570,12 +667,25 @@ void FreeSurface<dim>::initial_conditions(Vector<double> &dst) {
   comp_dom.initial_map_points = comp_dom.map_points;
   vector_constraints.distribute(comp_dom.map_points);
 
+
   for(unsigned int i=0; i<comp_dom.vector_dh.n_dofs(); ++i)
       {
       dst(i) = comp_dom.map_points(i);
       //std::cout<<i<<" "<<dst(i)<<std::endl;
       } 
 
+
+  for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
+      {
+      if ( ((comp_dom.flags[i] & boat) &&
+           !(comp_dom.flags[i] & near_water) ) ||
+           (comp_dom.flags[i] & transom_on_water) )
+         {
+         dst(3*i) -= restart_hull_displacement(0);
+         dst(3*i+1) -= restart_hull_displacement(1);
+         dst(3*i+2) -= restart_hull_displacement(2);         
+         }
+      }
   
 
 
@@ -615,7 +725,10 @@ void FreeSurface<dim>::initial_conditions(Vector<double> &dst) {
                 //std::cout<<"NormalExact "<<normal2<<std::endl;
                 ////////////////////////////////////
 		//dst(id+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()) = -comp_dom.iges_normals[id]*Vinf;
-                dst(id+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()) = -comp_dom.node_normals[id]*Vinf; 
+                Point<3> Vhull(dst(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()),
+                               dst(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()+1),
+                               dst(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()+2));
+                dst(id+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()) = -comp_dom.node_normals[id]*(Vinf-Vhull); 
 	      }
 	}
     
@@ -653,10 +766,7 @@ void FreeSurface<dim>::initial_conditions(Vector<double> &dst) {
   output_results(filename, 0, dst, dummy_sol_dot);
 
   comp_dom.old_map_points = comp_dom.map_points;
-  comp_dom.rigid_motion_map_points = comp_dom.map_points;
-  double rigid_vertical_displacement = 0.01*sin(2*dealii::numbers::PI*0.0);
-  restart_hull_location = comp_dom.boat_model.set_current_position(rigid_vertical_displacement);
-     
+  comp_dom.rigid_motion_map_points = 0;     
 
   last_remesh_time = 0;
 
@@ -780,6 +890,7 @@ void FreeSurface<dim>::initial_conditions(Vector<double> &dst) {
           }
 
 
+
 } 
 
 
@@ -868,9 +979,85 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
       ++remeshing_counter;
       std::cout<<"Checking and updating mesh..."<<std::endl;
 
+
       // first thing to do is update the geometry to the current positon
-      double rigid_vertical_displacement = 0.01*sin(2*dealii::numbers::PI*t);
-      restart_hull_location = comp_dom.boat_model.set_current_position(rigid_vertical_displacement);
+      Point<3> current_hull_displacement;
+      Point<3> current_hull_displacement_dot;
+      Point<3> current_hull_velocity;
+      Point<3> current_hull_velocity_dot;
+      for (unsigned int k=0; k<3; ++k)
+          {
+          current_hull_displacement(k) = solution(k+3+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
+          current_hull_displacement_dot(k) = solution_dot(k+3+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
+          current_hull_velocity(k) = solution(k+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
+          current_hull_velocity_dot(k) = solution_dot(k+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
+          }
+
+      Point<1> time(t);
+      //if (is_hull_x_translation_imposed)
+      //   restart_hull_displacement(0) = hull_x_axis_translation.value(time);
+      //else
+         restart_hull_displacement(0) = current_hull_displacement(0);
+
+     //if (is_hull_y_translation_imposed)
+     //   restart_hull_displacement(1) = hull_y_axis_translation.value(time);
+     //else
+        restart_hull_displacement(1) = current_hull_displacement(1);
+
+     //if (is_hull_z_translation_imposed)
+     //   restart_hull_displacement(2) = hull_z_axis_translation.value(time);
+     //else
+        restart_hull_displacement(2) = current_hull_displacement(2);
+
+      restart_hull_location = comp_dom.boat_model.set_current_position(restart_hull_displacement,0.0);
+      restart_transom_center_point = comp_dom.boat_model.CurrentPointCenterTransom; 
+      restart_transom_left_point = comp_dom.boat_model.CurrentPointLeftTransom;
+      restart_transom_right_point = comp_dom.boat_model.CurrentPointRightTransom;
+      restart_transom_left_tangent = comp_dom.boat_model.current_left_transom_tangent;
+      restart_transom_right_tangent = comp_dom.boat_model.current_right_transom_tangent;
+
+     // this moves the rigid_motion_map_points vector (target positions) for the internal nodes of the hull 
+     // mesh (all nodes except for the free surface ones)
+     Vector<double> rigid_motion_velocities(comp_dom.vector_dh.n_dofs());
+
+     for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
+         {
+         if ( ((comp_dom.flags[i] & boat) &&
+              !(comp_dom.flags[i] & near_water) ) ||
+              (comp_dom.flags[i] & transom_on_water) )
+            {
+            //if (fabs(t-0.2) <1e-5)
+            //cout<<"BEFORE: "<<comp_dom.ref_points[3*i](0)+comp_dom.old_map_points(3*i)<<" "
+            //                <<comp_dom.ref_points[3*i](1)+comp_dom.old_map_points(3*i+1)<<" "
+            //                <<comp_dom.ref_points[3*i](2)+comp_dom.old_map_points(3*i+2)<<endl;
+            gp_Pnt original_boat_mesh_point = Pnt(Point<3>(comp_dom.ref_points[3*i](0)+comp_dom.old_map_points(3*i),
+                                                           comp_dom.ref_points[3*i](1)+comp_dom.old_map_points(3*i+1),
+                                                           comp_dom.ref_points[3*i](2)+comp_dom.old_map_points(3*i+2)));
+            gp_Pnt boat_mesh_point = original_boat_mesh_point;
+            // we first take this point (which is in the RESTART hull location) and transform it to be in the
+            // REFERENCE configuration 
+            //boat_mesh_point.Transform(restart_hull_location.Inverted());
+           
+            // now we have the point on the REFERENCE hull, and transform it to go onto the CURRENT hull
+            //boat_mesh_point.Transform(reference_to_current_transformation);
+            // the rigid motion map points is the difference between the reference point position and the
+            // current (rigidly displaced) node position
+            comp_dom.rigid_motion_map_points(3*i) = restart_hull_displacement(0);//boat_mesh_point.X() - original_boat_mesh_point.X();
+            comp_dom.rigid_motion_map_points(3*i+1) = restart_hull_displacement(1);//boat_mesh_point.Y() - original_boat_mesh_point.Y();
+            comp_dom.rigid_motion_map_points(3*i+2) = restart_hull_displacement(2);//boat_mesh_point.Z() - original_boat_mesh_point.Z();
+            rigid_motion_velocities(3*i) = current_hull_velocity(0);
+            rigid_motion_velocities(3*i+1) = current_hull_velocity(1);
+            rigid_motion_velocities(3*i+2) = current_hull_velocity(2);
+            //if (fabs(t-0.2) <1e-5)
+            //cout<<"AFTER: "<<Pnt(boat_mesh_point)<<" vs "<<Pnt(original_boat_mesh_point)<<endl;
+            //cout<<"RMMP: "<<comp_dom.rigid_motion_map_points(3*i)<<" "
+            //              <<comp_dom.rigid_motion_map_points(3*i+1)<<" "
+            //              <<comp_dom.rigid_motion_map_points(3*i+2)<<endl;
+            //cout<<"NN: "<<comp_dom.rigid_motion_map_points(3*i)+nodes_positions(3*i)+comp_dom.ref_points[3*i](0)<<" "
+            //            <<comp_dom.rigid_motion_map_points(3*i+1)+nodes_positions(3*i+1)+comp_dom.ref_points[3*i](1)<<" "
+            //            <<comp_dom.rigid_motion_map_points(3*i+2)+nodes_positions(3*i+2)+comp_dom.ref_points[3*i](2)<<endl;
+            }
+         }
 
       //std::string filename1 = ( "preRemesh.vtu" );
       //output_results(filename1, t, solution, solution_dot);
@@ -986,12 +1173,12 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
 
       for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
           {
-          positions_x(i) = solution(3*i+0)+comp_dom.ref_points[3*i](0);
-          positions_y(i) = solution(3*i+1)+comp_dom.ref_points[3*i](1);
-          positions_z(i) = solution(3*i+2)+comp_dom.ref_points[3*i](2);
-          positions_dot_x(i) = solution_dot(3*i+0);
-          positions_dot_y(i) = solution_dot(3*i+1);
-          positions_dot_z(i) = solution_dot(3*i+2);
+          positions_x(i) = solution(3*i+0)+comp_dom.rigid_motion_map_points(3*i+0)+comp_dom.ref_points[3*i](0);
+          positions_y(i) = solution(3*i+1)+comp_dom.rigid_motion_map_points(3*i+1)+comp_dom.ref_points[3*i](1);
+          positions_z(i) = solution(3*i+2)+comp_dom.rigid_motion_map_points(3*i+2)+comp_dom.ref_points[3*i](2);
+          positions_dot_x(i) = solution_dot(3*i+0)+rigid_motion_velocities(3*i+0);
+          positions_dot_y(i) = solution_dot(3*i+1)+rigid_motion_velocities(3*i+1);
+          positions_dot_z(i) = solution_dot(3*i+2)+rigid_motion_velocities(3*i+2);
           }          
 
       std::vector<Vector<double> > all_in;
@@ -1197,7 +1384,7 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
       compute_constraints(constraints, vector_constraints);
 
 
-      dofs_number = vector_dh.n_dofs()+dh.n_dofs()+dh.n_dofs();
+      this->dofs_number = vector_dh.n_dofs()+dh.n_dofs()+dh.n_dofs()+6;
 
 				       //DoFRenumbering::Cuthill_McKee(dh);
 				       //DoFRenumbering::Cuthill_McKee(vector_dh);
@@ -1246,27 +1433,81 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
       constraints.distribute(all_out[7]);    
       constraints.distribute(all_out[8]);
       constraints.distribute(all_out[9]);
+
+     // we have to compute rigid_motion_map_points and rigid_motion_velocities on the new mesh
+     rigid_motion_velocities.reinit(comp_dom.vector_dh.n_dofs());
+
+     for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
+         {
+         if ( ((comp_dom.flags[i] & boat) &&
+              !(comp_dom.flags[i] & near_water) ) ||
+              (comp_dom.flags[i] & transom_on_water) )
+            {
+            //if (fabs(t-0.2) <1e-5)
+            //cout<<"BEFORE: "<<comp_dom.ref_points[3*i](0)+comp_dom.old_map_points(3*i)<<" "
+            //                <<comp_dom.ref_points[3*i](1)+comp_dom.old_map_points(3*i+1)<<" "
+            //                <<comp_dom.ref_points[3*i](2)+comp_dom.old_map_points(3*i+2)<<endl;
+            gp_Pnt original_boat_mesh_point = Pnt(Point<3>(comp_dom.ref_points[3*i](0)+comp_dom.old_map_points(3*i),
+                                                           comp_dom.ref_points[3*i](1)+comp_dom.old_map_points(3*i+1),
+                                                           comp_dom.ref_points[3*i](2)+comp_dom.old_map_points(3*i+2)));
+            //gp_Pnt boat_mesh_point = original_boat_mesh_point;
+            // we first take this point (which is in the RESTART hull location) and transform it to be in the
+            // REFERENCE configuration 
+            //boat_mesh_point.Transform(restart_hull_location.Inverted());
+           
+            // now we have the point on the REFERENCE hull, and transform it to go onto the CURRENT hull
+            //boat_mesh_point.Transform(reference_to_current_transformation);
+            // the rigid motion map points is the difference between the reference point position and the
+            // current (rigidly displaced) node position
+            comp_dom.rigid_motion_map_points(3*i) = restart_hull_displacement(0);//boat_mesh_point.X() - original_boat_mesh_point.X();
+            comp_dom.rigid_motion_map_points(3*i+1) = restart_hull_displacement(1);//boat_mesh_point.Y() - original_boat_mesh_point.Y();
+            comp_dom.rigid_motion_map_points(3*i+2) = restart_hull_displacement(2);//boat_mesh_point.Z() - original_boat_mesh_point.Z();
+            rigid_motion_velocities(3*i) = current_hull_velocity(0);
+            rigid_motion_velocities(3*i+1) = current_hull_velocity(1);
+            rigid_motion_velocities(3*i+2) = current_hull_velocity(2);
+            //if (fabs(t-0.2) <1e-5)
+            //cout<<"AFTER: "<<Pnt(boat_mesh_point)<<" vs "<<Pnt(original_boat_mesh_point)<<endl;
+            //cout<<"RMMP: "<<comp_dom.rigid_motion_map_points(3*i)<<" "
+            //              <<comp_dom.rigid_motion_map_points(3*i+1)<<" "
+            //              <<comp_dom.rigid_motion_map_points(3*i+2)<<endl;
+            //cout<<"NN: "<<comp_dom.rigid_motion_map_points(3*i)+nodes_positions(3*i)+comp_dom.ref_points[3*i](0)<<" "
+            //            <<comp_dom.rigid_motion_map_points(3*i+1)+nodes_positions(3*i+1)+comp_dom.ref_points[3*i](1)<<" "
+            //            <<comp_dom.rigid_motion_map_points(3*i+2)+nodes_positions(3*i+2)+comp_dom.ref_points[3*i](2)<<endl;
+            }
+         }
+
          
       for (unsigned int i=0; i<dh.n_dofs(); ++i) 
 	  {
-          solution(3*i+0) = all_out[4](i)-comp_dom.ref_points[3*i](0);
-          solution(3*i+1) = all_out[5](i)-comp_dom.ref_points[3*i](1);
-          solution(3*i+2) = all_out[6](i)-comp_dom.ref_points[3*i](2);
-          solution_dot(3*i+0) = all_out[7](i);
-          solution_dot(3*i+1) = all_out[8](i);
-          solution_dot(3*i+2) = all_out[9](i);
+          solution(3*i+0) = all_out[4](i)-comp_dom.rigid_motion_map_points(3*i)-comp_dom.ref_points[3*i](0);
+          solution(3*i+1) = all_out[5](i)-comp_dom.rigid_motion_map_points(3*i+1)-comp_dom.ref_points[3*i](1);
+          solution(3*i+2) = all_out[6](i)-comp_dom.rigid_motion_map_points(3*i+2)-comp_dom.ref_points[3*i](2);
+          solution_dot(3*i+0) = all_out[7](i)-rigid_motion_velocities(3*i);
+          solution_dot(3*i+1) = all_out[8](i)-rigid_motion_velocities(3*i+1);
+          solution_dot(3*i+2) = all_out[9](i)-rigid_motion_velocities(3*i+2);
 	  solution(i+vector_dh.n_dofs()) = all_out[0](i);
           solution_dot(i+vector_dh.n_dofs()) = all_out[1](i);
           solution(i+vector_dh.n_dofs()+dh.n_dofs()) = all_out[2](i);
           solution_dot(i+vector_dh.n_dofs()+dh.n_dofs()) = all_out[3](i);
 	  }
 
+
+      for (unsigned int k=0; k<3; ++k)
+          {
+          solution(k+3+vector_dh.n_dofs()+dh.n_dofs()+dh.n_dofs()) = current_hull_displacement(k);
+          solution_dot(k+3+vector_dh.n_dofs()+dh.n_dofs()+dh.n_dofs()) = current_hull_displacement_dot(k);
+          solution(k+vector_dh.n_dofs()+dh.n_dofs()+dh.n_dofs()) = current_hull_velocity(k);
+          solution_dot(k+vector_dh.n_dofs()+dh.n_dofs()+dh.n_dofs()) = current_hull_velocity_dot(k);
+          }
+
+
+      
       for (unsigned int i=0; i<vector_dh.n_dofs(); ++i) 
 	  {
-	  comp_dom.map_points(i) = solution(i);
+	  comp_dom.map_points(i) = solution(i)+comp_dom.rigid_motion_map_points(i);
 	  }
 
-
+   
 
       DXDt_and_DphiDt_vector.reinit(vector_dh.n_dofs()+dh.n_dofs());
 
@@ -1287,12 +1528,12 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
       working_nodes_velocities.reinit(comp_dom.vector_dh.n_dofs());
       nodes_pos_res.reinit(comp_dom.vector_dh.n_dofs());
       nodes_ref_surf_dist.reinit(comp_dom.vector_dh.n_dofs());
-      nodes_diff_jac_x_delta.reinit(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
-      nodes_alg_jac_x_delta.reinit(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
-      dae_nonlin_residual.reinit(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
-      dae_linear_step_residual.reinit(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()); 
-      current_sol.reinit(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
-      current_sol_dot.reinit(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
+      nodes_diff_jac_x_delta.reinit(dofs_number);
+      nodes_alg_jac_x_delta.reinit(dofs_number);
+      dae_nonlin_residual.reinit(dofs_number);
+      dae_linear_step_residual.reinit(dofs_number); 
+      current_sol.reinit(dofs_number);
+      current_sol_dot.reinit(dofs_number);
       bem_residual.reinit (comp_dom.dh.n_dofs());
       bem_phi.reinit(comp_dom.dh.n_dofs());
       bem_dphi_dn.reinit(comp_dom.dh.n_dofs());
@@ -1321,7 +1562,7 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
 
       for (unsigned int i=0; i<comp_dom.vector_dh.n_dofs(); ++i)
           {
-          comp_dom.map_points(i) = solution(i);
+          comp_dom.map_points(i) = solution(i)+comp_dom.rigid_motion_map_points(i);
           //cout<<"* "<<i<<" "<<comp_dom.map_points(i)<<endl;
           }
 
@@ -1332,6 +1573,15 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
       make_edges_conformal(solution, solution_dot, t, step_number, h);
       make_edges_conformal(solution, solution_dot, t, step_number, h);
 
+
+
+      for (unsigned int k=0; k<3; ++k)
+          {
+          solution(k+3+vector_dh.n_dofs()+dh.n_dofs()+dh.n_dofs()) = current_hull_displacement(k);
+          solution_dot(k+3+vector_dh.n_dofs()+dh.n_dofs()+dh.n_dofs()) = current_hull_displacement_dot(k);
+          solution(k+vector_dh.n_dofs()+dh.n_dofs()+dh.n_dofs()) = current_hull_velocity(k);
+          solution_dot(k+vector_dh.n_dofs()+dh.n_dofs()+dh.n_dofs()) = current_hull_velocity_dot(k);
+          }
 //cout<<"First save "<<endl;
 //      std::string filename2 = ( "postRemesh1.vtu" );
 //      output_results(filename2, t, solution, solution_dot);
@@ -1341,8 +1591,11 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
       comp_dom.update_support_points();
       for (unsigned int i=0; i<comp_dom.vector_dh.n_dofs(); ++i)
           {
-          solution(i) = comp_dom.map_points(i);
+          solution(i) = comp_dom.map_points(i)-comp_dom.rigid_motion_map_points(i);
           }
+
+
+
 //cout<<"Second save "<<endl;
       //std::string filename20 = ( "postRemesh20.vtu" );
       //output_results(filename20, t, solution, solution_dot);
@@ -1546,8 +1799,10 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
       
       for (unsigned int i=0; i<comp_dom.vector_dh.n_dofs(); ++i)
           {
-          solution(i) = comp_dom.map_points(i);
+          solution(i) = comp_dom.map_points(i)-comp_dom.rigid_motion_map_points(i);
           } 
+
+
 
       wind.set_time(t);  
       Vector<double> instantWindValue(dim);
@@ -1572,10 +1827,9 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
       current_sol_dot = solution_dot;
       last_remesh_time = t;
       comp_dom.old_map_points = comp_dom.map_points;
-      comp_dom.rigid_motion_map_points = comp_dom.map_points;
-      //double rigid_vertical_displacement = 0.01*sin(2*dealii::numbers::PI*t);
-      //restart_hull_location = comp_dom.boat_model.set_current_position(rigid_vertical_displacement);
-      
+      comp_dom.rigid_motion_map_points = 0;
+
+
       prepare_restart(t, solution, solution_dot,true);
       //std::string filename3 = ( "postPostRemesh.vtu" );
       //output_results(filename3, t, solution, solution_dot);
@@ -1711,7 +1965,7 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
     }
    // in normal situations (no remesh) we just check that the boat mesh is ok (no bad quality cells)
    // and adjust it in case quality is bad. IMPORTANT: the restart procedure has to be improved
-   // for this cade, bacause the blend_factor used to obtain the last available horizontal displacement
+   // for this case, bacause the blend_factor used to obtain the last available horizontal displacement
    // field on the free surface is not the one used at restart time. as the difference is very small (1e-4~1e-5)
    // it doesn't seem to harm the restart, but with faster dynamics and ramps restarts might be problematic. thus,
    // we might consider adding nodes horizontal coordinates dofs to algebraic nonlinear restart problem class.
@@ -1753,6 +2007,60 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
 
     if (smooth)
        {
+       // first thing to do is update the geometry to the current positon
+       Point<3> current_hull_displacement;
+       Point<3> current_hull_displacement_dot;
+       Point<3> current_hull_velocity;
+       Point<3> current_hull_velocity_dot;
+       for (unsigned int k=0; k<3; ++k)
+           {
+           current_hull_displacement(k) = solution(k+3+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
+           current_hull_displacement_dot(k) = solution_dot(k+3+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
+           current_hull_velocity(k) = solution(k+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
+           current_hull_velocity_dot(k) = solution_dot(k+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
+           }
+       // this moves the rigid_motion_map_points vector (target positions) for the internal nodes of the hull 
+       // mesh (all nodes except for the free surface ones)
+       Vector<double> rigid_motion_velocities(comp_dom.vector_dh.n_dofs());
+
+       for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
+           {
+           if ( ((comp_dom.flags[i] & boat) &&
+                !(comp_dom.flags[i] & near_water) ) ||
+                (comp_dom.flags[i] & transom_on_water) )
+              {
+              //if (fabs(t-0.2) <1e-5)
+              //cout<<"BEFORE: "<<comp_dom.ref_points[3*i](0)+comp_dom.old_map_points(3*i)<<" "
+              //                <<comp_dom.ref_points[3*i](1)+comp_dom.old_map_points(3*i+1)<<" "
+              //                <<comp_dom.ref_points[3*i](2)+comp_dom.old_map_points(3*i+2)<<endl;
+              //gp_Pnt original_boat_mesh_point = Pnt(Point<3>(comp_dom.ref_points[3*i](0)+comp_dom.old_map_points(3*i),
+              //                                             comp_dom.ref_points[3*i](1)+comp_dom.old_map_points(3*i+1),
+              //                                             comp_dom.ref_points[3*i](2)+comp_dom.old_map_points(3*i+2)));
+              //gp_Pnt boat_mesh_point = original_boat_mesh_point;
+              // we first take this point (which is in the RESTART hull location) and transform it to be in the
+              // REFERENCE configuration 
+              //boat_mesh_point.Transform(restart_hull_location.Inverted());
+           
+              // now we have the point on the REFERENCE hull, and transform it to go onto the CURRENT hull
+              //boat_mesh_point.Transform(reference_to_current_transformation);
+              // the rigid motion map points is the difference between the reference point position and the
+              // current (rigidly displaced) node position
+              comp_dom.rigid_motion_map_points(3*i) = restart_hull_displacement(0);//boat_mesh_point.X() - original_boat_mesh_point.X();
+              comp_dom.rigid_motion_map_points(3*i+1) = restart_hull_displacement(1);//boat_mesh_point.Y() - original_boat_mesh_point.Y();
+              comp_dom.rigid_motion_map_points(3*i+2) = restart_hull_displacement(2);//boat_mesh_point.Z() - original_boat_mesh_point.Z();
+              rigid_motion_velocities(3*i) = current_hull_velocity(0);
+              rigid_motion_velocities(3*i+1) = current_hull_velocity(1);
+              rigid_motion_velocities(3*i+2) = current_hull_velocity(2);
+              //if (fabs(t-0.2) <1e-5)
+              //cout<<"AFTER: "<<Pnt(boat_mesh_point)<<" vs "<<Pnt(original_boat_mesh_point)<<endl;
+              //cout<<"RMMP: "<<comp_dom.rigid_motion_map_points(3*i)<<" "
+              //              <<comp_dom.rigid_motion_map_points(3*i+1)<<" "
+              //              <<comp_dom.rigid_motion_map_points(3*i+2)<<endl;
+              //cout<<"NN: "<<comp_dom.rigid_motion_map_points(3*i)+nodes_positions(3*i)+comp_dom.ref_points[3*i](0)<<" "
+              //            <<comp_dom.rigid_motion_map_points(3*i+1)+nodes_positions(3*i+1)+comp_dom.ref_points[3*i](1)<<" "
+              //            <<comp_dom.rigid_motion_map_points(3*i+2)+nodes_positions(3*i+2)+comp_dom.ref_points[3*i](2)<<endl;
+              }
+           }
       //std::string filename4 = ( "beforeSurfaceRemesh.vtu" );
       //output_results(filename4, t, solution, solution_dot);
        nodes_ref_surf_dist = 0.0;
@@ -1765,8 +2073,7 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
               {
               comp_dom.map_points(i) -= nodes_ref_surf_dist(i);
               comp_dom.old_map_points(i) = comp_dom.map_points(i);
-              comp_dom.rigid_motion_map_points(i) = comp_dom.map_points(i);
-              solution(i) = comp_dom.map_points(i);
+              solution(i) = comp_dom.map_points(i)-comp_dom.rigid_motion_map_points(i);
               //cout<<i<<" "<<nodes_ref_surf_dist(i)<<endl;
               }
 
@@ -1829,6 +2136,64 @@ void FreeSurface<dim>::make_edges_conformal(Vector<double> & solution,
 		                            const double  h)
 {
 std::cout<<"Restoring mesh conformity..."<<std::endl;
+
+
+
+  Point<3> hull_lin_vel;
+  Point<3> hull_lin_displ;
+  Point<3> hull_lin_vel_dot;
+  Point<3> hull_lin_displ_dot;
+  for (unsigned int d=0; d<3;++d)
+      {
+      hull_lin_vel(d) = solution(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()+d);
+      hull_lin_displ(d) = solution(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()+3+d);
+      hull_lin_vel_dot(d) = solution_dot(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()+d);
+      hull_lin_displ_dot(d) = solution_dot(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()+3+d);
+      }
+  cout<<"*Hull Rigid Displacement: "<<hull_lin_displ<<endl;
+  cout<<"*Hull Rigid Velocity: "<<hull_lin_vel<<endl;
+
+
+     Vector<double> rigid_motion_velocities(comp_dom.vector_dh.n_dofs());
+
+     for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
+         {
+         if ( ((comp_dom.flags[i] & boat) &&
+              !(comp_dom.flags[i] & near_water) ) ||
+              (comp_dom.flags[i] & transom_on_water) )
+            {
+            //if (fabs(t-0.2) <1e-5)
+            //cout<<"BEFORE: "<<comp_dom.ref_points[3*i](0)+comp_dom.old_map_points(3*i)<<" "
+            //                <<comp_dom.ref_points[3*i](1)+comp_dom.old_map_points(3*i+1)<<" "
+            //                <<comp_dom.ref_points[3*i](2)+comp_dom.old_map_points(3*i+2)<<endl;
+            gp_Pnt original_boat_mesh_point = Pnt(Point<3>(comp_dom.ref_points[3*i](0)+comp_dom.old_map_points(3*i),
+                                                           comp_dom.ref_points[3*i](1)+comp_dom.old_map_points(3*i+1),
+                                                           comp_dom.ref_points[3*i](2)+comp_dom.old_map_points(3*i+2)));
+            //gp_Pnt boat_mesh_point = original_boat_mesh_point;
+            // we first take this point (which is in the RESTART hull location) and transform it to be in the
+            // REFERENCE configuration 
+            //boat_mesh_point.Transform(restart_hull_location.Inverted());
+           
+            // now we have the point on the REFERENCE hull, and transform it to go onto the CURRENT hull
+            //boat_mesh_point.Transform(reference_to_current_transformation);
+            // the rigid motion map points is the difference between the reference point position and the
+            // current (rigidly displaced) node position
+            comp_dom.rigid_motion_map_points(3*i) = hull_lin_displ(0);//boat_mesh_point.X() - original_boat_mesh_point.X();
+            comp_dom.rigid_motion_map_points(3*i+1) = hull_lin_displ(1);//boat_mesh_point.Y() - original_boat_mesh_point.Y();
+            comp_dom.rigid_motion_map_points(3*i+2) = hull_lin_displ(2);//boat_mesh_point.Z() - original_boat_mesh_point.Z();
+            rigid_motion_velocities(3*i) = hull_lin_vel(0);
+            rigid_motion_velocities(3*i+1) = hull_lin_vel(1);
+            rigid_motion_velocities(3*i+2) = hull_lin_vel(2);
+            //if (fabs(t-0.2) <1e-5)
+            //cout<<"AFTER: "<<Pnt(boat_mesh_point)<<" vs "<<Pnt(original_boat_mesh_point)<<endl;
+            //cout<<"RMMP: "<<comp_dom.rigid_motion_map_points(3*i)<<" "
+            //              <<comp_dom.rigid_motion_map_points(3*i+1)<<" "
+            //              <<comp_dom.rigid_motion_map_points(3*i+2)<<endl;
+            //cout<<"NN: "<<comp_dom.rigid_motion_map_points(3*i)+nodes_positions(3*i)+comp_dom.ref_points[3*i](0)<<" "
+            //            <<comp_dom.rigid_motion_map_points(3*i+1)+nodes_positions(3*i+1)+comp_dom.ref_points[3*i](1)<<" "
+            //            <<comp_dom.rigid_motion_map_points(3*i+2)+nodes_positions(3*i+2)+comp_dom.ref_points[3*i](2)<<endl;
+            }
+         }
 
 
       Triangulation<dim-1, dim> &tria = comp_dom.tria;
@@ -1913,9 +2278,9 @@ std::cout<<"Restoring mesh conformity..."<<std::endl;
 
       for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
           {
-          positions_x(i) = solution(3*i+0)+comp_dom.ref_points[3*i](0);
-          positions_y(i) = solution(3*i+1)+comp_dom.ref_points[3*i](1);
-          positions_z(i) = solution(3*i+2)+comp_dom.ref_points[3*i](2);
+          positions_x(i) = solution(3*i+0)+comp_dom.rigid_motion_map_points(3*i+0)+comp_dom.ref_points[3*i](0);
+          positions_y(i) = solution(3*i+1)+comp_dom.rigid_motion_map_points(3*i+1)+comp_dom.ref_points[3*i](1);
+          positions_z(i) = solution(3*i+2)+comp_dom.rigid_motion_map_points(3*i+2)+comp_dom.ref_points[3*i](2);
           positions_dot_x(i) = solution_dot(3*i+0);
           positions_dot_y(i) = solution_dot(3*i+1);
           positions_dot_z(i) = solution_dot(3*i+2);
@@ -1954,7 +2319,7 @@ std::cout<<"Restoring mesh conformity..."<<std::endl;
 
       compute_constraints(constraints, vector_constraints);
 
-      dofs_number = vector_dh.n_dofs()+dh.n_dofs()+dh.n_dofs();
+      dofs_number = vector_dh.n_dofs()+dh.n_dofs()+dh.n_dofs()+6;
 
       std::cout<<"Total number of dofs after restoring edges conformity: "<<dh.n_dofs()<<std::endl;
 
@@ -2002,19 +2367,73 @@ std::cout<<"Restoring mesh conformity..."<<std::endl;
       constraints.distribute(all_out[9]);
   
 
+     // we have to compute rigid_motion_map_points and rigid_motion_velocities on the new mesh
+
+     rigid_motion_velocities.reinit(comp_dom.vector_dh.n_dofs());
+
+     for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
+         {
+         if ( ((comp_dom.flags[i] & boat) &&
+              !(comp_dom.flags[i] & near_water) ) ||
+              (comp_dom.flags[i] & transom_on_water) )
+            {
+            //if (fabs(t-0.2) <1e-5)
+            //cout<<"BEFORE: "<<comp_dom.ref_points[3*i](0)+comp_dom.old_map_points(3*i)<<" "
+            //                <<comp_dom.ref_points[3*i](1)+comp_dom.old_map_points(3*i+1)<<" "
+            //                <<comp_dom.ref_points[3*i](2)+comp_dom.old_map_points(3*i+2)<<endl;
+            gp_Pnt original_boat_mesh_point = Pnt(Point<3>(comp_dom.ref_points[3*i](0)+comp_dom.old_map_points(3*i),
+                                                           comp_dom.ref_points[3*i](1)+comp_dom.old_map_points(3*i+1),
+                                                           comp_dom.ref_points[3*i](2)+comp_dom.old_map_points(3*i+2)));
+            //gp_Pnt boat_mesh_point = original_boat_mesh_point;
+            // we first take this point (which is in the RESTART hull location) and transform it to be in the
+            // REFERENCE configuration 
+            //boat_mesh_point.Transform(restart_hull_location.Inverted());
+           
+            // now we have the point on the REFERENCE hull, and transform it to go onto the CURRENT hull
+            //boat_mesh_point.Transform(reference_to_current_transformation);
+            // the rigid motion map points is the difference between the reference point position and the
+            // current (rigidly displaced) node position
+            comp_dom.rigid_motion_map_points(3*i) = hull_lin_displ(0);//boat_mesh_point.X() - original_boat_mesh_point.X();
+            comp_dom.rigid_motion_map_points(3*i+1) = hull_lin_displ(1);//boat_mesh_point.Y() - original_boat_mesh_point.Y();
+            comp_dom.rigid_motion_map_points(3*i+2) = hull_lin_displ(2);//boat_mesh_point.Z() - original_boat_mesh_point.Z();
+            rigid_motion_velocities(3*i) = hull_lin_vel(0);
+            rigid_motion_velocities(3*i+1) = hull_lin_vel(1);
+            rigid_motion_velocities(3*i+2) = hull_lin_vel(2);
+            //if (fabs(t-0.2) <1e-5)
+            //cout<<"AFTER: "<<Pnt(boat_mesh_point)<<" vs "<<Pnt(original_boat_mesh_point)<<endl;
+            //cout<<"RMMP: "<<comp_dom.rigid_motion_map_points(3*i)<<" "
+            //              <<comp_dom.rigid_motion_map_points(3*i+1)<<" "
+            //              <<comp_dom.rigid_motion_map_points(3*i+2)<<endl;
+            //cout<<"NN: "<<comp_dom.rigid_motion_map_points(3*i)+nodes_positions(3*i)+comp_dom.ref_points[3*i](0)<<" "
+            //            <<comp_dom.rigid_motion_map_points(3*i+1)+nodes_positions(3*i+1)+comp_dom.ref_points[3*i](1)<<" "
+            //            <<comp_dom.rigid_motion_map_points(3*i+2)+nodes_positions(3*i+2)+comp_dom.ref_points[3*i](2)<<endl;
+            }
+         }
+
+
+
       for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i) 
 	  {
-          solution(3*i+0) = all_out[4](i)-comp_dom.ref_points[3*i](0);
-          solution(3*i+1) = all_out[5](i)-comp_dom.ref_points[3*i](1);
-          solution(3*i+2) = all_out[6](i)-comp_dom.ref_points[3*i](2);
-          solution_dot(3*i+0) = all_out[7](i);
-          solution_dot(3*i+1) = all_out[8](i);
-          solution_dot(3*i+2) = all_out[9](i);
+          solution(3*i+0) = all_out[4](i)-comp_dom.rigid_motion_map_points(3*i)-comp_dom.ref_points[3*i](0);
+          solution(3*i+1) = all_out[5](i)-comp_dom.rigid_motion_map_points(3*i+1)-comp_dom.ref_points[3*i](1);
+          solution(3*i+2) = all_out[6](i)-comp_dom.rigid_motion_map_points(3*i+2)-comp_dom.ref_points[3*i](2);
+          solution_dot(3*i+0) = all_out[7](i)-rigid_motion_velocities(3*i);
+          solution_dot(3*i+1) = all_out[8](i)-rigid_motion_velocities(3*i+1);
+          solution_dot(3*i+2) = all_out[9](i)-rigid_motion_velocities(3*i+2);
 	  solution(i+vector_dh.n_dofs()) = all_out[0](i);
           solution_dot(i+vector_dh.n_dofs()) = all_out[1](i);
           solution(i+vector_dh.n_dofs()+dh.n_dofs()) = all_out[2](i);
           solution_dot(i+vector_dh.n_dofs()+dh.n_dofs()) = all_out[3](i);
 	  }
+
+      for (unsigned int k=0; k<3; ++k)
+          {
+          solution(k+3+vector_dh.n_dofs()+dh.n_dofs()+dh.n_dofs()) = hull_lin_displ(k);
+          solution_dot(k+3+vector_dh.n_dofs()+dh.n_dofs()+dh.n_dofs()) = hull_lin_displ_dot(k);
+          solution(k+vector_dh.n_dofs()+dh.n_dofs()+dh.n_dofs()) = hull_lin_vel(k);
+          solution_dot(k+vector_dh.n_dofs()+dh.n_dofs()+dh.n_dofs()) = hull_lin_vel_dot(k);
+          }
+
 
 
       DXDt_and_DphiDt_vector.reinit(vector_dh.n_dofs()+dh.n_dofs());
@@ -2036,12 +2455,12 @@ std::cout<<"Restoring mesh conformity..."<<std::endl;
       working_nodes_velocities.reinit(comp_dom.vector_dh.n_dofs());
       nodes_pos_res.reinit(comp_dom.vector_dh.n_dofs());
       nodes_ref_surf_dist.reinit(comp_dom.vector_dh.n_dofs());
-      nodes_diff_jac_x_delta.reinit(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
-      nodes_alg_jac_x_delta.reinit(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
-      dae_nonlin_residual.reinit(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
-      dae_linear_step_residual.reinit(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
-      current_sol.reinit(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
-      current_sol_dot.reinit(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
+      nodes_diff_jac_x_delta.reinit(dofs_number);
+      nodes_alg_jac_x_delta.reinit(dofs_number);
+      dae_nonlin_residual.reinit(dofs_number);
+      dae_linear_step_residual.reinit(dofs_number);
+      current_sol.reinit(dofs_number);
+      current_sol_dot.reinit(dofs_number);
       bem_residual.reinit(comp_dom.dh.n_dofs()); 
       bem_phi.reinit(comp_dom.dh.n_dofs());
       bem_dphi_dn.reinit(comp_dom.dh.n_dofs());
@@ -2069,7 +2488,7 @@ std::cout<<"Restoring mesh conformity..."<<std::endl;
       //comp_dom.apply_curvatures(new_curvatures,new_boundary_dofs);
       for (unsigned int i=0; i<comp_dom.vector_dh.n_dofs(); ++i)
           {
-          comp_dom.map_points(i) = solution(i);
+          comp_dom.map_points(i) = solution(i)+comp_dom.rigid_motion_map_points(i);
           }
       //std::string filename2 = ( "beforeCrash.vtu" );
       //output_results(filename2, t, solution, solution_dot);
@@ -2079,7 +2498,7 @@ std::cout<<"Restoring mesh conformity..."<<std::endl;
       comp_dom.map_points -= nodes_ref_surf_dist;
       for (unsigned int i=0; i<comp_dom.vector_dh.n_dofs(); ++i)
           {
-          solution(i) = comp_dom.map_points(i);
+          solution(i) = comp_dom.map_points(i)-comp_dom.rigid_motion_map_points(i);
           }
 
 
@@ -2151,6 +2570,62 @@ void FreeSurface<dim>::remove_transom_hanging_nodes(Vector<double> & solution,
 		                                    const double  h)
 {
 std::cout<<"Removing hanging nodes from transom stern..."<<std::endl;
+
+  Point<3> hull_lin_vel;
+  Point<3> hull_lin_displ;
+  Point<3> hull_lin_vel_dot;
+  Point<3> hull_lin_displ_dot;
+  for (unsigned int d=0; d<3;++d)
+      {
+      hull_lin_vel(d) = solution(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()+d);
+      hull_lin_displ(d) = solution(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()+3+d);
+      hull_lin_vel_dot(d) = solution_dot(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()+d);
+      hull_lin_displ_dot(d) = solution_dot(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()+3+d);
+      }
+  cout<<"*Hull Rigid Displacement: "<<hull_lin_displ<<endl;
+  cout<<"*Hull Rigid Velocity: "<<hull_lin_vel<<endl;
+
+
+     Vector<double> rigid_motion_velocities(comp_dom.vector_dh.n_dofs());
+
+     for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
+         {
+         if ( ((comp_dom.flags[i] & boat) &&
+              !(comp_dom.flags[i] & near_water) ) ||
+              (comp_dom.flags[i] & transom_on_water) )
+            {
+            //if (fabs(t-0.2) <1e-5)
+            //cout<<"BEFORE: "<<comp_dom.ref_points[3*i](0)+comp_dom.old_map_points(3*i)<<" "
+            //                <<comp_dom.ref_points[3*i](1)+comp_dom.old_map_points(3*i+1)<<" "
+            //                <<comp_dom.ref_points[3*i](2)+comp_dom.old_map_points(3*i+2)<<endl;
+            gp_Pnt original_boat_mesh_point = Pnt(Point<3>(comp_dom.ref_points[3*i](0)+comp_dom.old_map_points(3*i),
+                                                           comp_dom.ref_points[3*i](1)+comp_dom.old_map_points(3*i+1),
+                                                           comp_dom.ref_points[3*i](2)+comp_dom.old_map_points(3*i+2)));
+            //gp_Pnt boat_mesh_point = original_boat_mesh_point;
+            // we first take this point (which is in the RESTART hull location) and transform it to be in the
+            // REFERENCE configuration 
+            //boat_mesh_point.Transform(restart_hull_location.Inverted());
+           
+            // now we have the point on the REFERENCE hull, and transform it to go onto the CURRENT hull
+            //boat_mesh_point.Transform(reference_to_current_transformation);
+            // the rigid motion map points is the difference between the reference point position and the
+            // current (rigidly displaced) node position
+            comp_dom.rigid_motion_map_points(3*i) = hull_lin_displ(0);//boat_mesh_point.X() - original_boat_mesh_point.X();
+            comp_dom.rigid_motion_map_points(3*i+1) = hull_lin_displ(1);//boat_mesh_point.Y() - original_boat_mesh_point.Y();
+            comp_dom.rigid_motion_map_points(3*i+2) = hull_lin_displ(2);//boat_mesh_point.Z() - original_boat_mesh_point.Z();
+            rigid_motion_velocities(3*i) = hull_lin_vel(0);
+            rigid_motion_velocities(3*i+1) = hull_lin_vel(1);
+            rigid_motion_velocities(3*i+2) = hull_lin_vel(2);
+            //if (fabs(t-0.2) <1e-5)
+            //cout<<"AFTER: "<<Pnt(boat_mesh_point)<<" vs "<<Pnt(original_boat_mesh_point)<<endl;
+            //cout<<"RMMP: "<<comp_dom.rigid_motion_map_points(3*i)<<" "
+            //              <<comp_dom.rigid_motion_map_points(3*i+1)<<" "
+            //              <<comp_dom.rigid_motion_map_points(3*i+2)<<endl;
+            //cout<<"NN: "<<comp_dom.rigid_motion_map_points(3*i)+nodes_positions(3*i)+comp_dom.ref_points[3*i](0)<<" "
+            //            <<comp_dom.rigid_motion_map_points(3*i+1)+nodes_positions(3*i+1)+comp_dom.ref_points[3*i](1)<<" "
+            //            <<comp_dom.rigid_motion_map_points(3*i+2)+nodes_positions(3*i+2)+comp_dom.ref_points[3*i](2)<<endl;
+            }
+         }
 
 
       Triangulation<dim-1, dim> &tria = comp_dom.tria;
@@ -2224,9 +2699,9 @@ std::cout<<"Removing hanging nodes from transom stern..."<<std::endl;
 
       for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
           {
-          positions_x(i) = solution(3*i+0)+comp_dom.ref_points[3*i](0);
-          positions_y(i) = solution(3*i+1)+comp_dom.ref_points[3*i](1);
-          positions_z(i) = solution(3*i+2)+comp_dom.ref_points[3*i](2);
+          positions_x(i) = solution(3*i+0)+comp_dom.rigid_motion_map_points(3*i+0)+comp_dom.ref_points[3*i](0);
+          positions_y(i) = solution(3*i+1)+comp_dom.rigid_motion_map_points(3*i+1)+comp_dom.ref_points[3*i](1);
+          positions_z(i) = solution(3*i+2)+comp_dom.rigid_motion_map_points(3*i+2)+comp_dom.ref_points[3*i](2);
           positions_dot_x(i) = solution_dot(3*i+0);
           positions_dot_y(i) = solution_dot(3*i+1);
           positions_dot_z(i) = solution_dot(3*i+2);
@@ -2265,7 +2740,7 @@ std::cout<<"Removing hanging nodes from transom stern..."<<std::endl;
 
       compute_constraints(constraints, vector_constraints);
 
-      dofs_number = vector_dh.n_dofs()+dh.n_dofs()+dh.n_dofs();
+      dofs_number = vector_dh.n_dofs()+dh.n_dofs()+dh.n_dofs()+6;
 
       std::cout<<"Total number of dofs after fixing transom stern: "<<dh.n_dofs()<<std::endl;
 
@@ -2311,13 +2786,55 @@ std::cout<<"Removing hanging nodes from transom stern..."<<std::endl;
       constraints.distribute(all_out[7]);    
       constraints.distribute(all_out[8]);
       constraints.distribute(all_out[9]);
-  
+
+      // we have to compute rigid_motion_map_points and rigid_motion_velocities on the new mesh
+
+     rigid_motion_velocities.reinit(comp_dom.vector_dh.n_dofs());
+
+     for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
+         {
+         if ( ((comp_dom.flags[i] & boat) &&
+              !(comp_dom.flags[i] & near_water) ) ||
+              (comp_dom.flags[i] & transom_on_water) )
+            {
+            //if (fabs(t-0.2) <1e-5)
+            //cout<<"BEFORE: "<<comp_dom.ref_points[3*i](0)+comp_dom.old_map_points(3*i)<<" "
+            //                <<comp_dom.ref_points[3*i](1)+comp_dom.old_map_points(3*i+1)<<" "
+            //                <<comp_dom.ref_points[3*i](2)+comp_dom.old_map_points(3*i+2)<<endl;
+            gp_Pnt original_boat_mesh_point = Pnt(Point<3>(comp_dom.ref_points[3*i](0)+comp_dom.old_map_points(3*i),
+                                                           comp_dom.ref_points[3*i](1)+comp_dom.old_map_points(3*i+1),
+                                                           comp_dom.ref_points[3*i](2)+comp_dom.old_map_points(3*i+2)));
+            //gp_Pnt boat_mesh_point = original_boat_mesh_point;
+            // we first take this point (which is in the RESTART hull location) and transform it to be in the
+            // REFERENCE configuration 
+            //boat_mesh_point.Transform(restart_hull_location.Inverted());
+           
+            // now we have the point on the REFERENCE hull, and transform it to go onto the CURRENT hull
+            //boat_mesh_point.Transform(reference_to_current_transformation);
+            // the rigid motion map points is the difference between the reference point position and the
+            // current (rigidly displaced) node position
+            comp_dom.rigid_motion_map_points(3*i) = hull_lin_displ(0);//boat_mesh_point.X() - original_boat_mesh_point.X();
+            comp_dom.rigid_motion_map_points(3*i+1) = hull_lin_displ(1);//boat_mesh_point.Y() - original_boat_mesh_point.Y();
+            comp_dom.rigid_motion_map_points(3*i+2) = hull_lin_displ(2);//boat_mesh_point.Z() - original_boat_mesh_point.Z();
+            rigid_motion_velocities(3*i) = hull_lin_vel(0);
+            rigid_motion_velocities(3*i+1) = hull_lin_vel(1);
+            rigid_motion_velocities(3*i+2) = hull_lin_vel(2);
+            //if (fabs(t-0.2) <1e-5)
+            //cout<<"AFTER: "<<Pnt(boat_mesh_point)<<" vs "<<Pnt(original_boat_mesh_point)<<endl;
+            //cout<<"RMMP: "<<comp_dom.rigid_motion_map_points(3*i)<<" "
+            //              <<comp_dom.rigid_motion_map_points(3*i+1)<<" "
+            //              <<comp_dom.rigid_motion_map_points(3*i+2)<<endl;
+            //cout<<"NN: "<<comp_dom.rigid_motion_map_points(3*i)+nodes_positions(3*i)+comp_dom.ref_points[3*i](0)<<" "
+            //            <<comp_dom.rigid_motion_map_points(3*i+1)+nodes_positions(3*i+1)+comp_dom.ref_points[3*i](1)<<" "
+            //            <<comp_dom.rigid_motion_map_points(3*i+2)+nodes_positions(3*i+2)+comp_dom.ref_points[3*i](2)<<endl;
+            }
+         } 
 
       for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i) 
 	  {
-          solution(3*i+0) = all_out[4](i)-comp_dom.ref_points[3*i](0);
-          solution(3*i+1) = all_out[5](i)-comp_dom.ref_points[3*i](1);
-          solution(3*i+2) = all_out[6](i)-comp_dom.ref_points[3*i](2);
+          solution(3*i+0) = all_out[4](i)-comp_dom.rigid_motion_map_points(3*i)-comp_dom.ref_points[3*i](0);
+          solution(3*i+1) = all_out[5](i)-comp_dom.rigid_motion_map_points(3*i+1)-comp_dom.ref_points[3*i](1);
+          solution(3*i+2) = all_out[6](i)-comp_dom.rigid_motion_map_points(3*i+2)-comp_dom.ref_points[3*i](2);
           solution_dot(3*i+0) = all_out[7](i);
           solution_dot(3*i+1) = all_out[8](i);
           solution_dot(3*i+2) = all_out[9](i);
@@ -2326,6 +2843,15 @@ std::cout<<"Removing hanging nodes from transom stern..."<<std::endl;
           solution(i+vector_dh.n_dofs()+dh.n_dofs()) = all_out[2](i);
           solution_dot(i+vector_dh.n_dofs()+dh.n_dofs()) = all_out[3](i);
 	  }
+
+      for (unsigned int k=0; k<3; ++k)
+          {
+          solution(k+3+vector_dh.n_dofs()+dh.n_dofs()+dh.n_dofs()) = hull_lin_displ(k);
+          solution_dot(k+3+vector_dh.n_dofs()+dh.n_dofs()+dh.n_dofs()) = hull_lin_displ_dot(k);
+          solution(k+vector_dh.n_dofs()+dh.n_dofs()+dh.n_dofs()) = hull_lin_vel(k);
+          solution_dot(k+vector_dh.n_dofs()+dh.n_dofs()+dh.n_dofs()) = hull_lin_vel_dot(k);
+          }
+
 
 
       DXDt_and_DphiDt_vector.reinit(vector_dh.n_dofs()+dh.n_dofs());
@@ -2347,12 +2873,12 @@ std::cout<<"Removing hanging nodes from transom stern..."<<std::endl;
       working_nodes_velocities.reinit(comp_dom.vector_dh.n_dofs());
       nodes_pos_res.reinit(comp_dom.vector_dh.n_dofs());
       nodes_ref_surf_dist.reinit(comp_dom.vector_dh.n_dofs());
-      nodes_diff_jac_x_delta.reinit(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
-      nodes_alg_jac_x_delta.reinit(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
-      dae_nonlin_residual.reinit(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
-      dae_linear_step_residual.reinit(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
-      current_sol.reinit(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
-      current_sol_dot.reinit(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
+      nodes_diff_jac_x_delta.reinit(dofs_number);
+      nodes_alg_jac_x_delta.reinit(dofs_number);
+      dae_nonlin_residual.reinit(dofs_number);
+      dae_linear_step_residual.reinit(dofs_number);
+      current_sol.reinit(dofs_number);
+      current_sol_dot.reinit(dofs_number);
       bem_residual.reinit(comp_dom.dh.n_dofs()); 
       bem_phi.reinit(comp_dom.dh.n_dofs());
       bem_dphi_dn.reinit(comp_dom.dh.n_dofs());
@@ -2379,7 +2905,7 @@ std::cout<<"Removing hanging nodes from transom stern..."<<std::endl;
 
       for (unsigned int i=0; i<comp_dom.vector_dh.n_dofs(); ++i)
           {
-          comp_dom.map_points(i) = solution(i);
+          comp_dom.map_points(i) = solution(i)+comp_dom.rigid_motion_map_points(i);
           }
        
       //std::string filename2 = ( "beforeCrash.vtu" );
@@ -2390,7 +2916,7 @@ std::cout<<"Removing hanging nodes from transom stern..."<<std::endl;
       comp_dom.map_points -= nodes_ref_surf_dist;
       for (unsigned int i=0; i<comp_dom.vector_dh.n_dofs(); ++i)
           {
-          solution(i) = comp_dom.map_points(i);
+          solution(i) = comp_dom.map_points(i)-comp_dom.rigid_motion_map_points(i);
           }
 
 
@@ -2460,12 +2986,14 @@ void FreeSurface<dim>::prepare_restart(const double t, Vector<double> &y, Vector
 {
 std::cout<<"Preparing interpolated solution for restart"<<std::endl;
 
+
+
      Vector<double> res;
      res.reinit(sys_comp.size());
      //yp.reinit(sys_comp.size());
 //cout<<"CHECK1"<<endl;
-residual(t,res,y,yp);
-setup_jacobian_prec(t,y,yp,0.0);
+//residual(t,res,y,yp);
+//setup_jacobian_prec(t,y,yp,0.0);
 
 
 
@@ -2479,18 +3007,32 @@ setup_jacobian_prec(t,y,yp,0.0);
 
 
 
-
-
-
-
-
-
   const VectorView<double> nodes_positions(comp_dom.vector_dh.n_dofs(),y.begin());
   const VectorView<double> nodes_velocities(comp_dom.vector_dh.n_dofs(),yp.begin());
   const VectorView<double> phi(comp_dom.dh.n_dofs(),y.begin()+comp_dom.vector_dh.n_dofs());
   const VectorView<double> phi_time_derivs(comp_dom.dh.n_dofs(),yp.begin()+comp_dom.vector_dh.n_dofs());
   const VectorView<double> dphi_dn(comp_dom.dh.n_dofs(),y.begin()+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs());
   const VectorView<double> dphi_dn_time_derivs(comp_dom.dh.n_dofs(),yp.begin()+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs());
+
+  Point<3> hull_lin_vel;
+  Point<3> hull_lin_displ;
+  Point<3> hull_lin_vel_dot;
+  Point<3> hull_lin_displ_dot;
+  for (unsigned int d=0; d<3;++d)
+      {
+      hull_lin_vel(d) = y(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()+d);
+      hull_lin_displ(d) = y(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()+3+d);
+      hull_lin_vel_dot(d) = yp(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()+d);
+      hull_lin_displ_dot(d) = yp(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()+3+d);
+      }
+  cout<<"*Hull Rigid Displacement: "<<hull_lin_displ<<endl;
+  cout<<"*Hull Rigid Velocity: "<<hull_lin_vel<<endl;
+   
+  //let's start with rigid modes variables
+  for (unsigned int d=0; d<3;++d)
+      {
+      yp(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()+3+d) = hull_lin_vel(d);
+      }
 
 //  for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
 //         cout<<i<<"  Poss: "<<" "<<nodes_positions(3*i)<<" "<<nodes_positions(3*i+1)<<" "<<nodes_positions(3*i+2)<<endl;  
@@ -2524,12 +3066,58 @@ setup_jacobian_prec(t,y,yp,0.0);
   for (unsigned int i = 0; i < dim; i++)
       Vinf(i) = wind_value(i);
 
+  cout<<"Hull Rigid Displacement: "<<hull_lin_displ<<endl;
+  cout<<"Hull Rigid Velocity: "<<hull_lin_vel<<endl;
+
 //////////////////////////////////////////////////////////////////////
   // here we take care of the geometric part of the variables
 //////////////////////////////////////////////////////////////////////
-
-  comp_dom.update_mapping(y);
+     // this moves the rigid_motion_map_points vector (target positions) for the internal nodes of the hull 
+     // mesh (all nodes except for the free surface ones)
+     for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
+         {
+         if ( ((comp_dom.flags[i] & boat) &&
+              !(comp_dom.flags[i] & near_water) ) ||
+              (comp_dom.flags[i] & transom_on_water) )
+            {
+            //if (fabs(t-0.2) <1e-5)
+            //cout<<"BEFORE: "<<comp_dom.ref_points[3*i](0)+comp_dom.old_map_points(3*i)<<" "
+            //                <<comp_dom.ref_points[3*i](1)+comp_dom.old_map_points(3*i+1)<<" "
+            //                <<comp_dom.ref_points[3*i](2)+comp_dom.old_map_points(3*i+2)<<endl;
+            gp_Pnt original_boat_mesh_point = Pnt(Point<3>(comp_dom.ref_points[3*i](0)+comp_dom.old_map_points(3*i),
+                                                           comp_dom.ref_points[3*i](1)+comp_dom.old_map_points(3*i+1),
+                                                           comp_dom.ref_points[3*i](2)+comp_dom.old_map_points(3*i+2)));
+            gp_Pnt boat_mesh_point = original_boat_mesh_point;
+            // we first take this point (which is in the RESTART hull location) and transform it to be in the
+            // REFERENCE configuration 
+            //boat_mesh_point.Transform(restart_hull_location.Inverted());
+           
+            // now we have the point on the REFERENCE hull, and transform it to go onto the CURRENT hull
+            //boat_mesh_point.Transform(reference_to_current_transformation);
+            // the rigid motion map points is the difference between the reference point position and the
+            // current (rigidly displaced) node position
+            comp_dom.rigid_motion_map_points(3*i) = hull_lin_displ(0);//boat_mesh_point.X() - original_boat_mesh_point.X();
+            comp_dom.rigid_motion_map_points(3*i+1) = hull_lin_displ(1);//boat_mesh_point.Y() - original_boat_mesh_point.Y();
+            comp_dom.rigid_motion_map_points(3*i+2) = hull_lin_displ(2);//boat_mesh_point.Z() - original_boat_mesh_point.Z();
+            //if (fabs(t-0.2) <1e-5)
+            //cout<<"AFTER: "<<Pnt(boat_mesh_point)<<" vs "<<Pnt(original_boat_mesh_point)<<endl;
+            //cout<<"RMMP: "<<comp_dom.rigid_motion_map_points(3*i)<<" "
+            //              <<comp_dom.rigid_motion_map_points(3*i+1)<<" "
+            //              <<comp_dom.rigid_motion_map_points(3*i+2)<<endl;
+            //cout<<"NN: "<<comp_dom.rigid_motion_map_points(3*i)+nodes_positions(3*i)+comp_dom.ref_points[3*i](0)<<" "
+            //            <<comp_dom.rigid_motion_map_points(3*i+1)+nodes_positions(3*i+1)+comp_dom.ref_points[3*i](1)<<" "
+            //            <<comp_dom.rigid_motion_map_points(3*i+2)+nodes_positions(3*i+2)+comp_dom.ref_points[3*i](2)<<endl;
+            }
+         }
+  
+  //   }
+  // INEFFICIENTE!!!!!!!!!!
+  
+  Vector<double> full_map_points(comp_dom.rigid_motion_map_points);
+  full_map_points.add(nodes_positions);
+  comp_dom.update_mapping(full_map_points);
   comp_dom.update_support_points();
+
 
 
   //we work on a local COPY of map_points
@@ -2541,8 +3129,8 @@ setup_jacobian_prec(t,y,yp,0.0);
 
 
   // as for now x and y coordinates of nodes are not moved (no surface smoothing)
-  // so on x and y coordinates (except for water nodes) we only need to put nodes
-  // back on the old_map_points position
+  // so on x and y coordinates (except for water nodes) we only need to put a one
+  // on the matrix diagonal
   for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
       {
       if ( !(comp_dom.flags[i] & near_boat) &&
@@ -2555,21 +3143,29 @@ setup_jacobian_prec(t,y,yp,0.0);
          working_map_points(3*i+1) = comp_dom.old_map_points(3*i+1);
          }
       else if ( !(comp_dom.flags[i] & near_water) &&
-                !(comp_dom.flags[i] & water) &&
+                (comp_dom.flags[i] & boat) &&
                (!constraints.is_constrained(i)))
          {
          working_map_points(3*i) = comp_dom.old_map_points(3*i);
          working_map_points(3*i+1) = comp_dom.old_map_points(3*i+1);
          working_map_points(3*i+2) = comp_dom.old_map_points(3*i+2);
+         //cout<<"&& "<<3*i<<" "<<3*i+1<<" "<<3*i+2<<endl;
+         }
+      else if ( !(comp_dom.flags[i] & near_water) &&
+                !(comp_dom.flags[i] & water) &&
+                !(comp_dom.flags[i] & boat) &&
+               (!constraints.is_constrained(i)))
+         {
+         working_map_points(3*i) = comp_dom.old_map_points(3*i);
+         working_map_points(3*i+1) = comp_dom.old_map_points(3*i+1);
+         working_map_points(3*i+2) = comp_dom.old_map_points(3*i+2);
+         //cout<<"&& "<<3*i<<" "<<3*i+1<<" "<<3*i+2<<endl;         
          }
       else if ((comp_dom.flags[i] & transom_on_water) )
          {
          working_map_points(3*i) = comp_dom.old_map_points(3*i);
          working_map_points(3*i+1) = comp_dom.old_map_points(3*i+1);
          working_map_points(3*i+2) = comp_dom.old_map_points(3*i+2);
-         jacobian_matrix.add(3*i,3*i,1.0);
-         jacobian_matrix.add(3*i+1,3*i+1,1.0);
-         jacobian_matrix.add(3*i+2,3*i+2,1.0);
          }          
       }
 
@@ -2815,7 +3411,7 @@ setup_jacobian_prec(t,y,yp,0.0);
 
      for (unsigned int i=0; i<comp_dom.vector_dh.n_dofs(); ++i)
          {
-         y(i) = comp_dom.map_points(i);
+         y(i) = comp_dom.map_points(i)-comp_dom.rigid_motion_map_points(i);
          }    
 
 //////////////////////////////////////////////////////////////////////
@@ -3630,10 +4226,10 @@ setup_jacobian_prec(t,y,yp,0.0);
   RestartNonlinearProblemDiff rest_nonlin_prob_diff(*this,comp_dom,t,y,yp,jacobian_dot_matrix);
   std::map<unsigned int,unsigned int> &map_diff = rest_nonlin_prob_diff.indices_map;
 
-
+/*
   // these lines test the correctness of the jacobian for the
   // restart (reduced) nonlinear problem
-/*
+
   Vector<double> restart_prob_solution(rest_nonlin_prob_diff.n_dofs());
   Vector<double> restart_prob_residual(rest_nonlin_prob_diff.n_dofs());
   for (std::map<unsigned int, unsigned int>::iterator it = map_diff.begin(); it != map_diff.end(); ++it)
@@ -3712,7 +4308,7 @@ setup_jacobian_prec(t,y,yp,0.0);
      residual(t,res,y,yp);
      cout<<"----------Test---------"<<endl;
      for (unsigned int i=0; i<this->n_dofs(); ++i)
-         if (fabs(res(i)-delta_res(i)) > 1e-10)
+         if (fabs(res(i)-delta_res(i)) > 1e-11)
          //if (fabs(res(i)) > 1e-20)
          cout<<i<<"  "<<delta_res(i)<<" vs "<<res(i)<<"      err "<<res(i)-delta_res(i)<<"   "<<sys_comp(i)<<endl;
      delta_res*=-1;
@@ -4054,12 +4650,13 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
 
 
     //if (t != old_time)
-       {
+       //{
        //comp_dom.old_map_points = comp_dom.map_points;
-       std::string filename1 = ( "new_ts_mesh.vtu" );
-       output_results(filename1, t, src_yy, src_yp);
-       }
+       //std::string filename1 = ( "new_ts_mesh.vtu" );
+       //output_results(filename1, t, src_yy, src_yp);
+       //}
 //*/
+
 
 
 
@@ -4069,6 +4666,20 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
   const VectorView<double> phi_time_derivs(comp_dom.dh.n_dofs(),src_yp.begin()+comp_dom.vector_dh.n_dofs());
   const VectorView<double> dphi_dn(comp_dom.dh.n_dofs(),src_yy.begin()+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs());
   const VectorView<double> dphi_dn_time_derivs(comp_dom.dh.n_dofs(),src_yp.begin()+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs());
+
+  Point<3> hull_lin_vel;
+  Point<3> hull_lin_displ;
+  Point<3> hull_lin_vel_dot;
+  Point<3> hull_lin_displ_dot;
+  for (unsigned int d=0; d<3;++d)
+      {
+      hull_lin_vel(d) = src_yy(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()+d);
+      hull_lin_displ(d) = src_yy(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()+3+d);
+      hull_lin_vel_dot(d) = src_yp(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()+d);
+      hull_lin_displ_dot(d) = src_yp(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()+3+d);
+      }
+
+
   //for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
   //       cout<<3*i<<" "<<nodes_velocities(3*i)<<" "<<nodes_velocities(3*i+1)<<" "<<nodes_velocities(3*i+2)<<endl;
 
@@ -4109,7 +4720,9 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
   std::cout<<std::endl;  
   wind.set_time(t);
 
- 
+  cout<<"Hull Rigid Displacement: "<<hull_lin_displ<<endl;
+  cout<<"Restart Hull Rigid Displacement: "<<restart_hull_displacement<<endl;
+  cout<<"Hull Rigid Velocity: "<<hull_lin_vel<<endl; 
 
   // these two for loops set the jacobian for all the constrained (hanging node dofs)
   // first one is for position dofs  
@@ -4149,28 +4762,17 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
 //////////////////////////////////////////////////////////////////////
 
 
-  comp_dom.update_mapping(src_yy);
-  comp_dom.update_support_points();
-
-
-  //we work on a local COPY of map_points
-  working_map_points = comp_dom.map_points;
-  nodes_pos_res = 0;
-
-  //we enforce constraint on the new geometry assigned by the DAE solver
-  vector_constraints.distribute(working_map_points);
-
-
   // these lines take care of the hull (and consequential hull internal grid nodes) displacement
   // these lines will only act when the time step is new
   
-  if (new_time_step)
-     {
-     double rigid_vertical_displacement = 0.01*sin(2.0*dealii::numbers::PI*t);
+  //if (new_time_step)
+  //   {
+     //double rigid_vertical_displacement = 0.01*sin(2.0*dealii::numbers::PI*t);
+     //double rigid_angular_displacement = 0.01*sin(1.0*dealii::numbers::PI*t);
      //cout<<"Displacement: "<<rigid_vertical_displacement<<"   "<<sin(2.0*(dealii::numbers::PI)*t)<<endl;
      // this is the displacement of the hull geometry (all projectors and smoothers will adapt
      // to the change)
-     gp_Trsf reference_to_current_transformation = comp_dom.boat_model.set_current_position(rigid_vertical_displacement);
+     gp_Trsf reference_to_current_transformation = comp_dom.boat_model.set_current_position(hull_lin_displ,0.0);
 
      // this moves the rigid_motion_map_points vector (target positions) for the internal nodes of the hull 
      // mesh (all nodes except for the free surface ones)
@@ -4180,25 +4782,55 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
               !(comp_dom.flags[i] & near_water) ) ||
               (comp_dom.flags[i] & transom_on_water) )
             {
+            //if (fabs(t-0.2) <1e-5)
             //cout<<"BEFORE: "<<comp_dom.ref_points[3*i](0)+comp_dom.old_map_points(3*i)<<" "
             //                <<comp_dom.ref_points[3*i](1)+comp_dom.old_map_points(3*i+1)<<" "
             //                <<comp_dom.ref_points[3*i](2)+comp_dom.old_map_points(3*i+2)<<endl;
-            gp_Pnt boat_mesh_point = Pnt(Point<3>(comp_dom.ref_points[3*i](0)+comp_dom.old_map_points(3*i),
-                                                  comp_dom.ref_points[3*i](1)+comp_dom.old_map_points(3*i+1),
-                                                  comp_dom.ref_points[3*i](2)+comp_dom.old_map_points(3*i+2)));
+            gp_Pnt original_boat_mesh_point = Pnt(Point<3>(comp_dom.ref_points[3*i](0)+comp_dom.old_map_points(3*i),
+                                                           comp_dom.ref_points[3*i](1)+comp_dom.old_map_points(3*i+1),
+                                                           comp_dom.ref_points[3*i](2)+comp_dom.old_map_points(3*i+2)));
+            gp_Pnt boat_mesh_point = original_boat_mesh_point;
             // we first take this point (which is in the RESTART hull location) and transform it to be in the
-            // REFERENCE configuration            
-            boat_mesh_point.Transform(restart_hull_location.Inverted());
+            // REFERENCE configuration 
+            //boat_mesh_point.Transform(restart_hull_location.Inverted());
+           
             // now we have the point on the REFERENCE hull, and transform it to go onto the CURRENT hull
             boat_mesh_point.Transform(reference_to_current_transformation);
-            comp_dom.rigid_motion_map_points(3*i) = boat_mesh_point.X() - comp_dom.ref_points[3*i](0);
-            comp_dom.rigid_motion_map_points(3*i+1) = boat_mesh_point.Y() - comp_dom.ref_points[3*i](1);
-            comp_dom.rigid_motion_map_points(3*i+2) = boat_mesh_point.Z() - comp_dom.ref_points[3*i](2);
-            //cout<<"AFTER: "<<Pnt(boat_mesh_point)<<endl;
+            // the rigid motion map points is the difference between the reference point position and the
+            // current (rigidly displaced) node position
+            comp_dom.rigid_motion_map_points(3*i) = hull_lin_displ(0);//boat_mesh_point.X() - original_boat_mesh_point.X();
+            comp_dom.rigid_motion_map_points(3*i+1) = hull_lin_displ(1);//boat_mesh_point.Y() - original_boat_mesh_point.Y();
+            comp_dom.rigid_motion_map_points(3*i+2) = hull_lin_displ(2);//boat_mesh_point.Z() - original_boat_mesh_point.Z();
+            //if (fabs(t-0.2) <1e-5)
+            //cout<<"AFTER: "<<Pnt(boat_mesh_point)<<" vs "<<Pnt(original_boat_mesh_point)<<endl;
+            //cout<<"RMMP: "<<comp_dom.rigid_motion_map_points(3*i)<<" "
+            //              <<comp_dom.rigid_motion_map_points(3*i+1)<<" "
+            //              <<comp_dom.rigid_motion_map_points(3*i+2)<<endl;
+            //cout<<"NN: "<<comp_dom.rigid_motion_map_points(3*i)+nodes_positions(3*i)+comp_dom.ref_points[3*i](0)<<" "
+            //            <<comp_dom.rigid_motion_map_points(3*i+1)+nodes_positions(3*i+1)+comp_dom.ref_points[3*i](1)<<" "
+            //            <<comp_dom.rigid_motion_map_points(3*i+2)+nodes_positions(3*i+2)+comp_dom.ref_points[3*i](2)<<endl;
             }
          }
   
-     }
+  //   }
+  // INEFFICIENTE!!!!!!!!!!
+  
+
+
+
+  Vector<double> full_map_points(comp_dom.rigid_motion_map_points);
+  full_map_points.add(nodes_positions);
+  comp_dom.update_mapping(full_map_points);
+  comp_dom.update_support_points();
+
+
+
+  //we work on a local COPY of map_points
+  working_map_points = comp_dom.map_points;
+  nodes_pos_res = 0;
+
+  //we enforce constraint on the new geometry assigned by the DAE solver
+  vector_constraints.distribute(working_map_points);
 
   // as for now x and y coordinates of nodes are not moved (no surface smoothing)
   // so on x and y coordinates (except for water nodes) we only need to put a one
@@ -4211,30 +4843,52 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
            !(comp_dom.flags[i] & transom_on_water) &&
            (!constraints.is_constrained(i)))
          {
-         working_map_points(3*i) = comp_dom.rigid_motion_map_points(3*i);
-         working_map_points(3*i+1) = comp_dom.rigid_motion_map_points(3*i+1);
+         working_map_points(3*i) = comp_dom.old_map_points(3*i);
+         working_map_points(3*i+1) = comp_dom.old_map_points(3*i+1);
          jacobian_matrix.add(3*i,3*i,1.0);
          jacobian_matrix.add(3*i+1,3*i+1,1.0);
+         //cout<<"& "<<3*i<<" "<<3*i+1<<endl;
+         }
+      else if ( !(comp_dom.flags[i] & near_water) &&
+                (comp_dom.flags[i] & boat) &&
+               (!constraints.is_constrained(i)))
+         {
+         working_map_points(3*i) = comp_dom.old_map_points(3*i)-restart_hull_displacement(0)+hull_lin_displ(0);
+         working_map_points(3*i+1) = comp_dom.old_map_points(3*i+1)-restart_hull_displacement(1)+hull_lin_displ(1);
+         working_map_points(3*i+2) = comp_dom.old_map_points(3*i+2)-restart_hull_displacement(2)+hull_lin_displ(2);
+         jacobian_matrix.add(3*i,3*i,1.0);
+         jacobian_matrix.add(3*i+1,3*i+1,1.0);
+         jacobian_matrix.add(3*i+2,3*i+2,1.0);
+         //cout<<"&& "<<3*i<<" "<<3*i+1<<" "<<3*i+2<<endl;
+         //jacobian_matrix.add(3*i,3+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),1.0);
+         //jacobian_matrix.add(3*i+1,3+1+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),1.0);
+         //jacobian_matrix.add(3*i+2,3+2+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),1.0);
          }
       else if ( !(comp_dom.flags[i] & near_water) &&
                 !(comp_dom.flags[i] & water) &&
+                !(comp_dom.flags[i] & boat) &&
                (!constraints.is_constrained(i)))
          {
-         working_map_points(3*i) = comp_dom.rigid_motion_map_points(3*i);
-         working_map_points(3*i+1) = comp_dom.rigid_motion_map_points(3*i+1);
-         working_map_points(3*i+2) = comp_dom.rigid_motion_map_points(3*i+2);
+         working_map_points(3*i) = comp_dom.old_map_points(3*i);
+         working_map_points(3*i+1) = comp_dom.old_map_points(3*i+1);
+         working_map_points(3*i+2) = comp_dom.old_map_points(3*i+2);
          jacobian_matrix.add(3*i,3*i,1.0);
          jacobian_matrix.add(3*i+1,3*i+1,1.0);
          jacobian_matrix.add(3*i+2,3*i+2,1.0);
+         //cout<<"&& "<<3*i<<" "<<3*i+1<<" "<<3*i+2<<endl;         
          }
       else if ((comp_dom.flags[i] & transom_on_water) )
          {
-         working_map_points(3*i) = comp_dom.rigid_motion_map_points(3*i);
-         working_map_points(3*i+1) = comp_dom.rigid_motion_map_points(3*i+1);
-         working_map_points(3*i+2) = comp_dom.rigid_motion_map_points(3*i+2);
+         working_map_points(3*i) = comp_dom.old_map_points(3*i)-restart_hull_displacement(0)+hull_lin_displ(0);
+         working_map_points(3*i+1) = comp_dom.old_map_points(3*i+1)-restart_hull_displacement(1)+hull_lin_displ(1);
+         working_map_points(3*i+2) = comp_dom.old_map_points(3*i+2)-restart_hull_displacement(2)+hull_lin_displ(2);
          jacobian_matrix.add(3*i,3*i,1.0);
          jacobian_matrix.add(3*i+1,3*i+1,1.0);
          jacobian_matrix.add(3*i+2,3*i+2,1.0);
+         //cout<<"&& "<<3*i<<" "<<3*i+1<<" "<<3*i+2<<endl;
+         //jacobian_matrix.add(3*i,3+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),1.0);
+         //jacobian_matrix.add(3*i+1,3+1+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),1.0);
+         //jacobian_matrix.add(3*i+2,3+2+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),1.0);
          }          
       }
 
@@ -4297,13 +4951,13 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
             //                                                                          comp_dom.support_points[i]);  // y axis projection
             if (fabs(comp_dom.old_iges_normals[i](0))<sqrt(3)/3*fabs(comp_dom.old_iges_normals[i](1)))
                {
-               working_map_points(3*i) = comp_dom.rigid_motion_map_points(3*i); // x of the node must not change
+               working_map_points(3*i) = comp_dom.old_map_points(3*i); // x of the node must not change
                working_map_points(3*i+1) = proj_node(1) - comp_dom.ref_points[3*i](1);
                }
             else
                {
                working_map_points(3*i) = proj_node(0) - comp_dom.ref_points[3*i](0);
-               working_map_points(3*i+1) = comp_dom.rigid_motion_map_points(3*i+1); // y of the node must not change
+               working_map_points(3*i+1) = comp_dom.old_map_points(3*i+1); // y of the node must not change
                }            
             working_map_points(3*i+2) = proj_node(2) - comp_dom.ref_points[3*i](2);
 
@@ -4313,6 +4967,18 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
                jacobian_matrix.add(3*i+1,3*i+1,1.0);
                jacobian_matrix.add(3*i+1,3*i+2,comp_dom.iges_normals[i](2)/comp_dom.iges_normals[i](1));
                jacobian_matrix.add(3*i+1,3*i,comp_dom.iges_normals[i](0)/comp_dom.iges_normals[i](1));
+               jacobian_matrix.add(3*i+1,comp_dom.vector_dh.n_dofs()+
+                                         comp_dom.dh.n_dofs()+
+                                         comp_dom.dh.n_dofs()+
+                                         3,-comp_dom.iges_normals[i](0)/comp_dom.iges_normals[i](1));
+               jacobian_matrix.add(3*i+1,comp_dom.vector_dh.n_dofs()+
+                                         comp_dom.dh.n_dofs()+
+                                         comp_dom.dh.n_dofs()+
+                                         3+1,-1.0);
+               jacobian_matrix.add(3*i+1,comp_dom.vector_dh.n_dofs()+
+                                         comp_dom.dh.n_dofs()+
+                                         comp_dom.dh.n_dofs()+
+                                         3+2,-comp_dom.iges_normals[i](2)/comp_dom.iges_normals[i](1));
                }
             else
                {
@@ -4320,8 +4986,19 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
                jacobian_matrix.add(3*i,3*i+2,comp_dom.iges_normals[i](2)/comp_dom.iges_normals[i](0));
                jacobian_matrix.add(3*i,3*i+1,comp_dom.iges_normals[i](1)/comp_dom.iges_normals[i](0));
                jacobian_matrix.add(3*i+1,3*i+1,1.0);
+               jacobian_matrix.add(3*i,comp_dom.vector_dh.n_dofs()+
+                                         comp_dom.dh.n_dofs()+
+                                         comp_dom.dh.n_dofs()+
+                                         3,-1.0);
+               jacobian_matrix.add(3*i,comp_dom.vector_dh.n_dofs()+
+                                         comp_dom.dh.n_dofs()+
+                                         comp_dom.dh.n_dofs()+
+                                         3+1,-comp_dom.iges_normals[i](1)/comp_dom.iges_normals[i](0));
+               jacobian_matrix.add(3*i,comp_dom.vector_dh.n_dofs()+
+                                         comp_dom.dh.n_dofs()+
+                                         comp_dom.dh.n_dofs()+
+                                         3+2,-comp_dom.iges_normals[i](2)/comp_dom.iges_normals[i](0));
                }
-            //cout<<3*i+1<<"   "<<working_map_points(3*i+1)-comp_dom.map_points(3*i+1)<<"   ("<<iges_normal<<")"<<endl;
 
                         // we're doing this thing on the water side, but the iges_normal and iges_mean curvature belong to the boat side
             std::set<unsigned int> duplicates = comp_dom.double_nodes_set[i];
@@ -4365,13 +5042,13 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
             //                                                                         comp_dom.support_points[i]);  // y axis projection
             if (fabs(comp_dom.old_iges_normals[i](0))<sqrt(3)/3*fabs(comp_dom.old_iges_normals[i](1)))
                {
-               working_map_points(3*i) = comp_dom.rigid_motion_map_points(3*i); // x of the node must not change
+               working_map_points(3*i) = comp_dom.old_map_points(3*i); // x of the node must not change
                working_map_points(3*i+1) = proj_node(1) - comp_dom.ref_points[3*i](1);
                }
             else
                {
                working_map_points(3*i) = proj_node(0) - comp_dom.ref_points[3*i](0);
-               working_map_points(3*i+1) = comp_dom.rigid_motion_map_points(3*i+1); // y of the node must not change
+               working_map_points(3*i+1) = comp_dom.old_map_points(3*i+1); // y of the node must not change
                }            
             working_map_points(3*i+2) = proj_node(2) - comp_dom.ref_points[3*i](2);
 
@@ -4381,6 +5058,18 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
                jacobian_matrix.add(3*i+1,3*i+1,1.0);
                jacobian_matrix.add(3*i+1,3*i+2,comp_dom.iges_normals[i](2)/comp_dom.iges_normals[i](1));
                jacobian_matrix.add(3*i+1,3*i,comp_dom.iges_normals[i](0)/comp_dom.iges_normals[i](1));
+               jacobian_matrix.add(3*i+1,comp_dom.vector_dh.n_dofs()+
+                                         comp_dom.dh.n_dofs()+
+                                         comp_dom.dh.n_dofs()+
+                                         3,-comp_dom.iges_normals[i](0)/comp_dom.iges_normals[i](1));
+               jacobian_matrix.add(3*i+1,comp_dom.vector_dh.n_dofs()+
+                                         comp_dom.dh.n_dofs()+
+                                         comp_dom.dh.n_dofs()+
+                                         3+1,-1.0);
+               jacobian_matrix.add(3*i+1,comp_dom.vector_dh.n_dofs()+
+                                         comp_dom.dh.n_dofs()+
+                                         comp_dom.dh.n_dofs()+
+                                         3+2,-comp_dom.iges_normals[i](2)/comp_dom.iges_normals[i](1));
                }
             else
                {
@@ -4388,6 +5077,18 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
                jacobian_matrix.add(3*i,3*i+2,comp_dom.iges_normals[i](2)/comp_dom.iges_normals[i](0));
                jacobian_matrix.add(3*i,3*i+1,comp_dom.iges_normals[i](1)/comp_dom.iges_normals[i](0));
                jacobian_matrix.add(3*i+1,3*i+1,1.0);
+               jacobian_matrix.add(3*i,comp_dom.vector_dh.n_dofs()+
+                                         comp_dom.dh.n_dofs()+
+                                         comp_dom.dh.n_dofs()+
+                                         3,-1.0);
+               jacobian_matrix.add(3*i,comp_dom.vector_dh.n_dofs()+
+                                         comp_dom.dh.n_dofs()+
+                                         comp_dom.dh.n_dofs()+
+                                         3+1,-comp_dom.iges_normals[i](1)/comp_dom.iges_normals[i](0));
+               jacobian_matrix.add(3*i,comp_dom.vector_dh.n_dofs()+
+                                         comp_dom.dh.n_dofs()+
+                                         comp_dom.dh.n_dofs()+
+                                         3+2,-comp_dom.iges_normals[i](2)/comp_dom.iges_normals[i](0));
                }
             //cout<<i<<"   "<<temp_src(3*i+1)<<"   ("<<comp_dom.iges_normals[i]<<")"<<endl;
 
@@ -4497,9 +5198,25 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
             comp_dom.edges_tangents[3*i+2] = V1.Z();
             // better using .set here?
             jacobian_matrix.set(3*i,3*i,1.0);
-            jacobian_matrix.set(3*i,3*i+2,-1.0*comp_dom.edges_tangents(3*i)/comp_dom.edges_tangents(3*i+2)); 
+            jacobian_matrix.set(3*i,3*i+2,-comp_dom.edges_tangents(3*i)/comp_dom.edges_tangents(3*i+2));
+            jacobian_matrix.set(3*i,comp_dom.vector_dh.n_dofs()+
+                                         comp_dom.dh.n_dofs()+
+                                         comp_dom.dh.n_dofs()+
+                                         3,-1.0);
+            jacobian_matrix.set(3*i,comp_dom.vector_dh.n_dofs()+
+                                         comp_dom.dh.n_dofs()+
+                                         comp_dom.dh.n_dofs()+
+                                         3+2,comp_dom.edges_tangents(3*i)/comp_dom.edges_tangents(3*i+2)); 
             jacobian_matrix.set(3*i+1,3*i+1,1.0);
-            jacobian_matrix.set(3*i+1,3*i+2,-1.0*comp_dom.edges_tangents(3*i+1)/comp_dom.edges_tangents(3*i+2));
+            jacobian_matrix.set(3*i+1,3*i+2,-comp_dom.edges_tangents(3*i+1)/comp_dom.edges_tangents(3*i+2));
+            jacobian_matrix.set(3*i+1,comp_dom.vector_dh.n_dofs()+
+                                         comp_dom.dh.n_dofs()+
+                                         comp_dom.dh.n_dofs()+
+                                         3+1,-1.0);
+            jacobian_matrix.set(3*i+1,comp_dom.vector_dh.n_dofs()+
+                                         comp_dom.dh.n_dofs()+
+                                         comp_dom.dh.n_dofs()+
+                                         3+2,comp_dom.edges_tangents(3*i+1)/comp_dom.edges_tangents(3*i+2));
             //cout<<i<<" (point) "<<comp_dom.support_points[i]<<endl;
             //cout<<i<<" (edges_tangents) "<<comp_dom.edges_tangents(3*i)<<","<<comp_dom.edges_tangents(3*i+1)<<","<<comp_dom.edges_tangents(3*i+2)<<endl;   
             }              
@@ -4507,173 +5224,35 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
 
      // this cycle hooks the boat and far field double nodes
      // to their water twins that have been moved
-     for (unsigned int i=0; i<comp_dom.vector_dh.n_dofs(); ++i)
+     for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
          {
-         if ( (comp_dom.vector_flags[i] & water) &&
-              (comp_dom.vector_flags[i] & edge) )
+         if ( (comp_dom.flags[i] & water) &&
+              (comp_dom.flags[i] & edge) )
             {
-            std::set<unsigned int> duplicates = comp_dom.vector_double_nodes_set[i];
+            std::set<unsigned int> duplicates = comp_dom.double_nodes_set[i];
             duplicates.erase(i); 
             for (std::set<unsigned int>::iterator pos = duplicates.begin(); pos !=duplicates.end(); pos++)
                 {//cout<<*pos<<"("<<i<<") "<<comp_dom.map_points(i)<<" vs "<<comp_dom.map_points(*pos)<<"   diff "<<comp_dom.map_points(i)-comp_dom.map_points(*pos)<<endl;
-                working_map_points(*pos) = comp_dom.map_points(i);
-                jacobian_matrix.add(*pos,*pos,1.0);
-                jacobian_matrix.add(*pos,i,-1.0);
+                for (unsigned int k=0; k<3; ++k)
+                    {
+                    working_map_points(3*(*pos)+k) = comp_dom.map_points(3*i+k);
+                    jacobian_matrix.add(3*(*pos)+k,3*(*pos)+k,1.0);
+                    jacobian_matrix.add(3*(*pos)+k,3*i+k,-1.0);
+                    if (comp_dom.flags[i] & transom_on_water)
+                       {
+                       jacobian_matrix.add(3*(*pos)+k,comp_dom.vector_dh.n_dofs()+
+                                                      comp_dom.dh.n_dofs()+
+                                                      comp_dom.dh.n_dofs()+3+k,-1.0);
+                       }
+                    }
                 }
             }
          }
 
 
-
      nodes_pos_res = working_map_points;
      nodes_pos_res*=-1;
      nodes_pos_res.add(comp_dom.map_points);
-
-
-
-//////////////////////////////////////////////////////////////////////
-// here we prepare the initial_map_points to be used in case of transom stern
-  if (!comp_dom.no_boat && comp_dom.boat_model.is_transom)
-     {
-     comp_dom.update_support_points();
-     
-     double transom_draft = fabs(comp_dom.boat_model.CurrentPointCenterTransom(2));
-     double transom_aspect_ratio = (fabs(comp_dom.boat_model.CurrentPointLeftTransom(1))+
-                                     fabs(comp_dom.boat_model.CurrentPointRightTransom(1)))/transom_draft;
-
-     wind.set_time(100000000.0);
-     Vector<double> instantWindValueTinf(dim);
-     Point<dim> zero(0,0,0);
-     wind.vector_value(zero,instantWindValueTinf);
-     Point<dim> VinfTinf;
-     for (unsigned int i = 0; i < dim; i++)
-       VinfTinf(i) = instantWindValueTinf(i);
-     wind.set_time(initial_time);
-
-     double FrT = sqrt(VinfTinf*VinfTinf)/sqrt(9.81*transom_draft);
-     double ReT = sqrt(9.81*pow(transom_draft,3.0))/1.307e-6;
-     double eta_dry = fmin(0.05*pow(FrT,2.834)*pow(transom_aspect_ratio,0.1352)*pow(ReT,0.01338),1.0);
-     double lh = 0.0;
-     //if (eta_dry < 1.0) 
-        lh = 5.0; 
-        //lh = 0.1135*pow(FrT,3.025)*pow(transom_aspect_ratio,0.4603)*pow(ReT,-0.1514);
-        //lh = 0.3265*pow(FrT,3.0) - 1.7216*pow(FrT,2.0) + 2.7593*FrT;
-     cout<<FrT<<" "<<transom_aspect_ratio<<" "<<ReT<<endl;
-     cout<<"****eta_dry: "<<eta_dry<<endl;
-
-     for(unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
-        {
-        comp_dom.initial_map_points(3*i+2) = 0.0;
-        }
-
-     for(unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
-        {
-        if ( (comp_dom.support_points[i](1) < comp_dom.boat_model.CurrentPointRightTransom(1)) &&
-             (comp_dom.support_points[i](1) >= 0.0) &&
-             (comp_dom.support_points[i](0) > comp_dom.boat_model.CurrentPointCenterTransom(0)-fabs(comp_dom.boat_model.CurrentPointCenterTransom(2)) ) &&
-             (comp_dom.support_points[i](0) < comp_dom.boat_model.CurrentPointCenterTransom(0)+lh*fabs(comp_dom.boat_model.CurrentPointCenterTransom(2)) )  &&
-             (comp_dom.support_points[i](2) > 2.0*comp_dom.boat_model.CurrentPointCenterTransom(2))   )
-             {
-             Point <3> dP0 = comp_dom.support_points[i];
-             Point <3> dP; 
-         				   //this is the vertical plane
-             Handle(Geom_Plane) vertPlane = new Geom_Plane(0.,1.,0.,-dP0(1));
-             vertPlane->Transform(comp_dom.boat_model.current_loc.Inverted());
-             Handle(Geom_Curve) curve = comp_dom.boat_model.right_transom_bspline;
-
-             GeomAPI_IntCS Intersector(curve, vertPlane);
-             int npoints = Intersector.NbPoints();
-             AssertThrow((npoints != 0), ExcMessage("Transom curve is not intersecting with vertical plane!"));
-             //cout<<"Number of intersections: "<<npoints<<endl;
-             double minDistance=1e7;
-             for (int j=0; j<npoints;++j)
-                 {
-                 gp_Pnt int_point = Intersector.Point(j+1);
-                 int_point.Transform(comp_dom.boat_model.current_loc);
-                 Point<3> inters = Pnt(int_point);
-
-                 if (dP0.distance(inters) < minDistance)
-                    {
-                    minDistance = dP0.distance(inters);
-                    dP = inters;
-                    }
-                 }
-
-             if ( (comp_dom.support_points[i](0) > dP(0)+comp_dom.min_diameter/20.0) &&
-                  (comp_dom.support_points[i](0) < dP(0)+lh*fabs(dP(2))+comp_dom.min_diameter/20.0) )
-                {
-                double mean_curvature;
-                Point<3> normal;
-                Point<3> projection;
-                comp_dom.boat_model.boat_surface_right->normal_projection_and_diff_forms(projection,
-                                                                                        normal,
-                                                                                        mean_curvature,
-			                                                                dP);
-                AssertThrow((dP.distance(projection) < 1e-4*comp_dom.boat_model.boatWetLength), ExcMessage("Normal projection for surface normal evaluation went wrong!"));
-                double transom_slope = -normal(0)/normal(2);
-                double a = -transom_slope/(lh*fabs(dP(2))) - 1/dP(2)/lh/lh;
-                double x = comp_dom.support_points[i](0)-dP(0);
-                comp_dom.initial_map_points(3*i+2) = a*x*x + transom_slope*x + dP(2);
-                }
-             }
-             else if ( (comp_dom.support_points[i](1) > comp_dom.boat_model.CurrentPointLeftTransom(1)) &&
-                       (comp_dom.support_points[i](1) < 0.0) &&
-                       (comp_dom.support_points[i](0) > comp_dom.boat_model.CurrentPointCenterTransom(0)-fabs(comp_dom.boat_model.CurrentPointCenterTransom(2))) &&
-                       (comp_dom.support_points[i](0) < comp_dom.boat_model.CurrentPointCenterTransom(0)+lh*fabs(comp_dom.boat_model.CurrentPointCenterTransom(2)))  &&
-                       (comp_dom.support_points[i](2) > 2.0*comp_dom.boat_model.CurrentPointCenterTransom(2))   )
-             {
-             Point <3> dP0 = comp_dom.support_points[i];
-             Point <3> dP; 
-         				   //this is the vertical plane
-             Handle(Geom_Plane) vertPlane = new Geom_Plane(0.,1.,0.,-dP0(1));
-             vertPlane->Transform(comp_dom.boat_model.current_loc.Inverted());
-             
-             Handle(Geom_Curve) curve = comp_dom.boat_model.left_transom_bspline;
-
-             GeomAPI_IntCS Intersector(curve, vertPlane);
-             int npoints = Intersector.NbPoints();
-             AssertThrow((npoints != 0), ExcMessage("Transom curve is not intersecting with vertical plane!"));
-             //cout<<"Number of intersections: "<<npoints<<endl;
-             double minDistance=1e7;
-             for (int j=0; j<npoints;++j)
-                 {
-                 gp_Pnt int_point = Intersector.Point(j+1);
-                 int_point.Transform(comp_dom.boat_model.current_loc);
-                 Point<3> inters = Pnt(int_point);
-
-                 if (dP0.distance(inters) < minDistance)
-                    {
-                    minDistance = dP0.distance(inters);
-                    dP = inters;
-                    }
-                 }
-             if ( (comp_dom.support_points[i](0) > dP(0)+comp_dom.min_diameter/20.0) &&
-                  (comp_dom.support_points[i](0) < dP(0)+lh*fabs(dP(2))+comp_dom.min_diameter/20.0) )
-                {
-                double mean_curvature;
-                Point<3> normal;
-                Point<3> projection;
-                comp_dom.boat_model.boat_surface_left->normal_projection_and_diff_forms(projection,
-                                                                                        normal,
-                                                                                        mean_curvature,
-			                                                                dP);
-                AssertThrow((dP.distance(projection) < 1e-4*comp_dom.boat_model.boatWetLength), ExcMessage("Normal projection for surface normal evaluation went wrong!"));
-                double transom_slope = -normal(0)/normal(2);
-                double a = -transom_slope/(lh*fabs(dP(2))) - 1/dP(2)/lh/lh;
-                double x = comp_dom.support_points[i](0)-dP(0);
-                comp_dom.initial_map_points(3*i+2) = a*x*x + transom_slope*x + dP(2);
-                }
-             }
-        }
-  comp_dom.vector_constraints.distribute(comp_dom.initial_map_points);
-  }
-
-
-
-
-
-
-//////////////////////////////////////////////////////////////////////
 
 
 
@@ -4797,8 +5376,28 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
 
              
 //////////////////////////////////////////////////////////////////////
+  // here we compute eta_dry (just for a check)
+  Vector<double> wind_valuee(dim);
+  wind.vector_value(Point<3>(0.0,0.0,0.0),wind_valuee);
+  Point<dim> Vinff;
+  for (unsigned int i = 0; i < dim; i++)
+      Vinff(i) = wind_valuee(i);
+  double eta_dryy = 1.0;
+  if (!comp_dom.no_boat && comp_dom.boat_model.is_transom && sqrt(Vinff*Vinff) > 0.0)
+     {
+     double transom_beamm = comp_dom.boat_model.CurrentPointRightTransom(1) - comp_dom.boat_model.CurrentPointLeftTransom(1);
+     double transom_draftt = -comp_dom.boat_model.CurrentPointCenterTransom(2);
+     double transom_aspect_ratioo = transom_beamm/transom_draftt;
+     //cout<<restart_transom_right_tangent<<endl;
+     //cout<<"b: "<<transom_beam.val()<<" d:"<<transom_draft.val()<<" "<<"AR: "<<transom_aspect_ratio.val()<<endl;
+     double FrTr = sqrt(Vinff*Vinff)/sqrt(9.81*transom_draftt);
+     double ReTr = sqrt(9.81*pow(transom_draftt,3.0))/1.307e-6;
+     eta_dryy = 0.05*pow(FrTr,2.834)*pow(transom_aspect_ratioo,0.1352)*pow(ReTr,0.01338);
+     if (eta_dryy > 1.0)
+        eta_dryy = 1.0;
 
-
+     cout<<"Current eta_dry: "<<eta_dryy<<endl;
+     }
 
 //////////////////////////////////////////////////////////////////////
   // here we take care of the free surface boundary condition (differential)
@@ -4852,7 +5451,7 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
 ///////////////////////////////////
 
 // test: let's try assemble actual mass matrix
-
+  double g = 9.81;
   DphiDt_sys_matrix = 0;
   DphiDt_sys_solution = 0;
   DphiDt_sys_solution_2 = 0;
@@ -4862,6 +5461,30 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
   DphiDt_sys_rhs_3 = 0;
   DphiDt_sys_rhs_4 = 0;
 
+//let's build the residual (and jacobian) on the hull displacements and velocities (differential components) 
+  Point<3> hull_lin_vel_res(0.0,0.0,0.0);
+  Point<3> hull_lin_displ_res(0.0,0.0,0.0);
+  Point<3> g_vec(0.0,0.0,-g);
+
+  hull_lin_vel_res+= comp_dom.boat_model.boat_mass*hull_lin_vel_dot;
+  hull_lin_vel_res+= (-1.0*g_vec*comp_dom.boat_model.boat_mass);
+// this jacobian will be completed by the derivatives of the pressure force with respect to all the dofs 
+  for (unsigned int d=0; d<3;++d)
+      jacobian_dot_matrix.add(d+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                              d+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                              comp_dom.boat_model.boat_mass);
+
+
+  hull_lin_displ_res+= hull_lin_displ_dot - hull_lin_vel;
+  for (unsigned int d=0; d<3;++d)
+      {
+      jacobian_dot_matrix.add(d+3+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                              d+3+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                              1.0);    
+      jacobian_matrix.add(d+3+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                          d+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                          -1.0);
+      }
 //let's build the residual on the free surface cells (differential components)
   std::vector<double> eta_res(comp_dom.dh.n_dofs(),0.0);
   std::vector<double> phi_res(comp_dom.dh.n_dofs(),0.0);
@@ -4876,7 +5499,6 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
       Vinf(i) = wind_value(i);
 
   double amplitude = 0.02;
-  double g = 9.81;
   double rho = 1025.1;
   double ref_height;
   double Fn;
@@ -4932,20 +5554,29 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
   cell = comp_dom.dh.begin_active(),
   endc = comp_dom.dh.end();
 
+  std::vector<fad_double> ref_coors(3*dofs_per_cell);
   std::vector<fad_double> coors(3*dofs_per_cell);
   std::vector<fad_double> phis(dofs_per_cell);
   std::vector<fad_double> dphi_dns(dofs_per_cell);
+  std::vector<fad_double> ref_coors_dot(3*dofs_per_cell);
   std::vector<fad_double> coors_dot(3*dofs_per_cell);
   std::vector<fad_double> phis_dot(dofs_per_cell);
   std::vector<fad_double> dphi_dns_dot(dofs_per_cell);
   std::vector<fad_double> x_displs(dofs_per_cell);
   std::vector<fad_double> y_displs(dofs_per_cell);
-  
+
+  std::vector<fad_double> hull_baricenter_displ(3);
+  std::vector<fad_double> hull_baricenter_vel(3);  
+ 
   std::vector<fad_double> loc_eta_res(dofs_per_cell);
   std::vector<fad_double> loc_phi_res(dofs_per_cell);
   std::vector<fad_double> loc_dphi_dn_res(dofs_per_cell);
   std::vector<fad_double> loc_x_smooth_res(dofs_per_cell);
   std::vector<fad_double> loc_y_smooth_res(dofs_per_cell);
+  Point<3,fad_double> loc_pressure_force;
+  Point<3,fad_double> loc_pressure_moment;
+  Point<3> pressure_force(0.0,0.0,0.0);
+  Point<3> pressure_moment(0.0,0.0,0.0);
 
   std::vector< std::vector<fad_double> > loc_stiffness_matrix(dofs_per_cell);
   std::vector< std::vector<fad_double> > loc_mass_matrix(dofs_per_cell);
@@ -4958,14 +5589,6 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
       loc_supg_mass_matrix[i].resize(dofs_per_cell);
       }
 
-  double eta_dry = 1.0;
-  double lh = 0.0;
-  double transom_draft = fabs(comp_dom.boat_model.CurrentPointCenterTransom(2));
-  //double transom_draft = ref_transom_wet_surface/(fabs(comp_dom.boat_model.PointLeftTransom(1))+
-  //                                                   fabs(comp_dom.boat_model.PointRightTransom(1)));
-  double transom_beam = (fabs(comp_dom.boat_model.CurrentPointLeftTransom(1))+
-                         fabs(comp_dom.boat_model.CurrentPointRightTransom(1)));
-
   std::vector<Point<dim> > initial_support_points(comp_dom.dh.n_dofs());
   for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
       {
@@ -4974,26 +5597,6 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
                                            comp_dom.ref_points[3*i](2)+comp_dom.initial_map_points(3*i+2));
       } 
 
-
-//just in case of additional pressure to be added past wet transom stern
-   if (!comp_dom.no_boat && comp_dom.boat_model.is_transom && sqrt(Vinf*Vinf) > 0.0)
-      {
-      //double mean_transom_draft = ref_transom_wet_surface/(fabs(comp_dom.boat_model.PointLeftTransom(1))+
-      //                                                     fabs(comp_dom.boat_model.PointRightTransom(1)));
-      double transom_aspect_ratio = (fabs(comp_dom.boat_model.CurrentPointLeftTransom(1))+
-                                     fabs(comp_dom.boat_model.CurrentPointRightTransom(1)))/transom_draft;
-      double FrT = sqrt(Vinf*Vinf)/sqrt(9.81*transom_draft);
-      double ReT = sqrt(9.81*pow(transom_draft,3.0))/1.307e-6;
-      eta_dry = fmin(0.05*pow(FrT,2.834)*pow(transom_aspect_ratio,0.1352)*pow(ReT,0.01338),1.0);
-      //if (eta_dry < 1.0) 
-         lh = 5.0; 
-        //lh = 0.1135*pow(FrT,3.025)*pow(transom_aspect_ratio,0.4603)*pow(ReT,-0.1514);
-         //lh = 0.3265*pow(FrT,3.0) - 1.7216*pow(FrT,2.0) + 2.7593*FrT;  
-      //cout<<"LH: "<<lh<<endl;
-      //lh = fmax(lh,3.0*transom_draft);
-      cout<<"lh: "<<lh<<endl;
-      cout<<"****eta_dry: "<<eta_dry<<endl;
-      }
 
   std::vector<unsigned int> local_dof_indices(dofs_per_cell);
 
@@ -5018,6 +5621,9 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
          local_DphiDt_rhs_2 = 0;
          local_DphiDt_rhs_3 = 0;
          local_DphiDt_rhs_4 = 0;
+
+         loc_pressure_force = Point<3,fad_double>(0.0,0.0,0.0);
+         loc_pressure_moment = Point<3,fad_double>(0.0,0.0,0.0);
 
          cell->get_dof_indices(local_dof_indices);
          for (unsigned int i=0; i<dofs_per_cell; ++i)
@@ -5055,26 +5661,69 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
                 }
             */
 
+         for (unsigned int j=0; j<3; ++j)
+             {
+             hull_baricenter_vel[j] = hull_lin_vel(j);
+             hull_baricenter_displ[j] = hull_lin_displ(j);
+             hull_baricenter_vel[j].diff(10*dofs_per_cell+j,10*dofs_per_cell+6);
+             hull_baricenter_displ[j].diff(10*dofs_per_cell+3+j,10*dofs_per_cell+6);
+             }
+
          for (unsigned int i=0; i<dofs_per_cell; ++i)
-             for (unsigned int j=0; j<3; ++j)
-                 {
-                 coors[3*i+j] = comp_dom.support_points[local_dof_indices[i]](j);
-                 (coors[3*i+j]).diff(3*i+j,10*dofs_per_cell);
-                 coors_dot[3*i+j] = nodes_velocities(3*local_dof_indices[i]+j);
-                 (coors_dot[3*i+j]).diff(3*i+j+5*dofs_per_cell,10*dofs_per_cell);
-                 }
+             if ( ((comp_dom.flags[local_dof_indices[i]] & boat) &&
+                  !(comp_dom.flags[local_dof_indices[i]] & near_water) ) ||
+                  (comp_dom.flags[local_dof_indices[i]] & transom_on_water) )
+                for (unsigned int j=0; j<3; ++j)
+                    {
+                    ref_coors[3*i+j] = comp_dom.support_points[local_dof_indices[i]](j) -
+                                       hull_baricenter_displ[j];
+                    (ref_coors[3*i+j]).diff(3*i+j,10*dofs_per_cell+6);
+                    coors[3*i+j] = ref_coors[3*i+j] + hull_baricenter_displ[j];
+                    //cout<<"TESTTTTTT:::: "<<coors[3*i+j]-comp_dom.support_points[local_dof_indices[i]](j)<<endl;
+                    ref_coors_dot[3*i+j] = nodes_velocities(3*local_dof_indices[i]+j);
+                    (ref_coors_dot[3*i+j]).diff(3*i+j+5*dofs_per_cell,10*dofs_per_cell+6);
+                    coors_dot[3*i+j] = ref_coors_dot[3*i+j] + hull_baricenter_vel[j];
+                    }
+             else
+                for (unsigned int j=0; j<3; ++j)
+                    {
+                    coors[3*i+j] = comp_dom.support_points[local_dof_indices[i]](j);
+                    (coors[3*i+j]).diff(3*i+j,10*dofs_per_cell+6);
+                    coors_dot[3*i+j] = nodes_velocities(3*local_dof_indices[i]+j);
+                    (coors_dot[3*i+j]).diff(3*i+j+5*dofs_per_cell,10*dofs_per_cell+6);
+                    }
          for (unsigned int i=0; i<dofs_per_cell; ++i)
              {
              phis[i] = phi(local_dof_indices[i]);
-             phis[i].diff(i+3*dofs_per_cell,10*dofs_per_cell);
+             phis[i].diff(i+3*dofs_per_cell,10*dofs_per_cell+6);
              phis_dot[i] = phi_time_derivs(local_dof_indices[i]);
-             phis_dot[i].diff(i+8*dofs_per_cell,10*dofs_per_cell);
+             phis_dot[i].diff(i+8*dofs_per_cell,10*dofs_per_cell+6);
              dphi_dns[i] = dphi_dn(local_dof_indices[i]);
-             dphi_dns[i].diff(i+4*dofs_per_cell,10*dofs_per_cell);
+             dphi_dns[i].diff(i+4*dofs_per_cell,10*dofs_per_cell+6);
              dphi_dns_dot[i] = dphi_dn_time_derivs(local_dof_indices[i]);
-             dphi_dns_dot[i].diff(i+9*dofs_per_cell,10*dofs_per_cell);
+             dphi_dns_dot[i].diff(i+9*dofs_per_cell,10*dofs_per_cell+6);
              //std::cout<<i<<"--> "<<local_dof_indices[i]<<"--------->"<<bem_phi(local_dof_indices[i])<<"  "<<bem_dphi_dn(local_dof_indices[i])<<endl;
              }
+
+         //just in case of additional pressure to be added past wet transom stern
+         fad_double eta_dry = 1.0;
+         if (!comp_dom.no_boat && comp_dom.boat_model.is_transom && sqrt(Vinf*Vinf) > 0.0)
+            {
+            fad_double transom_beam = restart_transom_right_point(1) - restart_transom_left_point(1) +
+                       restart_transom_right_tangent(1)/restart_transom_right_tangent(2)*(hull_baricenter_displ[2]-restart_hull_displacement(2))-
+                       restart_transom_left_tangent(1)/restart_transom_left_tangent(2)*(hull_baricenter_displ[2]-restart_hull_displacement(2));
+            fad_double transom_draft = -restart_transom_center_point(2)+hull_baricenter_displ[2]-restart_hull_displacement(2);
+            fad_double transom_aspect_ratio = transom_beam/transom_draft;
+            //cout<<restart_transom_right_tangent<<endl;
+            //cout<<"b: "<<transom_beam.val()<<" d:"<<transom_draft.val()<<" "<<"AR: "<<transom_aspect_ratio.val()<<endl;
+            fad_double FrT = sqrt(Vinf*Vinf)/sqrt(9.81*transom_draft);
+            fad_double ReT = sqrt(9.81*pow(transom_draft,3.0))/1.307e-6;
+            eta_dry = 0.05*pow(FrT,2.834)*pow(transom_aspect_ratio,0.1352)*pow(ReT,0.01338);
+            if (eta_dry.val() > 1)
+               eta_dry = 1.0;
+            if (cell == comp_dom.dh.begin_active())
+               cout<<"Sacado eta_dry: "<<eta_dry.val()<<endl;
+            }
 
          // computation of displacements
          for (unsigned int i=0; i<dofs_per_cell; ++i)
@@ -5109,12 +5758,13 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
              fad_double u_deriv_phi = fad_double(0.0);
              fad_double v_deriv_phi = fad_double(0.0);
              fad_double q_dphi_dn = fad_double(0.0);
+             fad_double q_phi_dot = fad_double(0.0);
              fad_double q_x_dot = fad_double(0.0);
              fad_double q_y_dot = fad_double(0.0);
              fad_double q_z_dot = fad_double(0.0);
              fad_double q_eta = fad_double(0.0);
              fad_double q_ex_press = fad_double(0.0);
-             Point<3> q_init(0.0,0.0,0.0);
+             Point<3,fad_double> q_init(fad_double(0.0),fad_double(0.0),fad_double(0.0));
              cout.precision(10);
              for (unsigned int i=0; i<dofs_per_cell; ++i)
                  {
@@ -5125,55 +5775,28 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
                  u_deriv_phi += fad_double(ref_fe_v.shape_grad(i,q)[0])*phis[i];
                  v_deriv_phi += fad_double(ref_fe_v.shape_grad(i,q)[1])*phis[i];
                  q_dphi_dn += fad_double(ref_fe_v.shape_value(i,q))*dphi_dns[i];
+                 q_phi_dot += fad_double(ref_fe_v.shape_value(i,q))*phis_dot[i];
                  q_x_dot += fad_double(ref_fe_v.shape_value(i,q))*coors_dot[3*i];
                  q_y_dot += fad_double(ref_fe_v.shape_value(i,q))*coors_dot[3*i+1];
                  q_z_dot += fad_double(ref_fe_v.shape_value(i,q))*coors_dot[3*i+2];
                  q_eta +=  fad_double(ref_fe_v.shape_value(i,q))*coors[3*i+2];
                  q_ex_press += fad_double(ref_fe_v.shape_value(i,q))*ex_press[local_dof_indices[i]];
-                 q_init += ref_fe_v.shape_value(i,q)*initial_support_points[local_dof_indices[i]];
+                 q_init(0) += ref_fe_v.shape_value(i,q)*fad_double(initial_support_points[local_dof_indices[i]](0));
+                 q_init(1) += ref_fe_v.shape_value(i,q)*fad_double(initial_support_points[local_dof_indices[i]](1));
+                 q_init(2) += ref_fe_v.shape_value(i,q)*fad_double(initial_support_points[local_dof_indices[i]](2));
                  //q_init += ref_fe_v.shape_value(i,q)*comp_dom.ref_points[3*local_dof_indices[i]];
                  //std::cout<<i<<"-------> "<<u_deriv_pos<<" "<<v_deriv_pos<<" "<<u_deriv_phi<<" "<<v_deriv_phi<<endl;
                  //std::cout<<i<<"-------> "<<coors[3*i]<<" "<<coors[3*i+1]<<" "<<coors[3*i+2]<<" "<<endl;
                  //cout<<"Earlier: "<<"i "<<i<<"   q "<<q<<"  "<<ref_fe_v.shape_value(i,q)*gg(2).val()<<endl;
                  }
-             fad_double transom_added_pressure = 0.0;
-             if (!comp_dom.no_boat && comp_dom.boat_model.is_transom)
+             Point<3> cen = cell->center();
+             if (fabs(cen(2)) > 1e-5 )
                 {
-                if ( (q_init(1) < comp_dom.boat_model.PointRightTransom(1)) &&
-                     (q_init(1) >= 0.0)    )
-                   {
-                   fad_double Fy = -16*transom_draft/pow(transom_beam,3.0)*pow(q_init(1),3.0)
-                                   +12*transom_draft/pow(transom_beam,2.0)*pow(q_init(1),2.0)-transom_draft;
-                   if ( (q_init(0) > comp_dom.boat_model.PointCenterTransom(0)) &&
-                        (q_init(0) < comp_dom.boat_model.PointCenterTransom(0)-lh*Fy)  )
-                      {
-                      fad_double x_transom = q_init(0)-comp_dom.boat_model.PointCenterTransom(0);
-                      fad_double Fx = +2*(1-eta_dry)*transom_draft/pow(-lh*Fy,3.0)*pow(x_transom,3.0)
-                                      -3*(1-eta_dry)*transom_draft/pow(-lh*Fy,2.0)*pow(x_transom,2.0)+(1-eta_dry)*transom_draft;
-                      transom_added_pressure = -Fx*g;
-                      }
-                   
-                   }
-                 else if ( (q_init(1) > comp_dom.boat_model.PointLeftTransom(1)) &&
-                           (q_init(1) < 0.0)    )
-                   {
-                   fad_double Fy = -16*transom_draft/pow(transom_beam,3.0)*pow(-q_init(1),3.0)
-                                   +12*transom_draft/pow(transom_beam,2.0)*pow(-q_init(1),2.0)-transom_draft;
-                   if ( (q_init(0) > comp_dom.boat_model.PointCenterTransom(0)) &&
-                        (q_init(0) < comp_dom.boat_model.PointCenterTransom(0)-lh*Fy)  )
-                      {
-                      fad_double x_transom = q_init(0)-comp_dom.boat_model.PointCenterTransom(0);
-                      fad_double Fx = +2*(1-eta_dry)*transom_draft/pow(-lh*Fy,3.0)*pow(x_transom,3.0)
-                                      -3*(1-eta_dry)*transom_draft/pow(-lh*Fy,2.0)*pow(x_transom,2.0)+(1-eta_dry)*transom_draft;
-                      transom_added_pressure = -Fx*g;
-                      }
-                   }
+                q_init(0) += (hull_baricenter_displ[0]-fad_double(restart_hull_displacement(0)));
+                q_init(1) += (hull_baricenter_displ[1]-fad_double(restart_hull_displacement(1)));
+                q_init(2) += (hull_baricenter_displ[2]-fad_double(restart_hull_displacement(2)));
                 }
-             double time_factor = 1.0;
-             //if(t < 2.0)
-             //  time_factor = 0.5*sin(3.141592654*(t)/2-3.141592654/2)+0.5;
-             transom_added_pressure*=time_factor;
-             //cout<<"1l :("<<q_point(0).val()<<","<<q_point(1).val()<<","<<q_point(2).val()<<")   "<<transom_added_pressure.val()<<endl;
+             fad_double transom_added_pressure = 0.0;
 
              Point<3,fad_double> q_normal(u_deriv_pos(1)*v_deriv_pos(2)-u_deriv_pos(2)*v_deriv_pos(1),
                                           u_deriv_pos(2)*v_deriv_pos(0)-u_deriv_pos(0)*v_deriv_pos(2),
@@ -5435,18 +6058,27 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
                  cell->material_id() == comp_dom.wall_sur_ID2 ||
                  cell->material_id() == comp_dom.wall_sur_ID3 )
                 {
+                Point<3,fad_double> VV_inf(fad_double(Vinf(0)),fad_double(Vinf(1)),fad_double(Vinf(2)));
+                fad_double dphi_dt = q_phi_dot - q_nodes_vel*phi_grad;
+                fad_double local_pressure = -(fad_double(rho)*(dphi_dt+q_point*gg+phi_grad*(phi_grad/2.0+VV_inf))*q_JxW[q]);
+                loc_pressure_force += local_pressure*q_normal;
+                Point<3,fad_double> q_mom(q_point(1)*loc_pressure_force(2)-q_point(2)*loc_pressure_force(1),
+                                          q_point(2)*loc_pressure_force(0)-q_point(0)*loc_pressure_force(2),
+                                          q_point(0)*loc_pressure_force(1)-q_point(1)*loc_pressure_force(0));
+                loc_pressure_moment+= q_mom;
                 for (unsigned int i=0;i<dofs_per_cell;++i)
                     {
-                    Point<3,fad_double> VV_inf(fad_double(Vinf(0)),fad_double(Vinf(1)),fad_double(Vinf(2)));
-                    Point<3,fad_double> VV_hull(fad_double(0),
-                                                fad_double(0),
-                                                fad_double(2*dealii::numbers::PI*0.01*cos(2*dealii::numbers::PI*t)));
+                    
+                    //fad_double AV_hull = fad_double(1*dealii::numbers::PI*0.01*cos(1*dealii::numbers::PI*t));
+                    Point<3,fad_double> VV_hull(hull_baricenter_vel[0],
+                                                hull_baricenter_vel[1],
+                                                hull_baricenter_vel[2]);
                     loc_dphi_dn_res[i] -= (q_normal*(VV_hull-VV_inf))*
                                           fad_double(ref_fe_v.shape_value(i,q))*q_JxW[q];
                     //cout<<q<<"  "<<i<<"   "<<-(q_normal*Point<3,fad_double>(fad_double(Vinf(0)),fad_double(Vinf(1)),fad_double(Vinf(2)))).val()<<"    "<<cell->center()<<"    "<<endl;
                     //cout<<q<<"  "<<i<<"   "<<N_i_surf_grad<<"    "<<fluid_vel[q]/fluid_vel_norm<<"   "<<cell->diameter()/sqrt(2)<<endl;
                     //cout<<q<<"  "<<i<<"   "<<N_i_supg.val()<<"   "<<phi_dot_res_fun[q].val()<<"   "<<q_JxW[q].val()<<endl;
-                    local_DphiDt_rhs_3(i) += (-(q_normal*Point<3,fad_double>(fad_double(Vinf(0)),fad_double(Vinf(1)),fad_double(Vinf(2))))*
+                    local_DphiDt_rhs_3(i) += (-(q_normal*(VV_hull-VV_inf))*
                                            fad_double(ref_fe_v.shape_value(i,q))*q_JxW[q]).val();
                     //cout<<"**** "<<loc_dphi_dn_res[i].val()<<" "<<local_DphiDt_rhs_3(i)<<" "<<loc_dphi_dn_res[i].val()+local_DphiDt_rhs_3(i)<<endl;
                     for (unsigned int j=0;j<dofs_per_cell;++j)
@@ -5558,8 +6190,8 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
                      loc_eta_res[i] += loc_supg_mass_matrix[i][j]*coors_dot[3*j+2];
                      loc_phi_res[i] += loc_supg_mass_matrix[i][j]*phis_dot[j];
                      //if (fabs(t<0.005)<1e-4) {cout<<cell<<" "<<i<<" "<<phis_dot[j]<<endl;}
-                     loc_x_smooth_res[i] += loc_stiffness_matrix[i][j]*(x_displs[j]-(1-blend_factor)*comp_dom.rigid_motion_map_points(3*local_dof_indices[j]));
-                     loc_y_smooth_res[i] += loc_stiffness_matrix[i][j]*(y_displs[j]-(1-blend_factor)*comp_dom.rigid_motion_map_points(3*local_dof_indices[j]+1));
+                     loc_x_smooth_res[i] += loc_stiffness_matrix[i][j]*(x_displs[j]-(1-blend_factor)*comp_dom.old_map_points(3*local_dof_indices[j]));
+                     loc_y_smooth_res[i] += loc_stiffness_matrix[i][j]*(y_displs[j]-(1-blend_factor)*comp_dom.old_map_points(3*local_dof_indices[j]+1));
                      }
                  if ( !constraints.is_constrained(local_dof_indices[i]) &&
                       !(comp_dom.flags[local_dof_indices[i]] & transom_on_water))
@@ -5581,17 +6213,6 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
                         jacobian_matrix.add(3*ii+2,
                                             jj+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs(),
                                             loc_eta_res[i].fastAccessDx(4*dofs_per_cell+j));
-                        //if (local_dof_indices[i]==44)
-                        //   {
-                        //   cout<<"44!!!: "<<cell<<endl;
-                        //   for (unsigned int k=0; k<dim; ++k)
-                        //       cout<<3*jj+k<<" ";
-                        //   cout<<jj+comp_dom.vector_dh.n_dofs()<<" ";
-                        //   cout<<jj+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()<<" ";
-                        //   cout<<endl;
-                        //   } 
-                        //for (unsigned int k=0; k<dim; ++k)
-                        //cout<<"ooo "<<loc_phi_res[i].fastAccessDx(3*j+k)<<endl;
                        
                         for (unsigned int k=0; k<dim; ++k)
                             jacobian_matrix.add(ii+comp_dom.vector_dh.n_dofs(),
@@ -5614,7 +6235,6 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
                         jacobian_dot_matrix.add(3*ii+2,
                                                 jj+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs(),
                                                 loc_eta_res[i].fastAccessDx(9*dofs_per_cell+j));
-
                         for (unsigned int k=0; k<dim; ++k)
                             jacobian_dot_matrix.add(ii+comp_dom.vector_dh.n_dofs(),
                                                     3*jj+k,
@@ -5625,17 +6245,41 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
                         jacobian_dot_matrix.add(ii+comp_dom.vector_dh.n_dofs(),
                                                 jj+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs(),
                                                 loc_phi_res[i].fastAccessDx(9*dofs_per_cell+j));
-
                         }                     
+                    for (unsigned int k=0; k<dim; ++k)
+                        jacobian_matrix.add(3*ii+2,
+                                            k+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                            loc_eta_res[i].fastAccessDx(k+10*dofs_per_cell));
+                    for (unsigned int k=0; k<dim; ++k)
+                        jacobian_matrix.add(3*ii+2,
+                                            k+3+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                            loc_eta_res[i].fastAccessDx(k+3+10*dofs_per_cell));
+                    for (unsigned int k=0; k<dim; ++k)
+                        jacobian_matrix.add(ii+comp_dom.vector_dh.n_dofs(),
+                                            k+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                            loc_phi_res[i].fastAccessDx(k+10*dofs_per_cell));
+                    for (unsigned int k=0; k<dim; ++k)
+                        jacobian_matrix.add(ii+comp_dom.vector_dh.n_dofs(),
+                                            k+3+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                            loc_phi_res[i].fastAccessDx(k+3+10*dofs_per_cell));
+
                     }
                  if ( !(constraints.is_constrained(local_dof_indices[i])) &&
                       !(comp_dom.flags[local_dof_indices[i]] & edge) )
                     {
                     unsigned int ii = local_dof_indices[i];
+                    //if (local_dof_indices[i] == 601)
+                    //   cout<<"££MATCH££ "<<local_dof_indices[i]<<": "<<loc_x_smooth_res[i]<<endl;
                     x_smoothing_res[ii] += loc_x_smooth_res[i].val();
                     y_smoothing_res[ii] += loc_y_smooth_res[i].val();
                     for (unsigned int j=0;j<dofs_per_cell;++j)
                         {
+                        //if (local_dof_indices[i] == 601)
+                        //   {
+                        //   cout<<"("<<local_dof_indices[j]<<")"<<endl;
+                        //   for (unsigned int k=0; k<dim; ++k)
+                        //       cout<<"(-"<<coors[3*j+k]<<"-)"<<endl;
+                        //   }
                         unsigned int jj = local_dof_indices[j];
                         for (unsigned int k=0; k<dim; ++k)
                             jacobian_matrix.add(3*ii,
@@ -5647,6 +6291,8 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
                         jacobian_matrix.add(3*ii,
                                             jj+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs(),
                                             loc_x_smooth_res[i].fastAccessDx(4*dofs_per_cell+j));
+
+
                         for (unsigned int k=0; k<dim; ++k)
                             jacobian_matrix.add(3*ii+1,
                                                 3*jj+k,
@@ -5657,7 +6303,16 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
                         jacobian_matrix.add(3*ii+1,
                                             jj+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs(),
                                             loc_y_smooth_res[i].fastAccessDx(4*dofs_per_cell+j));
-                        }                     
+                        }
+                     for (unsigned int k=0; k<dim; ++k)
+                         jacobian_matrix.add(3*ii,
+                                             k+3+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                             loc_x_smooth_res[i].fastAccessDx(k+3+10*dofs_per_cell));
+                     for (unsigned int k=0; k<dim; ++k)
+                         jacobian_matrix.add(3*ii+1,
+                                             k+3+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                             loc_y_smooth_res[i].fastAccessDx(k+3+10*dofs_per_cell));
+                                             
                     }
                  }
              }
@@ -5720,6 +6375,122 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
              cell->material_id() != comp_dom.free_sur_ID2 &&
              cell->material_id() != comp_dom.free_sur_ID3 )
              {
+             if (cell->material_id() == comp_dom.wall_sur_ID1 ||
+                 cell->material_id() == comp_dom.wall_sur_ID2 ||
+                 cell->material_id() == comp_dom.wall_sur_ID3 )
+                {
+                for (unsigned int d=0;d<3;++d)
+                    pressure_force(d)+=loc_pressure_force(d).val();
+                for (unsigned int j=0;j<dofs_per_cell;++j)
+                    {
+                    unsigned int jj = local_dof_indices[j];
+                    if (is_hull_x_translation_imposed != true)
+                        {
+                        for (unsigned int d=0;d<3;++d)
+                            jacobian_matrix.add(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                                3*jj+d,
+                                                -loc_pressure_force(0).fastAccessDx(3*j+d));
+                        jacobian_matrix.add(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                            comp_dom.vector_dh.n_dofs()+jj,
+                                            -loc_pressure_force(0).fastAccessDx(j+3*dofs_per_cell));
+                        jacobian_matrix.add(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                            comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+jj,
+                                            -loc_pressure_force(0).fastAccessDx(j+4*dofs_per_cell));
+                        for (unsigned int d=0;d<3;++d)
+                            jacobian_dot_matrix.add(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                                    3*jj+d,
+                                                    -loc_pressure_force(0).fastAccessDx(3*j+d+5*dofs_per_cell));
+                        jacobian_dot_matrix.add(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                                comp_dom.vector_dh.n_dofs()+jj,
+                                                -loc_pressure_force(0).fastAccessDx(j+8*dofs_per_cell));
+                        jacobian_dot_matrix.add(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                                comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+jj,
+                                                -loc_pressure_force(0).fastAccessDx(j+9*dofs_per_cell));
+                        }
+                    if (is_hull_y_translation_imposed != true)
+                        {
+                        for (unsigned int d=0;d<3;++d)
+                            jacobian_matrix.add(1+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                                3*jj+d,
+                                                -loc_pressure_force(1).fastAccessDx(3*j+d));
+                        jacobian_matrix.add(1+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                            comp_dom.vector_dh.n_dofs()+jj,
+                                            -loc_pressure_force(1).fastAccessDx(j+3*dofs_per_cell));
+                        jacobian_matrix.add(1+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                            comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+jj,
+                                            -loc_pressure_force(1).fastAccessDx(j+4*dofs_per_cell));
+                        for (unsigned int d=0;d<3;++d)
+                            jacobian_dot_matrix.add(1+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                                    3*jj+d,
+                                                    -loc_pressure_force(1).fastAccessDx(3*j+d+5*dofs_per_cell));
+                        jacobian_dot_matrix.add(1+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                                comp_dom.vector_dh.n_dofs()+jj,
+                                                -loc_pressure_force(1).fastAccessDx(j+8*dofs_per_cell));
+                        jacobian_dot_matrix.add(1+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                                comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+jj,
+                                                -loc_pressure_force(1).fastAccessDx(j+9*dofs_per_cell));
+                        }
+                    if (is_hull_z_translation_imposed != true)
+                        {
+                        for (unsigned int d=0;d<3;++d)
+                            jacobian_matrix.add(2+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                                3*jj+d,
+                                                -loc_pressure_force(2).fastAccessDx(3*j+d));
+                        jacobian_matrix.add(2+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                            comp_dom.vector_dh.n_dofs()+jj,
+                                            -loc_pressure_force(2).fastAccessDx(j+3*dofs_per_cell));
+                        jacobian_matrix.add(2+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                            comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+jj,
+                                            -loc_pressure_force(2).fastAccessDx(j+4*dofs_per_cell));
+                        for (unsigned int d=0;d<3;++d)
+                            jacobian_dot_matrix.add(2+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                                    3*jj+d,
+                                                    -loc_pressure_force(2).fastAccessDx(3*j+d+5*dofs_per_cell));
+                        jacobian_dot_matrix.add(2+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                                comp_dom.vector_dh.n_dofs()+jj,
+                                                -loc_pressure_force(2).fastAccessDx(j+8*dofs_per_cell));
+                        jacobian_dot_matrix.add(2+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                                comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+jj,
+                                                -loc_pressure_force(2).fastAccessDx(j+9*dofs_per_cell));
+                        }
+                    }
+                if (is_hull_x_translation_imposed != true)
+                    {
+                    for (unsigned int d=0;d<3;++d)
+                        {
+                        jacobian_matrix.add(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                            d+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                            -loc_pressure_force(0).fastAccessDx(d+10*dofs_per_cell));
+                        jacobian_matrix.add(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                            d+3+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                            -loc_pressure_force(0).fastAccessDx(d+3+10*dofs_per_cell));
+                        } 
+                   }
+                if (is_hull_y_translation_imposed != true)
+                    {
+                    for (unsigned int d=0;d<3;++d)
+                        {
+                        jacobian_matrix.add(1+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                            d+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                            -loc_pressure_force(1).fastAccessDx(d+10*dofs_per_cell));
+                        jacobian_matrix.add(1+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                            d+3+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                            -loc_pressure_force(1).fastAccessDx(d+3+10*dofs_per_cell));
+                        } 
+                   }
+                   if (is_hull_z_translation_imposed != true)
+                    {
+                    for (unsigned int d=0;d<3;++d)
+                        {
+                        jacobian_matrix.add(2+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                            d+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                            -loc_pressure_force(2).fastAccessDx(d+10*dofs_per_cell));
+                        jacobian_matrix.add(2+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                            d+3+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                            -loc_pressure_force(2).fastAccessDx(d+3+10*dofs_per_cell));
+                        } 
+                   }
+                }
              for (unsigned int i=0;i<dofs_per_cell;++i)
                  {
                  unsigned int ii = local_dof_indices[i];
@@ -5744,11 +6515,70 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
                                             jj+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs(),
                                             loc_dphi_dn_res[i].fastAccessDx(4*dofs_per_cell+j));
                         }
+                    for (unsigned int k=0; k<dim; ++k)
+                        jacobian_matrix.add(ii+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                            k+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                            loc_dphi_dn_res[i].fastAccessDx(k+10*dofs_per_cell));
+                    for (unsigned int k=0; k<dim; ++k)
+                        jacobian_matrix.add(ii+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                            k+3+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                            loc_dphi_dn_res[i].fastAccessDx(k+3+10*dofs_per_cell));
                     }
                  }
              }
          }
       }
+
+//once looping on the cells is over, the pressure force and moment are ready: let's
+//add them to the residual for the boat acceleration
+cout<<"The current pressure force is: "<<pressure_force<<endl;
+if (is_hull_x_translation_imposed)
+   {
+   Point<1> time(t);
+   //double accel = hull_x_axis_translation.laplacian(time);
+   Point<1> delta_t(1e-5);
+   double accel = 0.0; //( hull_x_axis_translation.value(time+delta_t) -
+                    //2*hull_x_axis_translation.value(time) +
+                    //hull_x_axis_translation.value(time+(-1.0*delta_t)) ) / delta_t(0) / delta_t(0);
+   cout<<"********Test Laplacian x: "<<accel<<endl;
+   hull_lin_vel_res(0)-= accel*comp_dom.boat_model.boat_mass;
+   }
+else
+   hull_lin_vel_res(0)-= pressure_force(0);
+
+if (is_hull_y_translation_imposed)
+   {
+   Point<1> time(t);
+   //double accel = hull_y_axis_translation.laplacian(time);
+   Point<1> delta_t(1e-5);
+   double accel = 0.0;//( hull_y_axis_translation.value(time+delta_t) -
+                    //2*hull_y_axis_translation.value(time) +
+                    //hull_y_axis_translation.value(time+(-1.0*delta_t)) ) / delta_t(0) / delta_t(0);
+   cout<<"********Test Laplacian y: "<<accel<<endl;
+   hull_lin_vel_res(1)-= accel*comp_dom.boat_model.boat_mass;
+   }
+else
+   hull_lin_vel_res(1)-= pressure_force(1);
+
+if (is_hull_z_translation_imposed)
+   {
+   Point<1> time(t);
+   //double accel = hull_z_axis_translation.laplacian(time);
+   Point<1> delta_t(1e-5);
+   //double accel = ( hull_z_axis_translation.value(time+delta_t) -
+   //                 2*hull_z_axis_translation.value(time) +
+   //                 hull_z_axis_translation.value(time+(-1.0*delta_t)) ) / delta_t(0) / delta_t(0);
+   double accel = -0.01*pow(2.0*dealii::numbers::PI,2.0)*sin(2.0*dealii::numbers::PI*t); 
+   cout<<"********Test Laplacian z: "<<accel<<endl;
+   hull_lin_vel_res(2)-= accel*comp_dom.boat_model.boat_mass;
+   }
+else
+   hull_lin_vel_res(2)-= pressure_force(2);
+
+
+
+
+
 //for (unsigned int i=0; i<comp_dom.dh.n_dofs();++i)
 //    cout<<i<<"--->  "<<eta_res[i]<<endl;;
 
@@ -5866,6 +6696,8 @@ for (unsigned int i=0; i<this->n_dofs(); ++i)
      double residual_counter_8 = 0;
      double residual_counter_9 = 0;
      double residual_counter_10 = 0;
+     double residual_counter_11 = 0;
+     double residual_counter_12 = 0;
 
      for(unsigned int i=0; i<sys_comp.size(); ++i)
         switch((int) sys_comp(i)) 
@@ -5873,7 +6705,7 @@ for (unsigned int i=0; i<this->n_dofs(); ++i)
 	  case 0:
 					       // Alg. X
 	         dst(i) = nodes_pos_res(i);
-                 //if (fabs(dst(i)) > 1e-4)
+                 //if ((fabs(dst(i)) > 1e-6) && fabs(t-0.02)<1e-6)
                  //   std::cout<<"i --> "<<i<<" (0) "<<dst(i)<<" "<<comp_dom.vector_support_points[i]<<std::endl;
                  residual_counter_0 += fabs(dst(i)*dst(i));
 	         break;
@@ -5912,6 +6744,7 @@ for (unsigned int i=0; i<this->n_dofs(); ++i)
           case 7:
 	         dst(i) = bem_dphi_dn(i-comp_dom.vector_dh.n_dofs()-comp_dom.dh.n_dofs()) - src_yy(i);
                           //bem_residual(i-comp_dom.vector_dh.n_dofs()-comp_dom.dh.n_dofs());
+                 //std::cout<<"i --> "<<i<<" (7) "<<dst(i)<<std::endl;
 	         residual_counter_7 += fabs(dst(i)*dst(i));
 	         break;
    	  case 8:
@@ -5929,6 +6762,18 @@ for (unsigned int i=0; i<this->n_dofs(); ++i)
                  //std::cout<<"i --> "<<i<<" (10) "<<dst(i)<<" ("<<bem_phi(i-comp_dom.vector_dh.n_dofs())<<" vs "<<src_yy(i)<<")"<<std::endl;
 	         residual_counter_10 += fabs(dst(i)*dst(i));
                  break;
+   	  case 11:
+                 //cout<<i<<" ++++++ "<<i-comp_dom.vector_dh.n_dofs()-comp_dom.dh.n_dofs()-comp_dom.dh.n_dofs()<<endl;
+	         dst(i) = hull_lin_vel_res(i-comp_dom.vector_dh.n_dofs()-comp_dom.dh.n_dofs()-comp_dom.dh.n_dofs());
+                 //std::cout<<"i --> "<<i<<" (11) "<<dst(i)<<" ("<<bem_phi(i-comp_dom.vector_dh.n_dofs())<<" vs "<<src_yy(i)<<")"<<std::endl;
+	         residual_counter_11 += fabs(dst(i)*dst(i));
+                 break;
+   	  case 12:
+                 //cout<<i<<" ++++++ "<<i-comp_dom.vector_dh.n_dofs()-comp_dom.dh.n_dofs()-comp_dom.dh.n_dofs()<<endl;
+	         dst(i) = hull_lin_displ_res(i-3-comp_dom.vector_dh.n_dofs()-comp_dom.dh.n_dofs()-comp_dom.dh.n_dofs());
+                 //std::cout<<"i --> "<<i<<" (12) "<<dst(i)<<" ("<<bem_phi(i-comp_dom.vector_dh.n_dofs())<<" vs "<<src_yy(i)<<")"<<std::endl;
+	         residual_counter_12 += fabs(dst(i)*dst(i));
+                 break;
 	  default:
 	         Assert(false, ExcInternalError());
 	         break;
@@ -5944,7 +6789,9 @@ for (unsigned int i=0; i<this->n_dofs(); ++i)
      std::cout << "Current algebraic potential normal gradient bem residual: " << sqrt(residual_counter_7) << std::endl;
      std::cout << "Current algebraic free surface coords x residual: " << sqrt(residual_counter_8) << std::endl;
      std::cout << "Current algebraic free surface coords y residual: " << sqrt(residual_counter_9) << std::endl;
-     std::cout << "Current algebraic pressure/free surf phi residual: " << sqrt(residual_counter_10) << std::endl;    
+     std::cout << "Current algebraic pressure/free surf phi residual: " << sqrt(residual_counter_10) << std::endl;
+     std::cout << "Current differential rigid mode vel residual: " << sqrt(residual_counter_11) << std::endl;
+     std::cout << "Current differential rigid mode displ residual: " << sqrt(residual_counter_12) << std::endl;    
      static unsigned int res_evals = 0;
      res_evals++;
      std::cout << "Residual evaluations: " << res_evals << std::endl;
@@ -6109,11 +6956,12 @@ return 0;
 template <int dim>
 Vector<double> & FreeSurface<dim>::differential_components()
 {
-  if(diff_comp.size() != n_dofs())
+  if(diff_comp.size() != this->n_dofs())
     {
-      diff_comp.reinit(n_dofs());
-      alg_comp.reinit(n_dofs());
-      sys_comp.reinit(n_dofs());
+
+      diff_comp.reinit(this->n_dofs());
+      alg_comp.reinit(this->n_dofs());
+      sys_comp.reinit(this->n_dofs());
 
 				       // 0: X algebraic (horizontal coors, vertical constrained coors,
                                        //                 vertical coors not on free surface)
@@ -6126,8 +6974,9 @@ Vector<double> & FreeSurface<dim>::differential_components()
                                        // 7: dphi/dn algebraic on water/pressure coming from BEM solution (non constrained nodes)
                                        // 8: X algebraic coming from x position smoothing
                                        // 9: X algebraic coming from y position smoothing
-                                       // 10: phi algebraic (imposed equal to water counterpart on pressure side of
-                                       //     pressure/water interface) 
+                                       // 10: phi algebraic (imposed equal to water counterpart on pressure side of pressure/water interface)
+                                       // 11: rigid body motions (differential)
+                                       // 12: rigid body motions ( algebraic)    
       
       //let's start with the nodes positions dofs
       for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
@@ -6298,9 +7147,35 @@ Vector<double> & FreeSurface<dim>::differential_components()
 	    }
 	}
 
+  // finally, we set the final components, needed to displace the boat hull
+  for (unsigned int i=0; i<3; ++i)
+     {
+     diff_comp(i+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()) = 1;
+     sys_comp(i+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()) = 11;
+     alg_comp(i+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()) = 0;
+     diff_comp(i+3+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()) = 1;
+     sys_comp(i+3+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()) = 12;
+     alg_comp(i+3+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()) = 0;
+     }
+
   dofs_number = comp_dom.vector_dh.n_dofs() + // nodes positions
                 comp_dom.dh.n_dofs() +          // nodes potential
-                comp_dom.dh.n_dofs();           // nodes normal potential grandient
+                comp_dom.dh.n_dofs() +           // nodes normal potential grandient
+                6;                            // this accounts for hull rigid displacement and velocity
+ 
+  std::vector<unsigned int> row_lengths(dofs_number);
+
+  for (unsigned int i=0; i<dofs_number; ++i)
+      row_lengths[i] = 5*comp_dom.dh.max_couplings_between_dofs();
+
+  row_lengths[comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()] = dofs_number;
+  row_lengths[comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()+1] = dofs_number;
+  row_lengths[comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()+2] = dofs_number;
+  row_lengths[comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()+3] = 2;
+  row_lengths[comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()+4] = 2;
+  row_lengths[comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()+5] = 2;
+
+  
 
   //ConstraintMatrix constr;
   //constr.clear();
@@ -6311,7 +7186,7 @@ Vector<double> & FreeSurface<dim>::differential_components()
 
   jacobian_sparsity_pattern.reinit(dofs_number,
                                    dofs_number,
-                                   5*comp_dom.dh.max_couplings_between_dofs());
+                                   row_lengths);
   
   cell_it
   cell = comp_dom.dh.begin_active(),
@@ -6338,6 +7213,7 @@ Vector<double> & FreeSurface<dim>::differential_components()
                  jacobian_sparsity_pattern.add(ii+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs(),jj+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs());
                  }
              }
+
           for (unsigned int j=0; j<dofs_per_cell; ++j)
               {
               unsigned int jj = local_dof_indices[j];
@@ -6374,6 +7250,27 @@ Vector<double> & FreeSurface<dim>::differential_components()
               //cout<<ii+comp_dom.dh.n_dofs()+comp_dom.vector_dh.n_dofs()<<","<<3*jj+1<<endl;
               //cout<<ii+comp_dom.dh.n_dofs()+comp_dom.vector_dh.n_dofs()<<","<<3*jj+2<<endl;             
               }
+          // this is for the dependence of positions, phi and dphi_dn on the rigid modes 
+          for (unsigned int d=0; d<3; ++d)
+              {
+              for (unsigned int k=0; k<3; ++k)
+                  {
+                  jacobian_sparsity_pattern.add(3*ii+k,d+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
+                  jacobian_sparsity_pattern.add(3*ii+k,d+3+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
+                  }
+              jacobian_sparsity_pattern.add(ii+comp_dom.vector_dh.n_dofs(),
+                                            d+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
+              jacobian_sparsity_pattern.add(ii+comp_dom.vector_dh.n_dofs(),
+                                            d+3+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
+              jacobian_sparsity_pattern.add(ii+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                            d+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
+              jacobian_sparsity_pattern.add(ii+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                            d+3+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
+              }
+
+
+
+
           }
       }
 
@@ -6479,6 +7376,40 @@ Vector<double> & FreeSurface<dim>::differential_components()
             }
          }
 
+  // here's the rigid body part of the dofs jacobian sparsity pattern
+  for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
+      {
+      if ( comp_dom.flags[i] & boat )
+         for (unsigned int k=0; k<3; ++k)
+             {
+             jacobian_sparsity_pattern.add(k+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                           3*i);
+             jacobian_sparsity_pattern.add(k+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                           3*i+1);
+             jacobian_sparsity_pattern.add(k+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                           3*i+2);
+             jacobian_sparsity_pattern.add(k+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                           i+comp_dom.vector_dh.n_dofs());
+             jacobian_sparsity_pattern.add(k+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                           i+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs());
+
+             }
+      } 
+
+   for (unsigned int k=0; k<3; ++k)
+       for (unsigned int d=0; d<3; ++d)
+           {
+           jacobian_sparsity_pattern.add(k+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                         d+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
+           jacobian_sparsity_pattern.add(k+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                         3+d+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
+           }
+
+  for (unsigned int k=0; k<3; ++k)
+      {
+      jacobian_sparsity_pattern.add(k+3+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                    k+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
+      }
 
   jacobian_sparsity_pattern.compress();
   jacobian_matrix.reinit(jacobian_sparsity_pattern);

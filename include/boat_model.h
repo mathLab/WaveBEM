@@ -43,7 +43,7 @@ class BoatModel{
 
     Point<3> compute_hydrostatic_moment(const double &sink);
 
-    gp_Trsf set_current_position(const double &sink);
+    gp_Trsf set_current_position(const Point<3> &translation_vect, const double &trim);
 
 //private: 
 				     // keel intersection with undisturbed free surface at bow
@@ -143,6 +143,11 @@ class BoatModel{
                                      // flag to determine if we have a transom stern or not
     bool is_transom;
 
+    double boat_mass;
+
+    Point<3> current_left_transom_tangent;
+
+    Point<3> current_right_transom_tangent;
     
    
 };

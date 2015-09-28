@@ -36,6 +36,8 @@ public:
   bow_stern_indices.clear();
   water_indices.clear();
   phi_indices.clear();
+  rigid_modes_indices.clear();
+
   if (!comp_dom.no_boat)
      for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
          {
@@ -89,7 +91,12 @@ public:
                 }
              }
           }
-
+  
+        // we now add the rigid modes dofs
+  for (unsigned int d=0; d<6; ++d)
+      {
+      rigid_modes_indices.insert(d);
+      }
 
   free_surf_jac_x_delta.reinit(free_surf_y.size());
   free_surf_res.reinit(free_surf_y.size());
@@ -130,6 +137,13 @@ public:
       count++;
       }  
 
+  for (std::set <unsigned int>::iterator pos = rigid_modes_indices.begin(); pos != rigid_modes_indices.end(); ++pos)
+      {
+      unsigned int i=*pos;
+      indices_map[i+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()] = count;
+      count++;
+      }
+
 
   //cout<<" MAP "<<endl;
   //for (std::map <unsigned int,unsigned int>::iterator pos = indices_map.begin(); pos != indices_map.end(); ++pos)
@@ -143,9 +157,20 @@ public:
   //cout<<water_indices.size()<<endl;
   //cout<<phi_indices.size()<<endl;
   //cout<<2*water_line_indices.size()+3*bow_stern_indices.size()+water_indices.size()+phi_indices.size()+dphi_dn_indices.size()<<endl;
-  jacobian_sparsity_pattern.reinit(2*water_line_indices.size()+3*bow_stern_indices.size()+water_indices.size()+phi_indices.size(),
-                                   2*water_line_indices.size()+3*bow_stern_indices.size()+water_indices.size()+phi_indices.size(),
-                                   30);
+  std::vector<unsigned int> line_lengths(2*water_line_indices.size()+
+                                         3*bow_stern_indices.size()+
+                                         water_indices.size()+
+                                         phi_indices.size()+
+                                         rigid_modes_indices.size());
+  for (unsigned int i=0; i<2*water_line_indices.size()+3*bow_stern_indices.size()+water_indices.size()+phi_indices.size(); ++i)
+      line_lengths[i] = 30;
+  for (unsigned int i=0; i<rigid_modes_indices.size(); ++i)
+      line_lengths[i+2*water_line_indices.size()+3*bow_stern_indices.size()+water_indices.size()+phi_indices.size()] = 
+                   2*water_line_indices.size()+3*bow_stern_indices.size()+water_indices.size()+phi_indices.size()+rigid_modes_indices.size();
+
+  jacobian_sparsity_pattern.reinit(2*water_line_indices.size()+3*bow_stern_indices.size()+water_indices.size()+phi_indices.size()+rigid_modes_indices.size(),
+                                   2*water_line_indices.size()+3*bow_stern_indices.size()+water_indices.size()+phi_indices.size()+rigid_modes_indices.size(),
+                 line_lengths );
 
   count = 0;
   for (std::set <unsigned int>::iterator pos = water_line_indices.begin(); pos != water_line_indices.end(); ++pos)
@@ -196,7 +221,15 @@ public:
       count++;
       }
 
-
+  for (std::set <unsigned int>::iterator pos = rigid_modes_indices.begin(); pos != rigid_modes_indices.end(); ++pos)
+      {
+      unsigned int i=*pos;
+      for (SparsityPattern::iterator col=free_surf_jacobian_dot.get_sparsity_pattern().begin(i+comp_dom.vector_dh.n_dofs());
+           col!=free_surf_jacobian_dot.get_sparsity_pattern().end(i+comp_dom.vector_dh.n_dofs()); ++col)
+          if ( indices_map.count(col->column()) )
+             jacobian_sparsity_pattern.add(count,indices_map.find(col->column())->second);
+      count++;
+      }
   jacobian_sparsity_pattern.compress();
   jacobian_matrix.reinit(jacobian_sparsity_pattern);
 
@@ -250,6 +283,7 @@ public:
   std::set<unsigned int> bow_stern_indices;
   std::set<unsigned int> water_indices;
   std::set<unsigned int> phi_indices;
+  std::set<unsigned int> rigid_modes_indices;
   SparsityPattern      jacobian_sparsity_pattern;
   SparseMatrix<double> jacobian_matrix;
 

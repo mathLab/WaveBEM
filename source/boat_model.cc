@@ -288,6 +288,7 @@ void BoatModel::start_iges_model(std::string igesFileName,
      }
 
      Point<3> hs_force = compute_hydrostatic_force(0.0);
+     boat_mass = hs_force(2)/9.81;
      Point<3> hs_moment = compute_hydrostatic_moment(0.0);
 
      double rot_axis_x_coor = -hs_moment(1)/hs_force(2);
@@ -804,26 +805,26 @@ cout<<"UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU"<<endl;
       return hydrostatic_force;
 }
 
-gp_Trsf BoatModel::set_current_position(const double &sink)
+gp_Trsf BoatModel::set_current_position(const Point<3> &translation_vect, const double &trim)
 {
 
                                   //here we prepare the rotation of the boat of the requested trim angle     
-     //gp_Pnt rot_center(0.0,0.0,0.0);
-     //gp_Dir rot_dir(0.0,1.0,0.0);
-     //gp_Ax1 rot_axis(rot_center, rot_dir);
-     //gp_Trsf rotation;
-     //rotation.SetRotation(rot_axis,assigned_trim);
+     gp_Pnt rot_center(0.0,0.0,0.0);
+     gp_Dir rot_dir(0.0,1.0,0.0);
+     gp_Ax1 rot_axis(rot_center, rot_dir);
+     gp_Trsf rotation;
+     rotation.SetRotation(rot_axis,trim);
                                   //we first get the full transformation currently applied to the shape
      TopLoc_Location prev_L = reference_loc; 
      gp_Trsf prev_Transf = prev_L.Transformation();
 
                                   // here we prepare the translation of the boat of the requested sink
      gp_Trsf translation;
-     gp_Vec vrt_displ(0.0,0.0,sink);
+     gp_Vec vrt_displ(translation_vect(0),translation_vect(1),translation_vect(2));
      translation.SetTranslation(vrt_displ);
 
-
-     gp_Trsf this_transf = translation;
+                                  // the rotation and translation are combined in a single transformation
+     gp_Trsf this_transf = translation*rotation;
 
                                   // the rotation and translation are combined in a single transformation
      gp_Trsf new_Transf = this_transf*prev_Transf;
@@ -867,6 +868,27 @@ gp_Trsf BoatModel::set_current_position(const double &sink)
                     ExcMessage("Transom edges don't possess a single intersection with horizontal plane: is transom not immersed any more?"));
          transomLeft = IntersectorLeft.Point(1);
          transomRight = IntersectorRight.Point(1);
+
+         double param;
+         double u;
+         double v;
+
+         IntersectorLeft.Parameters(1, u, v, param);
+         gp_Vec current_left_transom_tangent_vec = left_transom_bspline->DN(param,1);
+         gp_Dir current_left_transom_tangent_dir(current_left_transom_tangent_vec);
+         current_left_transom_tangent_dir.Transform(current_loc);
+         current_left_transom_tangent = Point<3>(current_left_transom_tangent_dir.X(),
+                                                 current_left_transom_tangent_dir.Y(),
+                                                 current_left_transom_tangent_dir.Z());
+
+         IntersectorRight.Parameters(1, u, v, param);
+         gp_Vec current_right_transom_tangent_vec = right_transom_bspline->DN(param,1);
+         gp_Dir current_right_transom_tangent_dir(current_right_transom_tangent_vec);
+         current_right_transom_tangent_dir.Transform(current_loc);
+         current_right_transom_tangent = Point<3>(current_right_transom_tangent_dir.X(),
+                                                  current_right_transom_tangent_dir.X(),
+                                                  current_right_transom_tangent_dir.Z());
+       
          transomLeft.Transform(current_loc);
          transomRight.Transform(current_loc);
          CurrentPointLeftTransom = Pnt(transomLeft);
