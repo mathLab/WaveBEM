@@ -309,8 +309,14 @@ private:
   Functions::ParsedFunction<dim> initial_wave_potential;
   Functions::ParsedFunction<dim> initial_norm_potential_grad;
   Functions::ParsedFunction<dim> inflow_norm_potential_grad;
+  Functions::ParsedFunction<1> hull_x_axis_translation;
+  Functions::ParsedFunction<1> hull_y_axis_translation;
+  Functions::ParsedFunction<1> hull_z_axis_translation;
 
-  
+  bool is_hull_x_translation_imposed;
+  bool is_hull_y_translation_imposed;
+  bool is_hull_z_translation_imposed;
+
   std::string node_displacement_type;
   
   SolverControl solver_control;
@@ -454,7 +460,12 @@ private:
   double adaptive_ref_limit;
 
   TopLoc_Location restart_hull_location;
-
+  Point<3> restart_hull_displacement;
+  Point<3> restart_transom_center_point;
+  Point<3> restart_transom_left_point;
+  Point<3> restart_transom_right_point;
+  Point<3> restart_transom_left_tangent;
+  Point<3> restart_transom_right_tangent;
 
 };
 

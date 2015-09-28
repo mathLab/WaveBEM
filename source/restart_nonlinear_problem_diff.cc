@@ -3,7 +3,7 @@
 unsigned int RestartNonlinearProblemDiff::n_dofs() const
 {
 
-return 2*water_line_indices.size()+3*bow_stern_indices.size()+water_indices.size()+phi_indices.size();
+return 2*water_line_indices.size()+3*bow_stern_indices.size()+water_indices.size()+phi_indices.size()+rigid_modes_indices.size();
 }
 
 
@@ -72,6 +72,13 @@ int RestartNonlinearProblemDiff::residual(Vector<double> &dst,
       {
       unsigned int i=*pos;
       dst(count) = free_surf_res(i+comp_dom.vector_dh.n_dofs());
+      //cout<<count<<"("<<3*i+2<<")W  "<<dst(count)<<"    "<<src_yy(count)<<endl;
+      count++;
+      }
+  for (std::set <unsigned int>::iterator pos = rigid_modes_indices.begin(); pos != rigid_modes_indices.end(); ++pos)
+      {
+      unsigned int i=*pos;
+      dst(count) = free_surf_res(i+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
       //cout<<count<<"("<<3*i+2<<")W  "<<dst(count)<<"    "<<src_yy(count)<<endl;
       count++;
       }
@@ -158,7 +165,20 @@ int RestartNonlinearProblemDiff::jacobian(Vector<double> &dst,
           if ( indices_map.count(col->column()) )
              {
              jacobian_matrix.set(count,indices_map.find(col->column())->second,free_surf_jacobian_dot(i+comp_dom.vector_dh.n_dofs(),col->column()));
-             //cout<<count<<" "<<indices_map.find(col->column())->second<<" "<<free_surf_jacobian_dot(i+comp_dom.vector_dh.n_dofs(),*col)<<endl;
+             //cout<<count<<" "<<indices_map.find(col->column())->second<<" "<<free_surf_jacobian_dot(i+comp_dom.vector_dh.n_dofs(),col->column())<<endl;
+             }
+      count++;
+      }
+
+  for (std::set <unsigned int>::iterator pos = rigid_modes_indices.begin(); pos != rigid_modes_indices.end(); ++pos)
+      {
+      unsigned int i=*pos;
+      for (SparsityPattern::iterator col=free_surf_jacobian_dot.get_sparsity_pattern().begin(i+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
+           col!=free_surf_jacobian_dot.get_sparsity_pattern().end(i+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()); ++col)
+          if ( indices_map.count(col->column()) )
+             {
+             jacobian_matrix.set(count,indices_map.find(col->column())->second,free_surf_jacobian_dot(i+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),col->column()));
+             //cout<<count<<" "<<indices_map.find(col->column())->second<<" "<<free_surf_jacobian_dot(i+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),col->column())<<endl;
              }
       count++;
       }
@@ -174,6 +194,7 @@ int RestartNonlinearProblemDiff::jacobian_prec(Vector<double> &dst,
 	                                   const Vector<double> &src_yy,
 		                           const Vector<double> &src)
 {
+
   SparseDirectUMFPACK prec_direct;
   prec_direct.initialize(jacobian_matrix);
   prec_direct.vmult(dst,src);
