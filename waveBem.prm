@@ -6,10 +6,10 @@ set Iges file name                  =  utilities/goteborgExperiments.iges
 set Boat displacement (Kg)          = 0.0 #674.077471967
 
 # se si conosce il valore di affondamento idrodinamico da aggiungere a quello idrostatico, inserirlo qui
-set Assigned sink (m)               = 0.02 #0.02
+set Assigned sink (m)               = 0.01 #0.02
 
 # se si conosce il valore di angolo di beccheggio idrodinamico da aggiungere a quello idrostatico, inserirlo qui
-set Assigned trim (rad)             = 0.02 #0.02
+set Assigned trim (rad)             = 0.0 #0.02
 
 # Per ora è l'utente che deve specificare, dopo avere guardato il file iges, da quanti edges
 # è composta una eventiale transom stern. Se la barca non ha transom stern, questo parametro è

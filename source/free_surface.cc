@@ -2068,12 +2068,16 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
           comp_dom.evaluate_ref_surf_distances(nodes_ref_surf_dist,true);
        differential_components();
        for (unsigned int i=0; i<comp_dom.vector_dh.n_dofs(); ++i)
-           if ( (comp_dom.vector_flags[i] & boat) &&
-                !(comp_dom.vector_flags[i] & near_water) )
+           if ( ((comp_dom.flags[i] & boat) &&
+                !(comp_dom.flags[i] & near_water) ) ||
+                (comp_dom.flags[i] & transom_on_water)  )
               {
               comp_dom.map_points(i) -= nodes_ref_surf_dist(i);
               comp_dom.old_map_points(i) = comp_dom.map_points(i);
-              solution(i) = comp_dom.map_points(i)-comp_dom.rigid_motion_map_points(i);
+              if (constraints.is_constrained(i))
+                 solution(i) = comp_dom.map_points(i);
+              else
+                 solution(i) = comp_dom.map_points(i)-comp_dom.rigid_motion_map_points(i);
               //cout<<i<<" "<<nodes_ref_surf_dist(i)<<endl;
               }
 
