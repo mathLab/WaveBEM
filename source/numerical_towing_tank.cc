@@ -494,6 +494,18 @@ void NumericalTowingTank::declare_parameters (ParameterHandler &prm)
 
   prm.declare_entry("Assigned trim (rad)","0",Patterns::Double());
 
+  prm.declare_entry("Moment of intertia Ixx (Kg m^2)","1",Patterns::Double());
+
+  prm.declare_entry("Moment of intertia Ixy (Kg m^2)","0",Patterns::Double());
+
+  prm.declare_entry("Moment of intertia Ixz (Kg m^2)","0",Patterns::Double());
+
+  prm.declare_entry("Moment of intertia Iyy (Kg m^2)","1",Patterns::Double());
+
+  prm.declare_entry("Moment of intertia Iyz (Kg m^2)","0",Patterns::Double());
+
+  prm.declare_entry("Moment of intertia Izz (Kg m^2)","1",Patterns::Double());
+
   prm.declare_entry("Max aspect ratio","1.5",Patterns::Double());
 
   prm.declare_entry("Front mesh inclination coeff","1.0",Patterns::Double());
@@ -530,6 +542,18 @@ void NumericalTowingTank::parse_parameters (ParameterHandler &prm)
   assigned_sink = prm.get_double("Assigned sink (m)");
 
   assigned_trim = prm.get_double("Assigned trim (rad)");
+
+  Ixx = prm.get_double("Moment of intertia Ixx (Kg m^2)");
+
+  Ixy = prm.get_double("Moment of intertia Ixy (Kg m^2)");
+
+  Ixz = prm.get_double("Moment of intertia Ixz (Kg m^2)");
+
+  Iyy = prm.get_double("Moment of intertia Iyy (Kg m^2)");
+
+  Iyz = prm.get_double("Moment of intertia Iyz (Kg m^2)");
+
+  Izz = prm.get_double("Moment of intertia Izz (Kg m^2)");
 
   max_aspect_ratio = prm.get_double("Max aspect ratio");
 
