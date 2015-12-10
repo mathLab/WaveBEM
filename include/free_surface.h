@@ -461,6 +461,8 @@ private:
 
   TopLoc_Location restart_hull_location;
   Point<3> restart_hull_displacement;
+  Point<3> restart_hull_quat_vector;
+  double restart_hull_quat_scalar;
   Point<3> restart_transom_center_point;
   Point<3> restart_transom_left_point;
   Point<3> restart_transom_right_point;

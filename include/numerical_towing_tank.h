@@ -328,6 +328,15 @@ double assigned_sink;
                                    // hydrostatic equilibrium position (which is assumed to be the angular
                                    // position assigned in the CAD file)
 double assigned_trim;
+
+                                   // hull moments of inertia
+double Ixx;
+double Ixy;
+double Ixz;
+double Iyy;
+double Iyz;
+double Izz;
+
                                    // here we have the maximum aspect ratio allowed for the cells
 double max_aspect_ratio;
                                    // the next is a factor determining the inclination of the mesh longitudinal

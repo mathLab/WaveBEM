@@ -43,7 +43,9 @@ class BoatModel{
 
     Point<3> compute_hydrostatic_moment(const double &sink);
 
-    gp_Trsf set_current_position(const Point<3> &translation_vect, const double &trim);
+    gp_Trsf set_current_position(const Point<3> &translation_vect,
+                                 const double &quaternion_scalar,
+                                 const Point<3> &quaternion_vect);
 
 //private: 
 				     // keel intersection with undisturbed free surface at bow

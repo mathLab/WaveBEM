@@ -84,6 +84,7 @@
 #include <GeomConvert.hxx>
 #include <Geom_BSplineSurface.hxx>
 #include <BRepAdaptor_Curve.hxx>
+#include <gp_Quaternion.hxx>
 
 #include <deal.II/grid/grid_reordering.h>
 #include <deal.II/grid/grid_tools.h>
@@ -805,15 +806,15 @@ cout<<"UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU"<<endl;
       return hydrostatic_force;
 }
 
-gp_Trsf BoatModel::set_current_position(const Point<3> &translation_vect, const double &trim)
+gp_Trsf BoatModel::set_current_position(const Point<3> &translation_vect,
+                                        const double &quaternion_scalar,
+                                        const Point<3> &quaternion_vect)
 {
 
-                                  //here we prepare the rotation of the boat of the requested trim angle     
-     gp_Pnt rot_center(0.0,0.0,0.0);
-     gp_Dir rot_dir(0.0,1.0,0.0);
-     gp_Ax1 rot_axis(rot_center, rot_dir);
+                                  //here we prepare the rotation of the boat of the requested trim angle
+     gp_Quaternion rot_quaternion(quaternion_vect(0), quaternion_vect(1), quaternion_vect(2), quaternion_scalar);    
      gp_Trsf rotation;
-     rotation.SetRotation(rot_axis,trim);
+     rotation.SetRotation(rot_quaternion);
                                   //we first get the full transformation currently applied to the shape
      TopLoc_Location prev_L = reference_loc; 
      gp_Trsf prev_Transf = prev_L.Transformation();
@@ -837,6 +838,14 @@ gp_Trsf BoatModel::set_current_position(const Point<3> &translation_vect, const 
      left_transom_edge.Location(new_L);
      keel_edge.Location(new_L);
      current_loc = new_L;
+
+     // SHOULD WE PRINT THE EULER ANGLES UP HERE? IS THE FACT WE HAVE A X AXIS
+     // DIRECTED BOW TO STERN GOING TO CHANGE SOMETHING?
+     double yaw_angle, pitch_angle, roll_angle;
+     rot_quaternion.GetEulerAngles(gp_YawPitchRoll, yaw_angle, pitch_angle, roll_angle);
+     cout<<"Current Yaw Angle: "<<yaw_angle<<endl;
+     cout<<"Current Pitch Angle: "<<pitch_angle<<endl;
+     cout<<"Current Roll Angle: "<<roll_angle<<endl;
 
 
      if (is_transom)
@@ -904,7 +913,7 @@ gp_Trsf BoatModel::set_current_position(const Point<3> &translation_vect, const 
 
 
 
-     return current_loc.Transformation();
+     return this_transf;//current_loc.Transformation();
 }
 
 

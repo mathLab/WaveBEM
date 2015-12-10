@@ -93,7 +93,7 @@ public:
           }
   
         // we now add the rigid modes dofs
-  for (unsigned int d=0; d<6; ++d)
+  for (unsigned int d=0; d<13; ++d)
       {
       rigid_modes_indices.insert(d);
       }
@@ -163,7 +163,7 @@ public:
                                          phi_indices.size()+
                                          rigid_modes_indices.size());
   for (unsigned int i=0; i<2*water_line_indices.size()+3*bow_stern_indices.size()+water_indices.size()+phi_indices.size(); ++i)
-      line_lengths[i] = 30;
+      line_lengths[i] = 40;
   for (unsigned int i=0; i<rigid_modes_indices.size(); ++i)
       line_lengths[i+2*water_line_indices.size()+3*bow_stern_indices.size()+water_indices.size()+phi_indices.size()] = 
                    2*water_line_indices.size()+3*bow_stern_indices.size()+water_indices.size()+phi_indices.size()+rigid_modes_indices.size();
