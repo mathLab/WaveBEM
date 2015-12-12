@@ -7180,7 +7180,7 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
                         }
                     
                     //if (is_hull_x_translation_imposed != true)
-                    /*
+                    
                         {
                         for (unsigned int d=0;d<3;++d)
                             jacobian_matrix.add(6+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
@@ -7249,7 +7249,7 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
                                                 comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+jj,
                                                 -loc_pressure_moment(2).fastAccessDx(j+9*dofs_per_cell));
                         }
-                    */
+                    
                     }
                 
                 if (is_hull_x_translation_imposed != true)
@@ -7312,7 +7312,7 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
                     }
                 
                 //if (is_hull_y_translation_imposed != true)
-                /*
+                
                     {
                     for (unsigned int d=0;d<3;++d)
                         jacobian_matrix.add(6+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
@@ -7369,7 +7369,7 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
                                             d+9+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
                                             -loc_pressure_moment(2).fastAccessDx(d+9+10*dofs_per_cell));
                     }
-                */
+                
                 }
                 
              for (unsigned int i=0;i<dofs_per_cell;++i)
@@ -7599,10 +7599,10 @@ else
                               hull_ang_vel_res(k).fastAccessDx(7+d));
       }
 
-//for (unsigned int k=0; k<3; ++k)
-//      {
-//      hull_ang_vel_res(k) = hull_ang_vel_res(k) - 1.0*pressure_moment(k);
-//      }
+for (unsigned int k=0; k<3; ++k)
+      {
+      hull_ang_vel_res(k) = hull_ang_vel_res(k) - 1.0*pressure_moment(k);
+      }
 
   hull_quaternions_scal_res = s_dot + omega*vv/2.0;
 
