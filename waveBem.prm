@@ -6,10 +6,10 @@ set Iges file name                  =  utilities/goteborgExperiments.iges
 set Boat displacement (Kg)          = 0.0 #674.077471967
 
 # se si conosce il valore di affondamento idrodinamico da aggiungere a quello idrostatico, inserirlo qui
-set Assigned sink (m)               = 0.00 #0.02
+set Assigned sink (m)               = 0.01 #0.02
 
 # se si conosce il valore di angolo di beccheggio idrodinamico da aggiungere a quello idrostatico, inserirlo qui
-set Assigned trim (rad)             = 0.0 #0.02
+set Assigned trim (rad)             = 0.02 #0.02
 
 # componenti della matrice d'inerzia della barca
 set Moment of intertia Ixx (Kg m^2) = 80.0
@@ -201,7 +201,7 @@ subsection IDA Solver Params
   set Provide jacobian product        = true
 
 # Questo decide ogni quanti secondi viene prodotto un file di output
-  set Seconds between each output     = 0.1
+  set Seconds between each output     = 0.02
 
 # Questo ignoralo: va eliminato (è sempre 0)
   set Initial condition type	      = 0 
@@ -267,7 +267,7 @@ end
 set Is z-translation imposed  =  false
 subsection Hull z-axis translation
   set Function constants  = 
-  set Function expression = 0.01*sin(2*3.1415*t)
+  set Function expression = 0*t#0.01*sin(2*3.1415*t)
   set Variable names      = t
 end
 
@@ -311,7 +311,7 @@ subsection Wind function 3d
 #  set Function constants  = k=0.017298 # sqrt(g l)/1000 test Hull Full Scale
 #  set Function constants  = k=0.025966 # sqrt(g l)/1000 Macolino Full Scale
 #  set Function constants  = k=0.040968 # sqrt(g l)/1000 Fc Ship Full Scale
-  set Function expression = 0280*k*if(t < 4, 0.5*sin(3.141592654*(t)/4-3.141592654/2)+0.5, 1 ); 0; 0
+  set Function expression = 0280*k; 0; 0#*if(t < 4, 0.5*sin(3.141592654*(t)/4-3.141592654/2)+0.5, 1 ); 0; 0
 #  set Function constants  = k=0.62994, omega=2.4835, h=5.5, g=9.81, a=0.01
 #  set Function expression = 0280*k*if(t < 4, 0.5*sin(3.141592654*(t)/4-3.141592654/2)+0.5, 1 ); 0; 0
   set Variable names      = x,y,z,t

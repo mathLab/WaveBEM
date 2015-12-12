@@ -369,9 +369,9 @@ void FreeSurface<dim>::initial_conditions(Vector<double> &dst) {
      {
      restart_hull_displacement(2) = hull_z_axis_translation.value(time);
      dst(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()+5) = restart_hull_displacement(2);
-     //double vel = ( hull_z_axis_translation.value(time+delta_t) -
-     //               hull_z_axis_translation.value(time+(-1.0*delta_t)) ) / 2.0 / delta_t(0);
-     double vel = 0.01*2.0*dealii::numbers::PI*cos(2.0*dealii::numbers::PI*initial_time);
+     double vel = ( hull_z_axis_translation.value(time+delta_t) -
+                    hull_z_axis_translation.value(time+(-1.0*delta_t)) ) / 2.0 / delta_t(0);
+     //double vel = 0.0; //0.01*2.0*dealii::numbers::PI*cos(2.0*dealii::numbers::PI*initial_time);
      cout<<"VELZ: "<<vel<<endl;
      dst(comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()+2) = vel;
      }
@@ -4614,7 +4614,7 @@ std::cout<<"Preparing interpolated solution for restart"<<std::endl;
 
    
      // these lines test the jacobian of the DAE system
-/* 
+ 
      Vector<double> delta_y(this->n_dofs());
      Vector<double> delta_res(this->n_dofs());
 
@@ -6748,6 +6748,11 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
                 {
                 Point<3,fad_double> VV_inf(fad_double(Vinf(0)),fad_double(Vinf(1)),fad_double(Vinf(2)));
                 fad_double dphi_dt = q_phi_dot - q_nodes_vel*phi_grad;
+                //if (q==10)
+                //   {
+                //   cout<<"VEL: "<<q_nodes_vel(0).val()<<" "<<q_nodes_vel(1).val()<<" "<<q_nodes_vel(2).val()<<endl;
+                //   cout<<dphi_dt.val()<<" "<<q_phi_dot.val()<<" "<<(q_nodes_vel*phi_grad).val()<<endl;
+                //   }
                 fad_double local_pressure = -(fad_double(rho)*(dphi_dt+q_point*gg+phi_grad*(phi_grad/2.0+VV_inf))*q_JxW[q]);
                 loc_pressure_force += local_pressure*q_normal;
                 Point<3,fad_double> q_mom(q_point(1)*loc_pressure_force(2)-q_point(2)*loc_pressure_force(1),
@@ -7090,6 +7095,7 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
              cell->material_id() != comp_dom.free_sur_ID2 &&
              cell->material_id() != comp_dom.free_sur_ID3 )
              {
+             
              if (cell->material_id() == comp_dom.wall_sur_ID1 ||
                  cell->material_id() == comp_dom.wall_sur_ID2 ||
                  cell->material_id() == comp_dom.wall_sur_ID3 )
@@ -7174,7 +7180,7 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
                         }
                     
                     //if (is_hull_x_translation_imposed != true)
-                    
+                    /*
                         {
                         for (unsigned int d=0;d<3;++d)
                             jacobian_matrix.add(6+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
@@ -7243,7 +7249,7 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
                                                 comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+jj,
                                                 -loc_pressure_moment(2).fastAccessDx(j+9*dofs_per_cell));
                         }
-                    
+                    */
                     }
                 
                 if (is_hull_x_translation_imposed != true)
@@ -7304,8 +7310,9 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
                                             d+9+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
                                             -loc_pressure_force(2).fastAccessDx(d+9+10*dofs_per_cell)); 
                     }
-                //if (is_hull_y_translation_imposed != true)
                 
+                //if (is_hull_y_translation_imposed != true)
+                /*
                     {
                     for (unsigned int d=0;d<3;++d)
                         jacobian_matrix.add(6+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
@@ -7362,8 +7369,9 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
                                             d+9+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
                                             -loc_pressure_moment(2).fastAccessDx(d+9+10*dofs_per_cell));
                     }
-                
+                */
                 }
+                
              for (unsigned int i=0;i<dofs_per_cell;++i)
                  {
                  unsigned int ii = local_dof_indices[i];
@@ -7492,6 +7500,7 @@ else
    {
    hull_lin_vel_res(2)-= pressure_force(2);
    hull_lin_vel_res(2)-= (-g*comp_dom.boat_model.boat_mass);
+   cout<<"************ "<<pressure_force(2)<<" vs "<<-g*comp_dom.boat_model.boat_mass<<endl;
    }
 
   Point<3,fad_double> hull_quaternions_vect_res(0.0,0.0,0.0); 
@@ -7564,6 +7573,16 @@ else
   Point<3,fad_double> vv_dot(v_x_dot,v_y_dot,v_z_dot);
 
   Point<3,fad_double> rhs_quat_vect(ss*omega_x+WMatRow1*vv,ss*omega_y+WMatRow2*vv,ss*omega_z+WMatRow1*vv);
+/*
+  Point<3,fad_double> hull_ang_vel_res(omega_x_dot,omega_y_dot,omega_z_dot);
+
+  for (unsigned int k=0; k<3; ++k)
+      {
+      jacobian_dot_matrix.add(6+k+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                              6+k+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                              1.0); 
+      } 
+*/
 
   Point<3,fad_double> hull_ang_vel_res(AbsInertiaMatRow1*omega_dot, AbsInertiaMatRow2*omega_dot, AbsInertiaMatRow3*omega_dot);
   hull_ang_vel_res = hull_ang_vel_res + Point<3,fad_double>(sservMatRow1*omega,sservMatRow3*omega,sservMatRow3*omega);
@@ -7580,10 +7599,10 @@ else
                               hull_ang_vel_res(k).fastAccessDx(7+d));
       }
 
-for (unsigned int k=0; k<3; ++k)
-      {
-      hull_ang_vel_res(k) = hull_ang_vel_res(k) - 1.0*pressure_moment(k);
-      }
+//for (unsigned int k=0; k<3; ++k)
+//      {
+//      hull_ang_vel_res(k) = hull_ang_vel_res(k) - 1.0*pressure_moment(k);
+//      }
 
   hull_quaternions_scal_res = s_dot + omega*vv/2.0;
 
