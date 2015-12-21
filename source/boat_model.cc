@@ -290,12 +290,19 @@ void BoatModel::start_iges_model(std::string igesFileName,
 
      Point<3> hs_force = compute_hydrostatic_force(0.0);
      boat_mass = hs_force(2)/9.81;
-     Point<3> hs_moment = compute_hydrostatic_moment(0.0);
+     // let's compute the longitudinal position of the pressure center: we'll
+     // place the the hull baricenter there, because we POSTULATE that the
+     // hull in the CAD file is oriented in the proper way at the dislocation
+     //  tested
+     
+     Point<3> hs_moment = compute_hydrostatic_moment(0.0,Point<3>(0.0,0.0,0.0));
+     hydrostatic_hull_baricenter = Point<3>(-hs_moment(1)/hs_force(2),0.0,0.0);
+     cout<<"Computed Hull Baricenter Position:  "<<hydrostatic_hull_baricenter<<endl;
 
-     double rot_axis_x_coor = -hs_moment(1)/hs_force(2);
-
+     initial_sink = assigned_sink;
+     initial_trim = assigned_trim;
                                   //here we prepare the rotation of the boat of the requested trim angle     
-     gp_Pnt rot_center(0.0,rot_axis_x_coor,0.0);
+     gp_Pnt rot_center = Pnt(hydrostatic_hull_baricenter);
      gp_Dir rot_dir(0.0,1.0,0.0);
      gp_Ax1 rot_axis(rot_center, rot_dir);
      gp_Trsf rotation;
@@ -304,6 +311,8 @@ void BoatModel::start_iges_model(std::string igesFileName,
      gp_Trsf translation;
      gp_Vec vrt_displ(0.0,0.0,-assigned_sink);
      translation.SetTranslation(vrt_displ);
+     reference_hull_baricenter = hydrostatic_hull_baricenter;
+     reference_hull_baricenter(2) -= assigned_sink;
                                   //the rotation and translation are combined in a single transformation
      gp_Trsf Tcomp = translation*rotation;
                                   //the transformation is applied to the two sides of the boat
@@ -314,8 +323,10 @@ void BoatModel::start_iges_model(std::string igesFileName,
 
 
 
-     cout<<"The hull has been placed in the correct position"<<endl;
+     cout<<"The hull has been placed in the requested initial position"<<endl;
+     cout<<"Reference Hull Baricenter Position:  "<<reference_hull_baricenter<<endl;
      hs_force = compute_hydrostatic_force(0.0);
+     compute_hydrostatic_moment(0.0,reference_hull_baricenter);
                                    //now the boat is in the correct position 
 // These lines can be used to dump the keel edge (or other shapes) on an .igs file
 /*
@@ -815,17 +826,23 @@ gp_Trsf BoatModel::set_current_position(const Point<3> &translation_vect,
      gp_Quaternion rot_quaternion(quaternion_vect(0), quaternion_vect(1), quaternion_vect(2), quaternion_scalar);    
      gp_Trsf rotation;
      rotation.SetRotation(rot_quaternion);
-                                  //we first get the full transformation currently applied to the shape
+                                  //we first get the reference transformation applied to the shape
      TopLoc_Location prev_L = reference_loc; 
      gp_Trsf prev_Transf = prev_L.Transformation();
 
+                                  //to apply the rotation, we translate the boat so that its baricenter coincides
+                                  //with the origin of the reference frame
+     gp_Vec ref_hull_bar_displ(reference_hull_baricenter(0),reference_hull_baricenter(1),reference_hull_baricenter(2));
+     gp_Trsf ref_hull_bar_translation;
+     ref_hull_bar_translation.SetTranslation(ref_hull_bar_displ);
+
                                   // here we prepare the translation of the boat of the requested sink
      gp_Trsf translation;
-     gp_Vec vrt_displ(translation_vect(0),translation_vect(1),translation_vect(2));
-     translation.SetTranslation(vrt_displ);
+     gp_Vec curr_displ(translation_vect(0),translation_vect(1),translation_vect(2));
+     translation.SetTranslation(curr_displ);
 
                                   // the rotation and translation are combined in a single transformation
-     gp_Trsf this_transf = translation*rotation;
+     gp_Trsf this_transf = translation*ref_hull_bar_translation*rotation*ref_hull_bar_translation.Inverted();
 
                                   // the rotation and translation are combined in a single transformation
      gp_Trsf new_Transf = this_transf*prev_Transf;
@@ -841,12 +858,15 @@ gp_Trsf BoatModel::set_current_position(const Point<3> &translation_vect,
 
      // SHOULD WE PRINT THE EULER ANGLES UP HERE? IS THE FACT WE HAVE A X AXIS
      // DIRECTED BOW TO STERN GOING TO CHANGE SOMETHING?
-     double yaw_angle, pitch_angle, roll_angle;
      rot_quaternion.GetEulerAngles(gp_YawPitchRoll, yaw_angle, pitch_angle, roll_angle);
      cout<<"Current Yaw Angle: "<<yaw_angle<<endl;
-     cout<<"Current Pitch Angle: "<<pitch_angle<<endl;
-     cout<<"Current Roll Angle: "<<roll_angle<<endl;
+     cout<<"Current Pitch Angle: "<<-pitch_angle+initial_trim<<endl;
+     cout<<"Current Roll Angle: "<<-roll_angle<<endl;
 
+     gp_Pnt ref_hull_bar_pos = Pnt(reference_hull_baricenter);
+     ref_hull_bar_pos.Transform(this_transf);
+     current_hull_baricenter = Pnt(ref_hull_bar_pos);
+     cout<<"Current Baricenter Position: "<<current_hull_baricenter<<endl;
 
      if (is_transom)
         {
@@ -909,7 +929,7 @@ gp_Trsf BoatModel::set_current_position(const Point<3> &translation_vect,
 
          }
 
-
+    
 
 
 
@@ -919,13 +939,14 @@ gp_Trsf BoatModel::set_current_position(const Point<3> &translation_vect,
 
 
 
-Point<3> BoatModel::compute_hydrostatic_moment(const double &sink)
+Point<3> BoatModel::compute_hydrostatic_moment(const double &sink, const Point<3> moment_center)
 {
   double rho = 1025.1;
   double g = 9.81;  
 
   double z_zero = sink;
   Point<3> hydrostatic_moment(0.0,0.0,0.0);
+  Point<3> hydrostatic_force(0.0,0.0,0.0);
   double wet_surface = 0.0;
   // we will need a quadrature
   QGauss<2> quad(300);
@@ -962,7 +983,7 @@ Point<3> BoatModel::compute_hydrostatic_moment(const double &sink)
        GridTools::delete_unused_vertices (ref_vertices, ref_cells, ref_subcelldata);
        GridReordering<2,2>::reorder_cells (ref_cells);
 
-       ref_triangulation.create_triangulation_compatibility(ref_vertices, ref_cells, ref_subcelldata );
+       ref_triangulation.create_triangulation_compatibility(ref_vertices, ref_cells, ref_subcelldata);
 
        // with this triangulation we create a DH and a FE and a FEValues (the jacobian will account for
        // transformation from [0,1]x[0,1] to [umin,umax]x[vmin,vmax], we'll have to add the other part)
@@ -994,9 +1015,10 @@ Point<3> BoatModel::compute_hydrostatic_moment(const double &sink)
               {
               Normal*=-1.0;
               }
-           Point<3> Q(q.X(),q.Y(),q.Z());
+           Point<3> Q(q.X()-moment_center(0),q.Y()-moment_center(1),q.Z()-moment_center(2));
            Point<3> Kross(Q(1)*Normal(2)-Q(2)*Normal(1),Q(2)*Normal(0)-Q(0)*Normal(2),Q(0)*Normal(1)-Q(1)*Normal(0));
            hydrostatic_moment += (rho*g*fmax(z_zero-q.Z(),0.0))*Kross*jacobian*ref_fe_v.JxW(i);
+           hydrostatic_force += (rho*g*fmax(z_zero-q.Z(),0.0))*Normal*jacobian*ref_fe_v.JxW(i);
            //cout<<"q("<<Pnt(q)<<")  p:"<<(rho*g*fmax(z_zero-q.Z(),0.0))<<"  n("<<Normal<<")"<<endl;
            }
        
@@ -1075,9 +1097,10 @@ Point<3> BoatModel::compute_hydrostatic_moment(const double &sink)
               {
               Normal*=-1.0;
               }
-           Point<3> Q(q.X(),q.Y(),q.Z());
+           Point<3> Q(q.X()-moment_center(0),q.Y()-moment_center(1),q.Z()-moment_center(2));
            Point<3> Kross(Q(1)*Normal(2)-Q(2)*Normal(1),Q(2)*Normal(0)-Q(0)*Normal(2),Q(0)*Normal(1)-Q(1)*Normal(0));
            hydrostatic_moment += (rho*g*fmax(z_zero-q.Z(),0.0))*Kross*jacobian*ref_fe_v.JxW(i);
+           hydrostatic_force += (rho*g*fmax(z_zero-q.Z(),0.0))*Normal*jacobian*ref_fe_v.JxW(i);
 
            //face_force += (rho*g*fmax(z_zero-q.Z(),0.0))*Normal*jacobian*ref_fe_v.JxW(i); 
            //cout<<"q("<<Pnt(q)<<")  p:"<<(rho*g*fmax(z_zero-q.Z(),0.0))<<"  n("<<Normal<<")"<<endl;
@@ -1093,6 +1116,7 @@ Point<3> BoatModel::compute_hydrostatic_moment(const double &sink)
 
 
       cout<<"Current hydrostatic moment: "<<hydrostatic_moment<<endl;
+      cout<<"(Force is): "<<hydrostatic_force<<endl;
       return hydrostatic_moment;
 }
 

@@ -41,7 +41,7 @@ class BoatModel{
 
     Point<3> compute_hydrostatic_force(const double &sink);
 
-    Point<3> compute_hydrostatic_moment(const double &sink);
+    Point<3> compute_hydrostatic_moment(const double &sink, const Point<3> moment_center);
 
     gp_Trsf set_current_position(const Point<3> &translation_vect,
                                  const double &quaternion_scalar,
@@ -150,7 +150,23 @@ class BoatModel{
     Point<3> current_left_transom_tangent;
 
     Point<3> current_right_transom_tangent;
-    
+                                     // the position of the hull baricenter
+                                     // in hydrostatic configuration
+    Point<3> hydrostatic_hull_baricenter;
+                                     // the position of the hull baricenter
+                                     // in reference configuration
+    Point<3> reference_hull_baricenter;
+                                     // the position of the hull baricenter
+                                     // in current configuration
+    Point<3> current_hull_baricenter;
+                                     // initial (assigned) sink
+    double initial_sink;
+                                     // initial (assigned) trim angle
+    double initial_trim;
+                                     // Euler angles (only for output purposes) 
+    double yaw_angle;
+    double  pitch_angle;
+    double  roll_angle;
    
 };
 
