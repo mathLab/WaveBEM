@@ -9,15 +9,15 @@ set Boat displacement (Kg)          = 0.0 #674.077471967
 set Assigned sink (m)               = 0.01 #0.02
 
 # se si conosce il valore di angolo di beccheggio idrodinamico da aggiungere a quello idrostatico, inserirlo qui
-set Assigned trim (rad)             = 0.02 #0.02
+set Assigned trim (rad)             = -0.0005 #0.002
 
 # componenti della matrice d'inerzia della barca
-set Moment of intertia Ixx (Kg m^2) = 80.0
+set Moment of intertia Ixx (Kg m^2) = 320.0
 set Moment of intertia Ixy (Kg m^2) = 0.0
 set Moment of intertia Ixz (Kg m^2) = 0.0
-set Moment of intertia Iyy (Kg m^2) = 500.0
+set Moment of intertia Iyy (Kg m^2) = 2200.0
 set Moment of intertia Iyz (Kg m^2) = 0.0
-set Moment of intertia Izz (Kg m^2) = 500.0
+set Moment of intertia Izz (Kg m^2) = 2200.0
 
 
 # Per ora è l'utente che deve specificare, dopo avere guardato il file iges, da quanti edges
@@ -201,7 +201,7 @@ subsection IDA Solver Params
   set Provide jacobian product        = true
 
 # Questo decide ogni quanti secondi viene prodotto un file di output
-  set Seconds between each output     = 0.02
+  set Seconds between each output     = 0.1
 
 # Questo ignoralo: va eliminato (è sempre 0)
   set Initial condition type	      = 0 
@@ -313,7 +313,7 @@ subsection Wind function 3d
 #  set Function constants  = k=0.040968 # sqrt(g l)/1000 Fc Ship Full Scale
   set Function expression = 0280*k; 0; 0#*if(t < 4, 0.5*sin(3.141592654*(t)/4-3.141592654/2)+0.5, 1 ); 0; 0
 #  set Function constants  = k=0.62994, omega=2.4835, h=5.5, g=9.81, a=0.01
-#  set Function expression = 0280*k*if(t < 4, 0.5*sin(3.141592654*(t)/4-3.141592654/2)+0.5, 1 ); 0; 0
+#  set Function expression = 0280*if(t < 4, 0.5*sin(3.141592654*(t)/4-3.141592654/2)+0.5, 1 ); 0; 0
   set Variable names      = x,y,z,t
 end
 
