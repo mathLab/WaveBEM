@@ -3525,6 +3525,10 @@ std::cout<<"Preparing interpolated solution for restart"<<std::endl;
          {
          working_map_points(3*i) = comp_dom.old_map_points(3*i);
          working_map_points(3*i+1) = comp_dom.old_map_points(3*i+1);
+         if (comp_dom.flags[i] & near_inflow)
+            {
+            working_map_points(3*i+2) = comp_dom.old_map_points(3*i+2);
+            }
          }
       else if ( !(comp_dom.flags[i] & near_water) &&
                 (comp_dom.flags[i] & boat) &&
@@ -5297,6 +5301,11 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
          working_map_points(3*i+1) = comp_dom.old_map_points(3*i+1);
          jacobian_matrix.add(3*i,3*i,1.0);
          jacobian_matrix.add(3*i+1,3*i+1,1.0);
+         if (comp_dom.flags[i] & near_inflow)
+            {
+            working_map_points(3*i+2) = comp_dom.old_map_points(3*i+2);
+            jacobian_matrix.add(3*i+2,3*i+2,1.0);
+            }
          //cout<<"& "<<3*i<<" "<<3*i+1<<endl;
          }
       else if ( !(comp_dom.flags[i] & near_water) &&
@@ -6784,12 +6793,14 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
                 { //cout<<q<<"   "<<phi_dot_rhs_fun[q].val()<<endl;
                 fad_double wave_damping_pressure = 0.0;
                 //if (comp_dom.no_boat && q_point(0).val() > 0.0)
-                //   wave_damping_pressure = -fad_double(1)*pow(q_point(0).val(),2.0)/pow(50.0,2.0)*q_dphi_dn;
+                fad_double Lx_boat = comp_dom.boat_model.boatWetLength;
+                if (q_point(0).val() > Lx_boat*2.0)
+                   wave_damping_pressure = -fad_double(1.0)*pow(q_point(0).val()-Lx_boat*2.0,2.0)/pow(Lx_boat*4.0,2.0)*q_dphi_dn;
 
                 eta_dot_rhs_fun[q] = phi_grad*Point<3,fad_double>(fad_double(0.0),fad_double(0.0),fad_double(1.0)) +
                                      eta_grad*(q_nodes_vel-fluid_vel[q]);
                 phi_dot_rhs_fun[q] = phi_grad*phi_grad/2 - q_point*gg + phi_surf_grad_corrected*(q_nodes_vel-fluid_vel[q])-
-                                     breaking_wave_added_pressure;
+                                     breaking_wave_added_pressure +
                                      + (1-eta_dry)*fad_double(g*q_init(2)) + wave_damping_pressure;
                 //if ( (q_point(0).val() < 3.10) && (q_point(0).val() > 3.03) &&
                 //     (q_point(1).val() < 0.12) && (q_point(1).val() > 0) &&
@@ -8209,8 +8220,9 @@ Vector<double> & FreeSurface<dim>::differential_components()
                 }
              // all other are edges dofs and have first and second algebraic components, third is differential
              else
-                {// only exception is when node is a transom_on_water node. in such case it's all algebraic
-                if (comp_dom.vector_flags[3*i] & transom_on_water)
+                {// only exception is when node is a transom_on_water and near_inflow nodes. in such case it's all algebraic
+                if (comp_dom.vector_flags[3*i] & transom_on_water ||
+                    comp_dom.vector_flags[3*i] & near_inflow)
                    {
                    for (unsigned int j=0; j<dim; ++j)
                        {

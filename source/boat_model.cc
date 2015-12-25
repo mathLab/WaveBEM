@@ -306,7 +306,9 @@ void BoatModel::start_iges_model(std::string igesFileName,
      gp_Dir rot_dir(0.0,1.0,0.0);
      gp_Ax1 rot_axis(rot_center, rot_dir);
      gp_Trsf rotation;
-     rotation.SetRotation(rot_axis,assigned_trim);
+     // sign is negative because in "naval-like" reference frame bow-down trim angle is positive
+     // (in our "aero-like" reference frame x axis is aligned with V_inf, not going from stern to bow)
+     rotation.SetRotation(rot_axis,-assigned_trim);
                                   //here we prepare the translation of the boat of the requested sink
      gp_Trsf translation;
      gp_Vec vrt_displ(0.0,0.0,-assigned_sink);

@@ -90,7 +90,7 @@ set Node displacement type          = semilagrangian
 # salvato sarà nominato nomefile_10.vtu). Saranno poi salvati un file con desinenza
 # _force.txt contenente tutte le forze per ciascun salvataggio, ed un file
 # _water_line.txt contenente le coordinate dei nodi in comune tra barca e acqua
-set Output file name                = OPENSHIP/DTMB_Fr028_FSI_6dofs
+set Output file name                = OPENSHIP/DTMB_Fr028_FSI_6dofs_coarse
 
 # Massimo numero di time steps: non molto utile, lo leverò
 set Maximum number of steps         = 10000
