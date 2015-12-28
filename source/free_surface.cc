@@ -4411,7 +4411,8 @@ std::cout<<"Preparing interpolated solution for restart"<<std::endl;
                      loc_y_smooth_res[i] += loc_stiffness_matrix[i][j]*(y_displs[j]-(1-blend_factor)*comp_dom.old_map_points(3*local_dof_indices[j]+1));
                      }
                  if ( !constraints.is_constrained(local_dof_indices[i]) &&
-                      !(comp_dom.flags[local_dof_indices[i]] & transom_on_water) )
+                      !(comp_dom.flags[local_dof_indices[i]] & transom_on_water) &&
+                      !(comp_dom.flags[local_dof_indices[i]] & near_inflow))
                     {
                     unsigned int ii = local_dof_indices[i];
                     eta_res[ii] += loc_eta_res[i].val();
@@ -4419,7 +4420,8 @@ std::cout<<"Preparing interpolated solution for restart"<<std::endl;
                                          
                     }
                  if ( !(constraints.is_constrained(local_dof_indices[i])) &&
-                      !(comp_dom.flags[local_dof_indices[i]] & edge) )
+                      !(comp_dom.flags[local_dof_indices[i]] & edge) &&
+                      !(comp_dom.flags[local_dof_indices[i]] & near_inflow))
                     {
                     unsigned int ii = local_dof_indices[i];
                     x_smoothing_res[ii] += loc_x_smooth_res[i].val();
@@ -4619,10 +4621,10 @@ std::cout<<"Preparing interpolated solution for restart"<<std::endl;
   RestartNonlinearProblemDiff rest_nonlin_prob_diff(*this,comp_dom,t,y,yp,jacobian_dot_matrix);
   std::map<unsigned int,unsigned int> &map_diff = rest_nonlin_prob_diff.indices_map;
 
-/*
+
   // these lines test the correctness of the jacobian for the
   // restart (reduced) nonlinear problem
-
+/*
   Vector<double> restart_prob_solution(rest_nonlin_prob_diff.n_dofs());
   Vector<double> restart_prob_residual(rest_nonlin_prob_diff.n_dofs());
   for (std::map<unsigned int, unsigned int>::iterator it = map_diff.begin(); it != map_diff.end(); ++it)
@@ -4646,7 +4648,7 @@ std::cout<<"Preparing interpolated solution for restart"<<std::endl;
      rest_nonlin_prob_diff.residual(restart_prob_residual,restart_prob_solution);
      cout<<"----------Test---------"<<endl;
      for (unsigned int i=0; i<rest_nonlin_prob_diff.n_dofs(); ++i)
-         if (fabs(restart_prob_residual(i)-delta_res(i)) > 1e-10)
+         if (fabs(restart_prob_residual(i)-delta_res(i)) > 1e-15)
          cout<<i<<"  "<<delta_res(i)<<" vs "<<restart_prob_residual(i)<<"      err "<<restart_prob_residual(i)-delta_res(i)<<"   "<<sys_comp(i)<<endl;
      delta_res*=-1;
      delta_res.add(restart_prob_residual);
@@ -4681,9 +4683,9 @@ std::cout<<"Preparing interpolated solution for restart"<<std::endl;
      //output_results(filename1, t, y, yp);
 
 
-   
+/*   
      // these lines test the jacobian of the DAE system
-/* 
+ 
      Vector<double> delta_y(this->n_dofs());
      Vector<double> delta_res(this->n_dofs());
 
@@ -4969,11 +4971,11 @@ int FreeSurface<dim>::jacobian(const double t,
   bem.solve_system(bem_phi, bem_dphi_dn, bem_bc);
   
 /*
-   cout<<"44!!!!!!"<<endl;
-    for (SparsityPattern::iterator col=jacobian_sparsity_pattern.begin(1484); col!=jacobian_sparsity_pattern.end(1484); ++col)
+   cout<<"JACOBIANO!!!!!!"<<endl;
+    for (SparsityPattern::iterator col=jacobian_sparsity_pattern.begin(80); col!=jacobian_sparsity_pattern.end(80); ++col)
         {
         unsigned int j = col->column(); 
-        cout<<j<<"("<<jacobian_matrix(1484,j)<<") ";
+        cout<<j<<"("<<jacobian_matrix(80,j)<<") ";
         }
     cout<<endl;
 //*/
@@ -5304,7 +5306,7 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
          if (comp_dom.flags[i] & near_inflow)
             {
             working_map_points(3*i+2) = comp_dom.old_map_points(3*i+2);
-            jacobian_matrix.add(3*i+2,3*i+2,1.0);
+            jacobian_matrix.set(3*i+2,3*i+2,1.0);
             }
          //cout<<"& "<<3*i<<" "<<3*i+1<<endl;
          }
@@ -7035,26 +7037,29 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
                      loc_y_smooth_res[i] += loc_stiffness_matrix[i][j]*(y_displs[j]-(1-blend_factor)*comp_dom.old_map_points(3*local_dof_indices[j]+1));
                      }
                  if ( !constraints.is_constrained(local_dof_indices[i]) &&
-                      !(comp_dom.flags[local_dof_indices[i]] & transom_on_water))
+                      !(comp_dom.flags[local_dof_indices[i]] & transom_on_water)  )
                     {
                     unsigned int ii = local_dof_indices[i];
-                    eta_res[ii] += loc_eta_res[i].val();
+                    if (!(comp_dom.flags[local_dof_indices[i]] & near_inflow))
+                       eta_res[ii] += loc_eta_res[i].val();
                     phi_res[ii] += loc_phi_res[i].val();
                     //cout<<"* "<<cell<<" "<<local_dof_indices[i]<<" "<<loc_phi_res[i]<<endl;
                     for (unsigned int j=0;j<dofs_per_cell;++j)
                         {
                         unsigned int jj = local_dof_indices[j];
-                        for (unsigned int k=0; k<dim; ++k)
-                            jacobian_matrix.add(3*ii+2,
-                                                3*jj+k,
-                                                loc_eta_res[i].fastAccessDx(3*j+k));
-                        jacobian_matrix.add(3*ii+2,
-                                            jj+comp_dom.vector_dh.n_dofs(),
-                                            loc_eta_res[i].fastAccessDx(3*dofs_per_cell+j));
-                        jacobian_matrix.add(3*ii+2,
-                                            jj+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs(),
-                                            loc_eta_res[i].fastAccessDx(4*dofs_per_cell+j));
-                       
+                        if (!(comp_dom.flags[local_dof_indices[i]] & near_inflow))
+                           {
+                           for (unsigned int k=0; k<dim; ++k)
+                               jacobian_matrix.add(3*ii+2,
+                                                   3*jj+k,
+                                                   loc_eta_res[i].fastAccessDx(3*j+k));
+                           jacobian_matrix.add(3*ii+2,
+                                               jj+comp_dom.vector_dh.n_dofs(),
+                                               loc_eta_res[i].fastAccessDx(3*dofs_per_cell+j));
+                           jacobian_matrix.add(3*ii+2,
+                                               jj+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                               loc_eta_res[i].fastAccessDx(4*dofs_per_cell+j));
+                           }
                         for (unsigned int k=0; k<dim; ++k)
                             jacobian_matrix.add(ii+comp_dom.vector_dh.n_dofs(),
                                                 3*jj+k,
@@ -7065,17 +7070,19 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
                         jacobian_matrix.add(ii+comp_dom.vector_dh.n_dofs(),
                                             jj+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs(),
                                             loc_phi_res[i].fastAccessDx(4*dofs_per_cell+j));
-                                                      
-                        for (unsigned int k=0; k<dim; ++k)
-                            jacobian_dot_matrix.add(3*ii+2,
-                                                    3*jj+k,
-                                                    loc_eta_res[i].fastAccessDx(5*dofs_per_cell+3*j+k));
-                        jacobian_dot_matrix.add(3*ii+2,
-                                                jj+comp_dom.vector_dh.n_dofs(),
-                                                loc_eta_res[i].fastAccessDx(8*dofs_per_cell+j));
-                        jacobian_dot_matrix.add(3*ii+2,
-                                                jj+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs(),
-                                                loc_eta_res[i].fastAccessDx(9*dofs_per_cell+j));
+                        if (!(comp_dom.flags[local_dof_indices[i]] & near_inflow))
+                           {                                                      
+                           for (unsigned int k=0; k<dim; ++k)
+                               jacobian_dot_matrix.add(3*ii+2,
+                                                          3*jj+k,
+                                                       loc_eta_res[i].fastAccessDx(5*dofs_per_cell+3*j+k));
+                           jacobian_dot_matrix.add(3*ii+2,
+                                                   jj+comp_dom.vector_dh.n_dofs(),
+                                                   loc_eta_res[i].fastAccessDx(8*dofs_per_cell+j));
+                           jacobian_dot_matrix.add(3*ii+2,
+                                                   jj+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                                   loc_eta_res[i].fastAccessDx(9*dofs_per_cell+j));
+                           }
                         for (unsigned int k=0; k<dim; ++k)
                             jacobian_dot_matrix.add(ii+comp_dom.vector_dh.n_dofs(),
                                                     3*jj+k,
@@ -7087,23 +7094,25 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
                                                 jj+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs(),
                                                 loc_phi_res[i].fastAccessDx(9*dofs_per_cell+j));
                         }
-
-                    for (unsigned int k=0; k<dim; ++k)
-                        jacobian_matrix.add(3*ii+2,
-                                            k+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
-                                            loc_eta_res[i].fastAccessDx(k+10*dofs_per_cell));
-                    for (unsigned int k=0; k<dim; ++k)
-                        jacobian_matrix.add(3*ii+2,
-                                            k+3+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
-                                            loc_eta_res[i].fastAccessDx(k+3+10*dofs_per_cell));
-                    for (unsigned int k=0; k<dim; ++k)
-                        jacobian_matrix.add(3*ii+2,
-                                            k+6+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
-                                            loc_eta_res[i].fastAccessDx(k+6+10*dofs_per_cell));
-                    for (unsigned int k=0; k<4; ++k)
-                        jacobian_matrix.add(3*ii+2,
-                                            k+9+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
-                                            loc_eta_res[i].fastAccessDx(k+9+10*dofs_per_cell));
+                    if (!(comp_dom.flags[local_dof_indices[i]] & near_inflow))
+                       {
+                       for (unsigned int k=0; k<dim; ++k)
+                           jacobian_matrix.add(3*ii+2,
+                                               k+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                               loc_eta_res[i].fastAccessDx(k+10*dofs_per_cell));
+                       for (unsigned int k=0; k<dim; ++k)
+                           jacobian_matrix.add(3*ii+2,
+                                               k+3+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                               loc_eta_res[i].fastAccessDx(k+3+10*dofs_per_cell));
+                       for (unsigned int k=0; k<dim; ++k)
+                           jacobian_matrix.add(3*ii+2,
+                                               k+6+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                               loc_eta_res[i].fastAccessDx(k+6+10*dofs_per_cell));
+                       for (unsigned int k=0; k<4; ++k)
+                           jacobian_matrix.add(3*ii+2,
+                                               k+9+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
+                                               loc_eta_res[i].fastAccessDx(k+9+10*dofs_per_cell));
+                       }
                     for (unsigned int k=0; k<dim; ++k)
                         jacobian_matrix.add(ii+comp_dom.vector_dh.n_dofs(),
                                             k+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),
@@ -8112,8 +8121,7 @@ for (unsigned int i=0; i<this->n_dofs(); ++i)
         {
         unsigned int j = col->column();
         //cout<<" "<<i<<" "<<j<<" "<<jacobian_matrix(i,j)+alpha*jacobian_dot_matrix(i,j)<<endl;
-        //if ( (j > (int)i-preconditioner_band) &&
-        //     (j > (int)i+preconditioner_band)   ) 
+ 
            jacobian_preconditioner_matrix.set(i,j,jacobian_matrix(i,j)+alpha*jacobian_dot_matrix(i,j));
         }
 

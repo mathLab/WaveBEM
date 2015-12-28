@@ -68,6 +68,7 @@ public:
       if ( (comp_dom.flags[i] & water) &&
            (comp_dom.flags[i] & near_boat)==0 &&
            (comp_dom.flags[i] & transom_on_water)==0 &&
+           (comp_dom.flags[i] & near_inflow)==0 &&
            (comp_dom.vector_constraints.is_constrained(3*i+2))==0 )
          {
          //cout<<"W "<<i<<" ("<<3*i+2<<")"<<endl;
