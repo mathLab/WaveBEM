@@ -84,6 +84,20 @@
 #include "../include/numerical_towing_tank.h"
 
 
+// Helper function
+template<int dim, class Type>
+Tensor<1,dim,Type> &T(Point<dim,Type> &p) {
+    return static_cast<Tensor<1,dim,Type> &>(p);
+}
+
+
+// Helper function
+template<int dim, class Type>
+const Tensor<1,dim,Type> &T(const Point<dim,Type> &p) {
+    return static_cast<const Tensor<1,dim,Type> &>(p);
+}
+
+
 template <int dim>
 class FreeSurface:
 public OdeArgument, 
