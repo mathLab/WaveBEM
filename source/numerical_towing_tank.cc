@@ -1302,7 +1302,7 @@ for (cell=dh.begin_active(); cell!= endc;++cell)
                 {
                 for (unsigned int j = 0; j < GeometryInfo<2>::faces_per_cell; j++)
                     {
-                    if (cell->face(j)->boundary_indicator() == free_sur_edge_on_boat_ID )
+                    if (cell->face(j)->boundary_id() == free_sur_edge_on_boat_ID )
 	               {
                        cell->face(j)->get_dof_indices(face_dofs); 
                        for (unsigned int k=0; k<fe.dofs_per_face; ++k)   
@@ -1584,8 +1584,8 @@ std::vector<unsigned int> vector_local_dof_indices (vector_fe.dofs_per_cell);
             {
             for (unsigned int j = 0; j < GeometryInfo<2>::faces_per_cell; j++)
                 {
-                if ((cell->face(j)->boundary_indicator() == 40) ||
-                    (cell->face(j)->boundary_indicator() == 41)   )
+                if ((cell->face(j)->boundary_id() == 40) ||
+                    (cell->face(j)->boundary_id() == 41)   )
 	           {
                    cell->face(j)->get_dof_indices(face_dofs); 
                    for (unsigned int k=0; k<fe.dofs_per_face; ++k)
@@ -1599,8 +1599,8 @@ std::vector<unsigned int> vector_local_dof_indices (vector_fe.dofs_per_cell);
                           }
                        }
                    }
-                else if ((cell->face(j)->boundary_indicator() == 37) ||
-                         (cell->face(j)->boundary_indicator() == 32)   )
+                else if ((cell->face(j)->boundary_id() == 37) ||
+                         (cell->face(j)->boundary_id() == 32)   )
                    {
                    cell->face(j)->get_dof_indices(face_dofs); 
                    for (unsigned int k=0; k<fe.dofs_per_face; ++k)   
