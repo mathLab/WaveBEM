@@ -627,7 +627,8 @@ for (unsigned int i = 0;i<intersections.size();++i)
   //TopoDS_Shape sh = read_IGES("/home/amola/workspace/openship/trunk/WaveBEM/utilities/fc_ship.iges",0.001);
   //TopoDS_Shape sh = read_IGES("/home/amola/workspace/FRANCO_TETGEN/ESEMPIO_HANG/22imr_retro.igs",0.001);
 
-  Standard_Real AngTol = 10.0/180.0*PI;
+  using dealii::numbers::PI;
+  Standard_Real AngTol = 10.0/180.0;
   Standard_Real LinTol = 2e-3;
 
   std::vector<TopoDS_Edge> feature_edges;
