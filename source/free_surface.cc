@@ -39,6 +39,7 @@
 #include "newton_solver.h"
 
 #include <deal.II/numerics/fe_field_function.h>
+#include <deal.II/base/sacado_product_type.h>
 
 #include <GeomPlate_BuildPlateSurface.hxx>
 #include <GeomPlate_PointConstraint.hxx>
@@ -822,8 +823,8 @@ void FreeSurface<dim>::initial_conditions(Vector<double> &dst) {
 	     if (elem->at_boundary())
                 {
                 for (unsigned int f=0; f<GeometryInfo<2>::faces_per_cell; ++f)
-		    if ( elem->face(f)->boundary_indicator() == 32 ||
-                         elem->face(f)->boundary_indicator() == 37 )
+            if ( elem->face(f)->boundary_id() == 32 ||
+                         elem->face(f)->boundary_id() == 37 )
                        {
                        unsigned int index_0 = comp_dom.find_point_id(elem->face(f)->vertex(0),comp_dom.ref_points);
                        unsigned int index_1 = comp_dom.find_point_id(elem->face(f)->vertex(1),comp_dom.ref_points);
@@ -1399,19 +1400,19 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
                  {
                  bool clear = true;
                  for(unsigned int f=0; f<GeometryInfo<2>::faces_per_cell; ++f)
-		    if( elem->face(f)->boundary_indicator() == 40 ||
-                        elem->face(f)->boundary_indicator() == 41 ||
-                        elem->face(f)->boundary_indicator() == 26 || //this allows for refinement of waterline cells on water side
-                        elem->face(f)->boundary_indicator() == 27 || //this allows for refinement of waterline cells on water side
-                        elem->face(f)->boundary_indicator() == 28 || //this allows for refinement of waterline cells on water side
-                        elem->face(f)->boundary_indicator() == 29  //this allows for refinement of waterline cells on water side
+            if( elem->face(f)->boundary_id() == 40 ||
+                        elem->face(f)->boundary_id() == 41 ||
+                        elem->face(f)->boundary_id() == 26 || //this allows for refinement of waterline cells on water side
+                        elem->face(f)->boundary_id() == 27 || //this allows for refinement of waterline cells on water side
+                        elem->face(f)->boundary_id() == 28 || //this allows for refinement of waterline cells on water side
+                        elem->face(f)->boundary_id() == 29  //this allows for refinement of waterline cells on water side
                       )
                       {
                       clear = false;
-                      //if ( ( elem->face(f)->boundary_indicator() == 26 || //this blocks last step of refinement of waterline cells if close to stern
-                      //       elem->face(f)->boundary_indicator() == 27 || //this blocks last step of refinement of waterline cells if close to stern
-                      //       elem->face(f)->boundary_indicator() == 28 || //this blocks last step of refinement of waterline cells if close to stern
-                      //       elem->face(f)->boundary_indicator() == 29 ) && //this blocks last step of refinement of waterline cells if close to stern
+                      //if ( ( elem->face(f)->boundary_id() == 26 || //this blocks last step of refinement of waterline cells if close to stern
+                      //       elem->face(f)->boundary_id() == 27 || //this blocks last step of refinement of waterline cells if close to stern
+                      //       elem->face(f)->boundary_id() == 28 || //this blocks last step of refinement of waterline cells if close to stern
+                      //       elem->face(f)->boundary_id() == 29 ) && //this blocks last step of refinement of waterline cells if close to stern
                       //     (elem->center()(0) > 1.70) &&
                       //     (elem->diameter()/4.0 < comp_dom.min_diameter) )
                       //   clear = true;
@@ -1977,8 +1978,8 @@ bool FreeSurface<dim>::solution_check(Vector<double> & solution,
 	     if (elem->at_boundary())
                 {
                 for (unsigned int f=0; f<GeometryInfo<2>::faces_per_cell; ++f)
-		    if ( elem->face(f)->boundary_indicator() == 32 ||
-                         elem->face(f)->boundary_indicator() == 37 )
+            if ( elem->face(f)->boundary_id() == 32 ||
+                         elem->face(f)->boundary_id() == 37 )
                        {
                        unsigned int index_0 = comp_dom.find_point_id(elem->face(f)->vertex(0),comp_dom.ref_points);
                        unsigned int index_1 = comp_dom.find_point_id(elem->face(f)->vertex(1),comp_dom.ref_points);
@@ -4186,7 +4187,7 @@ std::cout<<"Preparing interpolated solution for restart"<<std::endl;
          Point<3,fad_double> center(0.0,0.0,0.0);
          for (unsigned int i=0; i<dofs_per_cell; ++i)
              {
-             center += (Point<3,fad_double>(coors[3*i],coors[3*i+1],coors[3*i+2]))/dofs_per_cell;
+             center += (Point<3,fad_double>(coors[3*i],coors[3*i+1],coors[3*i+2]))/fad_double(dofs_per_cell);
              }
 
          std::vector<fad_double> eta_dot_rhs_fun(n_q_points);
@@ -4210,7 +4211,7 @@ std::cout<<"Preparing interpolated solution for restart"<<std::endl;
              for (unsigned int i=0; i<dofs_per_cell; ++i)
                  {
                  unsigned int index = local_dof_indices[i];
-                 q_point += fad_double(ref_fe_v.shape_value(i,q))*Point<3,fad_double>(coors[3*i],coors[3*i+1],coors[3*i+2]);
+                 q_point += fad_double(ref_fe_v.shape_value(i,q))*T(Point<3,fad_double>(coors[3*i],coors[3*i+1],coors[3*i+2]));
                  u_deriv_pos += fad_double(ref_fe_v.shape_grad(i,q)[0])*Point<3,fad_double>(coors[3*i],coors[3*i+1],coors[3*i+2]);
                  v_deriv_pos += fad_double(ref_fe_v.shape_grad(i,q)[1])*Point<3,fad_double>(coors[3*i],coors[3*i+1],coors[3*i+2]);
                  u_deriv_phi += fad_double(ref_fe_v.shape_grad(i,q)[0])*phis[i];
@@ -6556,7 +6557,7 @@ int FreeSurface<dim>::residual_and_jacobian(const double t,
          Point<3,fad_double> center(0.0,0.0,0.0);
          for (unsigned int i=0; i<dofs_per_cell; ++i)
              {
-             center += (Point<3,fad_double>(coors[3*i],coors[3*i+1],coors[3*i+2]))/dofs_per_cell;
+             center += (Point<3,fad_double>(coors[3*i],coors[3*i+1],coors[3*i+2]))/fad_double(dofs_per_cell);
              }
          // computation of cell diameter
          fad_double cell_diameter = 0.0;
@@ -9683,8 +9684,8 @@ void FreeSurface<dim>::compute_pressure(Vector<double> & press,
              {
              for (unsigned int f=0; f<GeometryInfo<2>::faces_per_cell; ++f)
                  {
-		 if ( elem->face(f)->boundary_indicator() == 27 ||
-                      elem->face(f)->boundary_indicator() == 29 ) // left side
+         if ( elem->face(f)->boundary_id() == 27 ||
+                      elem->face(f)->boundary_id() == 29 ) // left side
                     {
                     std::vector<Point<3> > vertices(4);
                     std::vector<CellData<2> > cells(1);
@@ -9799,8 +9800,8 @@ void FreeSurface<dim>::compute_pressure(Vector<double> & press,
 
 
                     }
-                 if ( elem->face(f)->boundary_indicator() == 26 ||
-                      elem->face(f)->boundary_indicator() == 28 ) // right side
+                 if ( elem->face(f)->boundary_id() == 26 ||
+                      elem->face(f)->boundary_id() == 28 ) // right side
                     {
                     std::vector<Point<3> > vertices(4);
                     std::vector<CellData<2> > cells(1);
@@ -9952,8 +9953,8 @@ void FreeSurface<dim>::compute_pressure(Vector<double> & press,
 	     if (elem->at_boundary())
                 {
                 for (unsigned int f=0; f<GeometryInfo<2>::faces_per_cell; ++f)
-		    if ( elem->face(f)->boundary_indicator() == 32 ||
-                         elem->face(f)->boundary_indicator() == 37 )
+            if ( elem->face(f)->boundary_id() == 32 ||
+                         elem->face(f)->boundary_id() == 37 )
                        {
                        unsigned int index_0 = comp_dom.find_point_id(elem->face(f)->vertex(0),comp_dom.ref_points);
                        double pressure_0 = (1-eta_dry)*comp_dom.ref_points[3*index_0](2)*rho*g;
