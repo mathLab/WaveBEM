@@ -14,4 +14,4 @@ before_install:
 
 script:
 - docker run -P -v `pwd`:/home/dealii/WaveBEM:rw heltai/deal2lkit /bin/sh -c "mkdir WaveBEM/build; cd WaveBEM/build; cmake -GNinja ../; ninja"
-#- docker run -P -v `pwd`:/home/dealii/WaveBEM:rw heltai/deal2lkit /bin/sh -c "cd WaveBEM/build; ninja setup_tests; ctest"
+- docker run -P -v `pwd`:/home/dealii/WaveBEM:rw heltai/deal2lkit /bin/sh -c "cd WaveBEM/build; ctest"
