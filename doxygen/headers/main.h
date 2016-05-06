@@ -1,18 +1,9 @@
-# WaveBEM: Nonlinear Unsteady Potential Flow Solver for Ship-Wave Interaction Problems
+/**
+@{
 
-[![Build Status](https://travis-ci.org/mathLab/WaveBEM.svg?branch=master)](https://travis-ci.org/mathLab/WaveBEM)
+@mainpage WaveBEM documentation
+@section intro Introduction
 
-Copyright (C) 2012 -- 2016 by Andrea Mola (1) and Luca Heltai (2)
-
-(1) Scuola Internazionale Superiore di Studi Avanzati
-    E-mail: andrea.mola@sissa.it
-
-(2) Scuola Internazionale Superiore di Studi Avanzati
-    E-mail: luca.heltai@sissa.it
-
-Main Contributors:
-
-https://github.com/mathlab/WaveBEM/graphs/contributors
 
 **WaveBEM** is an opensource software for ship hydrodynamics simulations currently under development at SISSA mathLab (http://mathlab.sissa.it).
 
@@ -147,4 +138,7 @@ If you use this software, please consider citing the following works:
 
 See the LICENCE file in this directory.
 
+@}
+
+*/
 

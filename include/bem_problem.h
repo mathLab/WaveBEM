@@ -1,8 +1,8 @@
 //----------------------------  step-34.cc  ---------------------------
 //    $Id: step-34.cc 18734 2009-04-25 13:36:48Z heltai $
-//    Version: $Name$ 
+//    Version: $Name$
 //
-//    Copyright (C) 2009, 2011 by the deal.II authors 
+//    Copyright (C) 2009, 2011 by the deal.II authors
 //
 //    This file is subject to QPL and may not be  distributed
 //    without copyright and license information. Please refer
@@ -15,11 +15,11 @@
 
 #ifndef bem_problem_h
 #define bem_problem_h
-				 // @sect3{Include files}
+// @sect3{Include files}
 
-				 // The program starts with including a bunch
-				 // of include files that we will use in the
-				 // various parts of the program.
+// The program starts with including a bunch
+// of include files that we will use in the
+// various parts of the program.
 
 
 #include <deal.II/base/smartpointer.h>
@@ -62,8 +62,8 @@
 #include <deal.II/numerics/vector_tools.h>
 #include <deal.II/numerics/solution_transfer.h>
 
-				 // And here are a few C++ standard header
-				 // files that we will need:
+// And here are a few C++ standard header
+// files that we will need:
 #include <cmath>
 #include <iostream>
 #include <fstream>
@@ -85,97 +85,97 @@ using namespace dealii;
 
 
 template <int dim>
-class BEMProblem 
+class BEMProblem
 {
-  public:
-  
-    typedef typename DoFHandler<dim-1,dim>::active_cell_iterator cell_it;
-    
-    BEMProblem(ComputationalDomain<dim> &comp_dom,BEMFMA<dim> &fma);
+public:
 
-    void solve(Vector<double> &phi, Vector<double> &dphi_dn,
-               const Vector<double> &tmp_rhs);
-    
-    void reinit();
+  typedef typename DoFHandler<dim-1,dim>::active_cell_iterator cell_it;
 
-    void compute_constraints(ConstraintMatrix &constraints, const Vector<double> &tmp_rhs);
+  BEMProblem(ComputationalDomain<dim> &comp_dom,BEMFMA<dim> &fma);
+
+  void solve(Vector<double> &phi, Vector<double> &dphi_dn,
+             const Vector<double> &tmp_rhs);
+
+  void reinit();
+
+  void compute_constraints(ConstraintMatrix &constraints, const Vector<double> &tmp_rhs);
 
   //  private:
-    
-    void declare_parameters(ParameterHandler &prm);
-  
-    void parse_parameters(ParameterHandler &prm);
-    
-    				     // To be commented
-    
-    void compute_alpha();
 
-    void assemble_system();
-        
-                                      // The next three methods are
-				      // needed by the GMRES solver:
-				      // the first provides result of
-				      // the product of the system 
-				      // matrix (a combination of Neumann
-				      // and Dirichlet matrices) by the
-				      // vector src. The result is stored
-				      // in the vector dst. 
-    
-    void vmult(Vector<double> &dst, const Vector<double> &src) const;
-    
-                                      // The second method computes the
-				      // right hand side vector of the
-				      // system.
-    
-    void compute_rhs(Vector<double> &dst, const Vector<double> &src) const;
+  void declare_parameters(ParameterHandler &prm);
 
-                                      // The third method computes the
-				      // product between the solution vector
-				      // and the (fully populated) sytstem
-				      // matrix.
+  void parse_parameters(ParameterHandler &prm);
 
-    void assemble_preconditioner();
+  // To be commented
 
-    void compute_surface_gradients(const Vector<double> &tmp_rhs); 
+  void compute_alpha();
 
-    void solve_system(Vector<double> &phi, Vector<double> &dphi_dn,
-                      const Vector<double> &tmp_rhs);
+  void assemble_system();
 
-    void residual(Vector<double> &res, const Vector<double> &phi,
-                                       const Vector<double> &dphi_dn);
+  // The next three methods are
+  // needed by the GMRES solver:
+  // the first provides result of
+  // the product of the system
+  // matrix (a combination of Neumann
+  // and Dirichlet matrices) by the
+  // vector src. The result is stored
+  // in the vector dst.
 
-    void output_results(const std::string);
-    
-    ComputationalDomain<dim> &comp_dom;
-    
-    BEMFMA<dim> &fma;
-                                     
-    FullMatrix<double>    neumann_matrix;    
-    FullMatrix<double>    dirichlet_matrix;    
-    Vector<double>        system_rhs;
-    
-    Vector<double>              sol;  
-    Vector<double>              alpha;
+  void vmult(Vector<double> &dst, const Vector<double> &src) const;
 
-    Vector<double>              serv_phi;  
-    Vector<double>              serv_dphi_dn;
-    Vector<double>              serv_tmp_rhs;
+  // The second method computes the
+  // right hand side vector of the
+  // system.
 
-    ConstraintMatrix     constraints;    
-    
-    std::string solution_method;
-    
-    SolverControl solver_control;
+  void compute_rhs(Vector<double> &dst, const Vector<double> &src) const;
 
-    SparseDirectUMFPACK preconditioner;
+  // The third method computes the
+  // product between the solution vector
+  // and the (fully populated) sytstem
+  // matrix.
 
-    SparsityPattern preconditioner_sparsity_pattern;
+  void assemble_preconditioner();
 
-    int preconditioner_band;
+  void compute_surface_gradients(const Vector<double> &tmp_rhs);
 
-    bool is_preconditioner_initialized;
+  void solve_system(Vector<double> &phi, Vector<double> &dphi_dn,
+                    const Vector<double> &tmp_rhs);
 
-    std::vector<Point<dim> > node_surface_gradients;
+  void residual(Vector<double> &res, const Vector<double> &phi,
+                const Vector<double> &dphi_dn);
+
+  void output_results(const std::string);
+
+  ComputationalDomain<dim> &comp_dom;
+
+  BEMFMA<dim> &fma;
+
+  FullMatrix<double>    neumann_matrix;
+  FullMatrix<double>    dirichlet_matrix;
+  Vector<double>        system_rhs;
+
+  Vector<double>              sol;
+  Vector<double>              alpha;
+
+  Vector<double>              serv_phi;
+  Vector<double>              serv_dphi_dn;
+  Vector<double>              serv_tmp_rhs;
+
+  ConstraintMatrix     constraints;
+
+  std::string solution_method;
+
+  SolverControl solver_control;
+
+  SparseDirectUMFPACK preconditioner;
+
+  SparsityPattern preconditioner_sparsity_pattern;
+
+  int preconditioner_band;
+
+  bool is_preconditioner_initialized;
+
+  std::vector<Point<dim> > node_surface_gradients;
 
 };
 

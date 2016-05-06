@@ -41,25 +41,25 @@ template <class VECTOR> class ConstrainedMatrixBlock;
  * @author Luca Heltai 2011
  */
 
-template<class VEC, class MATRIX> 
-class ConstrainedOperator 
+template<class VEC, class MATRIX>
+class ConstrainedOperator
 {
-  public:
-    ConstrainedOperator(const MATRIX &m,
-			const ConstraintMatrix &c) :
-		    constraints(c),
-		    matrix(m)
-      {}
-    
-    
-    
-    void vmult(VEC& dst, const VEC &src) const;
+public:
+  ConstrainedOperator(const MATRIX &m,
+                      const ConstraintMatrix &c) :
+    constraints(c),
+    matrix(m)
+  {}
 
-    void distribute_rhs(VEC &rhs) const;
-    
-  private:
-    const ConstraintMatrix &constraints;
-    const MATRIX &matrix;
+
+
+  void vmult(VEC &dst, const VEC &src) const;
+
+  void distribute_rhs(VEC &rhs) const;
+
+private:
+  const ConstraintMatrix &constraints;
+  const MATRIX &matrix;
 };
 
 /*@}*/
@@ -69,27 +69,27 @@ class ConstrainedOperator
 //--------------------------------Iterators--------------------------------------//
 
 
-template<class VEC, class MATRIX> 
-void ConstrainedOperator<VEC,MATRIX>::vmult(VEC& dst, const VEC &src) const
+template<class VEC, class MATRIX>
+void ConstrainedOperator<VEC,MATRIX>::vmult(VEC &dst, const VEC &src) const
 {
   matrix.vmult(dst, src);
-  for(unsigned int i=0; i<dst.size(); ++i)
-    if(constraints.is_constrained(i)) 
+  for (unsigned int i=0; i<dst.size(); ++i)
+    if (constraints.is_constrained(i))
       {
-	dst(i) = src(i);
-	const std::vector< std::pair < unsigned int, double > >
-	  * entries = constraints.get_constraint_entries (i);
-	for(unsigned int j=0; j< entries->size(); ++j)
-	  dst(i) -= (*entries)[j].second *
-		    src((*entries)[j].first);
+        dst(i) = src(i);
+        const std::vector< std::pair < unsigned int, double > >
+        *entries = constraints.get_constraint_entries (i);
+        for (unsigned int j=0; j< entries->size(); ++j)
+          dst(i) -= (*entries)[j].second *
+                    src((*entries)[j].first);
       }
 }
 
-template<class VEC, class MATRIX> 
+template<class VEC, class MATRIX>
 void ConstrainedOperator<VEC,MATRIX>::distribute_rhs(VEC &rhs) const
 {
-  for(unsigned int i=0; i<rhs.size(); ++i)
-    if(constraints.is_constrained(i)) 
+  for (unsigned int i=0; i<rhs.size(); ++i)
+    if (constraints.is_constrained(i))
       rhs(i) = constraints.get_inhomogeneity(i);
 }
 

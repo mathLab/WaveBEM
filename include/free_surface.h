@@ -1,8 +1,8 @@
 //----------------------------  step-34.cc  ---------------------------
 //    $Id: step-34.cc 18734 2009-04-25 13:36:48Z heltai $
-//    Version: $Name$ 
+//    Version: $Name$
 //
-//    Copyright (C) 2009, 2011 by the deal.II authors 
+//    Copyright (C) 2009, 2011 by the deal.II authors
 //
 //    This file is subject to QPL and may not be  distributed
 //    without copyright and license information. Please refer
@@ -14,17 +14,17 @@
 //----------------------------  step-34.cc  ---------------------------
 
 
-				 // @sect3{Include files}
+// @sect3{Include files}
 
-				 // The program starts with including a bunch
-				 // of include files that we will use in the
-				 // various parts of the program. Most of them
-				 // have been discussed in previous tutorials
-				 // already:
+// The program starts with including a bunch
+// of include files that we will use in the
+// various parts of the program. Most of them
+// have been discussed in previous tutorials
+// already:
 #ifndef free_surface_h
 #define free_surface_h
 
-			 
+
 #include <deal.II/base/smartpointer.h>
 #include <deal.II/base/convergence_table.h>
 #include <deal.II/base/quadrature_lib.h>
@@ -67,8 +67,8 @@
 #include <deal.II/numerics/solution_transfer.h>
 #include <deal.II/numerics/fe_field_function.h>
 
-				 // And here are a few C++ standard header
-				 // files that we will need:
+// And here are a few C++ standard header
+// files that we will need:
 #include <cmath>
 #include <iostream>
 #include <fstream>
@@ -86,238 +86,244 @@
 
 // Helper function
 template<int dim, class Type>
-Tensor<1,dim,Type> &T(Point<dim,Type> &p) {
-    return static_cast<Tensor<1,dim,Type> &>(p);
+Tensor<1,dim,Type> &T(Point<dim,Type> &p)
+{
+  return static_cast<Tensor<1,dim,Type> &>(p);
 }
 
 
 // Helper function
 template<int dim, class Type>
-const Tensor<1,dim,Type> &T(const Point<dim,Type> &p) {
-    return static_cast<const Tensor<1,dim,Type> &>(p);
+const Tensor<1,dim,Type> &T(const Point<dim,Type> &p)
+{
+  return static_cast<const Tensor<1,dim,Type> &>(p);
 }
 
 
 template <int dim>
 class FreeSurface:
-public OdeArgument, 
-public NewtonArgument 
+  public OdeArgument,
+  public NewtonArgument
 {
 public:
   FreeSurface(NumericalTowingTank &comp_dom, BEMProblem<dim> &bem) :
-		  wind(dim),  comp_dom(comp_dom), bem(bem)
-      {dofs_number = 0,
-       output_frequency = 1;
-       stop_time_integrator = false;
-       reset_time_integrator = false;}
-    
+    wind(dim),  comp_dom(comp_dom), bem(bem)
+  {
+    dofs_number = 0,
+    output_frequency = 1;
+    stop_time_integrator = false;
+    reset_time_integrator = false;
+  }
+
   virtual unsigned int n_dofs() const;
 
-  virtual void output_step(Vector<double> & solution,
+  virtual void output_step(Vector<double> &solution,
                            const unsigned int step_number);
-  
-  virtual void output_step(Vector<double> & solution,
-	                   Vector<double> &solution_dot,
-			   const double t,
-	                   const unsigned int step_number,
-		           const double  h);
+
+  virtual void output_step(Vector<double> &solution,
+                           Vector<double> &solution_dot,
+                           const double t,
+                           const unsigned int step_number,
+                           const double  h);
 
   virtual bool solution_check(Vector<double> &solution,
-			      Vector<double> &solution_dot,
-			      const double t,
-			      const unsigned int step_number,
-			      const double h);
+                              Vector<double> &solution_dot,
+                              const double t,
+                              const unsigned int step_number,
+                              const double h);
 
 
-				     /** For dae problems, we need a
-					 residual function. This one is computed with
-                                         sacado to allow computations of derivatives for jacobian*/
-  virtual int residual(const double t, 
-     		       Vector<double> &dst,  
-		       const Vector<double> &src_yy,
-		       const Vector<double> &src_yp);
+  /** For dae problems, we need a
+  residual function. This one is computed with
+                              sacado to allow computations of derivatives for jacobian*/
+  virtual int residual(const double t,
+                       Vector<double> &dst,
+                       const Vector<double> &src_yy,
+                       const Vector<double> &src_yp);
 
-				     /** For newton solver, we need a
-					 residual function. This one is computed with
-                                         sacado to allow computations of derivatives for jacobian*/
-  virtual int residual(Vector<double> &dst,  
-	               const Vector<double> &src_yy);
+  /** For newton solver, we need a
+  residual function. This one is computed with
+                              sacado to allow computations of derivatives for jacobian*/
+  virtual int residual(Vector<double> &dst,
+                       const Vector<double> &src_yy);
 
-				     /** Jacobian vector product for dae. */
+  /** Jacobian vector product for dae. */
   virtual int jacobian(const double t,
-		       Vector<double> &dst,  
-		       const Vector<double> &src_yy,
-		       const Vector<double> &src_yp,
-		       const Vector<double> &src,
-		       const double alpha);
+                       Vector<double> &dst,
+                       const Vector<double> &src_yy,
+                       const Vector<double> &src_yp,
+                       const Vector<double> &src,
+                       const double alpha);
 
 
-				     /** Jacobian vector product for newton solver. */
-  virtual int jacobian(Vector<double> &dst,  
-	               const Vector<double> &src_yy,
-		       const Vector<double> &src);
+  /** Jacobian vector product for newton solver. */
+  virtual int jacobian(Vector<double> &dst,
+                       const Vector<double> &src_yy,
+                       const Vector<double> &src);
 
-				     /** This function computes either DAE residual
-                                         or corrensponding Jacobian matrix vector product
-                                         with vector src. Boolean is_jacobian determines if
-                                         this function is used for residual (false) or for
-                                         Jacobian (true). In residual case, src and alpha
-                                         values assigned are disregarded.*/
+  /** This function computes either DAE residual
+                              or corrensponding Jacobian matrix vector product
+                              with vector src. Boolean is_jacobian determines if
+                              this function is used for residual (false) or for
+                              Jacobian (true). In residual case, src and alpha
+                              values assigned are disregarded.*/
   int residual_and_jacobian(const double t,
-		            Vector<double> &dst,  
-		            const Vector<double> &src_yy,
-		            const Vector<double> &src_yp,
-		            const Vector<double> &src,
-		            const double alpha,
+                            Vector<double> &dst,
+                            const Vector<double> &src_yy,
+                            const Vector<double> &src_yp,
+                            const Vector<double> &src,
+                            const double alpha,
                             const bool is_jacobian);
-    
 
-				     /** Setup Jacobian preconditioner for Newton. */
-  virtual int setup_jacobian_prec(const Vector<double> &src_yy);    
 
-				     /** Setup Jacobian preconditioner for DAE. */
+  /** Setup Jacobian preconditioner for Newton. */
+  virtual int setup_jacobian_prec(const Vector<double> &src_yy);
+
+  /** Setup Jacobian preconditioner for DAE. */
   virtual int setup_jacobian_prec(const double t,
-				  const Vector<double> &src_yy,
-				  const Vector<double> &src_yp,
-				  const double alpha);    
+                                  const Vector<double> &src_yy,
+                                  const Vector<double> &src_yp,
+                                  const double alpha);
 
-  void compute_constraints(ConstraintMatrix &constraints, 
-			   ConstraintMatrix &vector_constraints);
-    
-				     /** Jacobian inverse preconditioner
-					 vector product for dae. */
+  void compute_constraints(ConstraintMatrix &constraints,
+                           ConstraintMatrix &vector_constraints);
+
+  /** Jacobian inverse preconditioner
+  vector product for dae. */
   virtual int jacobian_prec(const double t,
-			    Vector<double> &dst,  
-			    const Vector<double> &src_yy,
-			    const Vector<double> &src_yp,
-			    const Vector<double> &src,
-			    const double alpha);    
-    
-				     /** Jacobian inverse preconditioner
-					 vector product for newton solver. */
-  virtual int jacobian_prec(Vector<double> &dst,  
-			    const Vector<double> &src_yy,
-			    const Vector<double> &src);
+                            Vector<double> &dst,
+                            const Vector<double> &src_yy,
+                            const Vector<double> &src_yp,
+                            const Vector<double> &src,
+                            const double alpha);
 
-				     /** Jacobian preconditioner
-					 vector product for newton solver. */
-  virtual int jacobian_prec_prod(Vector<double> &dst,  
-			    const Vector<double> &src_yy,
-			    const Vector<double> &src);
+  /** Jacobian inverse preconditioner
+  vector product for newton solver. */
+  virtual int jacobian_prec(Vector<double> &dst,
+                            const Vector<double> &src_yy,
+                            const Vector<double> &src);
+
+  /** Jacobian preconditioner
+  vector product for newton solver. */
+  virtual int jacobian_prec_prod(Vector<double> &dst,
+                                 const Vector<double> &src_yy,
+                                 const Vector<double> &src);
 
 
-				     /** And an identification of the
-					 differential components. This
-					 has to be 1 if the
-					 corresponding variable is a
-					 differential component, zero
-					 otherwise.  */
-  virtual Vector<double> & differential_components();
+  /** And an identification of the
+  differential components. This
+  has to be 1 if the
+  corresponding variable is a
+  differential component, zero
+  otherwise.  */
+  virtual Vector<double> &differential_components();
 
-				     /** Method to enforce mesh conformity
-                                         at edges at each restart */
-  void make_edges_conformal(Vector<double> & solution,
-		            Vector<double> &solution_dot,
-			    const double t,
-	                    const unsigned int step_number,
-		            const double  h);
+  /** Method to enforce mesh conformity
+                              at edges at each restart */
+  void make_edges_conformal(Vector<double> &solution,
+                            Vector<double> &solution_dot,
+                            const double t,
+                            const unsigned int step_number,
+                            const double  h);
 
-                                      // in the first layer of water cells past
-                                      // the transom there can't be hanging nodes:
-                                      // this method removes them
-  void remove_transom_hanging_nodes(Vector<double> & solution,
+  // in the first layer of water cells past
+  // the transom there can't be hanging nodes:
+  // this method removes them
+  void remove_transom_hanging_nodes(Vector<double> &solution,
                                     Vector<double> &solution_dot,
                                     const double t,
                                     const unsigned int step_number,
                                     const double  h);
 
-				     /** Method to make sure residual is
-					 null at each (re)start of the
-					 computation */
+  /** Method to make sure residual is
+  null at each (re)start of the
+  computation */
   void prepare_restart(const double t, Vector<double> &y, Vector<double> &yp, bool restart_flag=true);
 
   typedef typename DoFHandler<dim-1,dim>::active_cell_iterator cell_it;
-  typedef typename Triangulation<dim-1,dim>::active_cell_iterator tria_it;  
+  typedef typename Triangulation<dim-1,dim>::active_cell_iterator tria_it;
 
   void declare_parameters(ParameterHandler &prm);
-  
+
   void parse_parameters(ParameterHandler &prm);
-  
+
   void initial_conditions(Vector<double> &dst);
 
   void reinit();
 
   void prepare_bem_vectors(double time,
-			   Vector<double> &bem_bc,
-			   Vector<double> &dphi_dn) const;
+                           Vector<double> &bem_bc,
+                           Vector<double> &dphi_dn) const;
 
-                                     // In this routine we use the
-				     // solution obtained to compute the 
-				     // DXDt and DphiDt on the domain
-				     // boundary. 
+  // In this routine we use the
+  // solution obtained to compute the
+  // DXDt and DphiDt on the domain
+  // boundary.
 
 
   void compute_DXDt_and_DphiDt(double time,
-                               const Vector<double> & phi,
-                               const Vector<double> & dphi_dn,
-                               const Vector<double> & nodes_velocities);
-    
-                                     // In this routine we compute the
-                                     // complete potential gradient,
-                                     // surface potential gradient,
-                                     // surface normal
+                               const Vector<double> &phi,
+                               const Vector<double> &dphi_dn,
+                               const Vector<double> &nodes_velocities);
 
-  void vmult(Vector<double> &dst, const Vector<double> &src) const; 
+  // In this routine we compute the
+  // complete potential gradient,
+  // surface potential gradient,
+  // surface normal
+
+  void vmult(Vector<double> &dst, const Vector<double> &src) const;
 
   void compute_potential_gradients(Vector<double> &complete_potential_gradients,
-                                   const Vector<double> & phi,
-                                   const Vector<double> & dphi_dn);
+                                   const Vector<double> &phi,
+                                   const Vector<double> &dphi_dn);
 
 
-  void compute_keel_smoothing(Vector<double> & smoothing);
+  void compute_keel_smoothing(Vector<double> &smoothing);
 
-    
-  void compute_pressure(Vector<double> & press, 
-                        Vector<double> & comp_1, Vector<double> & comp_2, Vector<double> & comp_3, Vector<double> & comp_4, 
-			  const double t,
-			  const Vector<double> & solution,
-			  const Vector<double> & solution_dot);
+
+  void compute_pressure(Vector<double> &press,
+                        Vector<double> &comp_1, Vector<double> &comp_2, Vector<double> &comp_3, Vector<double> &comp_4,
+                        const double t,
+                        const Vector<double> &solution,
+                        const Vector<double> &solution_dot);
 
   void output_results(const std::string,
                       const double t,
-                      const Vector<double> & solution,
-                      const Vector<double> & pressure);
+                      const Vector<double> &solution,
+                      const Vector<double> &pressure);
 
-  void compute_internal_velocities(const Vector<double> & phi,
-                                   const Vector<double> & dphi_dn);
+  void compute_internal_velocities(const Vector<double> &phi,
+                                   const Vector<double> &dphi_dn);
 
-  Vector<double>& get_diameters();
+  Vector<double> &get_diameters();
 
   inline unsigned int Rhs_evaluations_counter()
-        {return rhs_evaluations_counter;}
+  {
+    return rhs_evaluations_counter;
+  }
 
-    void dump_solution(const Vector<double> &y,
-		       const Vector<double> &yp,
-		       const std::string fname) const;
+  void dump_solution(const Vector<double> &y,
+                     const Vector<double> &yp,
+                     const std::string fname) const;
 
-    void restore_solution(Vector<double> &y,
-			  Vector<double> &yp,
-			  const std::string fname);
-    
+  void restore_solution(Vector<double> &y,
+                        Vector<double> &yp,
+                        const std::string fname);
 
-    void enforce_partial_geometry_constraints(const double blend_factor);
 
-    void enforce_full_geometry_constraints(); 
-    
-    bool initial_condition_from_dump;
-    std::string restore_filename;
+  void enforce_partial_geometry_constraints(const double blend_factor);
+
+  void enforce_full_geometry_constraints();
+
+  bool initial_condition_from_dump;
+  std::string restore_filename;
   Vector<double> sys_comp;
-private:  
+private:
 
   std::string output_file_name;
   double remeshing_period;
   double dumping_period;
-    
+
   Functions::ParsedFunction<dim> wind;
   Functions::ParsedFunction<dim> initial_wave_shape;
   Functions::ParsedFunction<dim> initial_wave_potential;
@@ -332,20 +338,20 @@ private:
   bool is_hull_z_translation_imposed;
 
   std::string node_displacement_type;
-  
+
   SolverControl solver_control;
 
   NumericalTowingTank &comp_dom;
 
   BEMProblem<dim> &bem;
-  
+
   unsigned int dofs_number;
-  
+
   unsigned int output_frequency;
 
   unsigned int refinement_level_on_boat;
 
-                              // vectors for the DAE solver  
+  // vectors for the DAE solver
   Vector<double> DXDt_and_DphiDt_vector;
   Vector<double> diff_comp;
   Vector<double> alg_comp;
@@ -355,13 +361,13 @@ private:
   Vector<double> bem_dphi_dn;
 
 
-  
+
   double initial_time;
 
-    
 
-                              // set of vectors and (mass) matrices
-                              // needed in compute_DXDt_and_DphiDt 
+
+  // set of vectors and (mass) matrices
+  // needed in compute_DXDt_and_DphiDt
   ConstraintMatrix     constraints;
   ConstraintMatrix     vector_constraints;
 
@@ -377,11 +383,11 @@ private:
   Vector<double>       DphiDt_sys_rhs_2;
   Vector<double>       DphiDt_sys_rhs_3;
   Vector<double>       DphiDt_sys_rhs_4;
-   
+
   SparsityPattern      vector_sparsity_pattern;
   SparseMatrix<double> vector_sys_matrix;
   SparseMatrix<double> vector_beltrami_matrix;
- 
+
   Vector<double>       vector_sys_solution;
   Vector<double>       vector_sys_solution_2;
 
@@ -394,16 +400,16 @@ private:
   SparseMatrix<double> jacobian_dot_matrix;
   SparseMatrix<double> jacobian_preconditioner_matrix;
   SparseMatrix<double> preconditioner_preconditioner_matrix;
-                              // vector storing the diameters of cells around each node
-                              // needed to estimate local tolerances for 
-                              // the ode solver
+  // vector storing the diameters of cells around each node
+  // needed to estimate local tolerances for
+  // the ode solver
 
   Vector<double>       diameters;
 
-                              // max x,y,z coodiante value (needed for
-  		              // semi-lagrangian free surface
-			      // deformation)
-     
+  // max x,y,z coodiante value (needed for
+  // semi-lagrangian free surface
+  // deformation)
+
   double max_x_coor_value;
 
   double max_y_coor_value;
@@ -412,44 +418,44 @@ private:
 
   unsigned int rhs_evaluations_counter;
 
-    double min_diameter;
+  double min_diameter;
 
-    unsigned int max_number_of_dofs;
+  unsigned int max_number_of_dofs;
 
-    double coarsening_fraction;
+  double coarsening_fraction;
 
-    double refinement_fraction;
+  double refinement_fraction;
 
-    bool sync_bem_with_geometry;
+  bool sync_bem_with_geometry;
 
-    bool restart_flag;
+  bool restart_flag;
 
-    double last_remesh_time;
-                              // working copy of the map points vector 
+  double last_remesh_time;
+  // working copy of the map points vector
   Vector<double>  working_map_points;
-                              // working copy of the map points vector 
+  // working copy of the map points vector
   Vector<double>  working_nodes_velocities;
-                              // vector for position residuals
+  // vector for position residuals
   Vector<double>  nodes_pos_res;
-                              // vector for geometric treatment residuals
-                              // (to be passed to num_ tow_tank)
+  // vector for geometric treatment residuals
+  // (to be passed to num_ tow_tank)
   Vector<double>  nodes_ref_surf_dist;
 
-                              // vector for jacobian X delta vector
-                              // on differential nodes
+  // vector for jacobian X delta vector
+  // on differential nodes
   Vector<double>  nodes_diff_jac_x_delta;
-                              // vector for jacobian X delta vector
-                              // on algebraic nodes
+  // vector for jacobian X delta vector
+  // on algebraic nodes
   Vector<double>  nodes_alg_jac_x_delta;
-                              // residual of dae equation
+  // residual of dae equation
   Vector<double>  dae_nonlin_residual;
-                              // residual of dae linear step
+  // residual of dae linear step
   Vector<double>  dae_linear_step_residual;
 
   double alpha;
 
   Vector<double> current_sol;
-  
+
   Vector<double> current_sol_dot;
 
   double current_time;
@@ -462,15 +468,15 @@ private:
 
   Vector <double> transom_pressure_patch; // temporary
 
-                              // this number sets the bottom limit of the
-                              // adaptive refinement. when set to 2.0, it
-                              // limits the refinements so that all the cells
-                              // have a higher diameter w/r to the min_diameter
-                              // cell of the initial mesh. if set to 1.0, it allows
-                              // cells to be refined to half of the initial min_diameter,
-                              // and so on. On the other side, a value of 4.0 means
-                              // that cells being 2 times bigger than initial min_diameter
-                              // won't be refined.
+  // this number sets the bottom limit of the
+  // adaptive refinement. when set to 2.0, it
+  // limits the refinements so that all the cells
+  // have a higher diameter w/r to the min_diameter
+  // cell of the initial mesh. if set to 1.0, it allows
+  // cells to be refined to half of the initial min_diameter,
+  // and so on. On the other side, a value of 4.0 means
+  // that cells being 2 times bigger than initial min_diameter
+  // won't be refined.
   double adaptive_ref_limit;
 
   TopLoc_Location restart_hull_location;

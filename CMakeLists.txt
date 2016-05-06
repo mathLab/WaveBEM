@@ -1,18 +1,3 @@
-##-----------------------------------------------------------
-##
-##    Copyright (C) 2015 by the deal2lkit authors
-##
-##    This file is part of the deal2lkit library.
-##
-##    The deal2lkit library is free software; you can use it, redistribute
-##    it, and/or modify it under the terms of the GNU Lesser General
-##    Public License as published by the Free Software Foundation; either
-##    version 2.1 of the License, or (at your option) any later version.
-##    The full text of the license can be found in the file LICENSE at
-##    the top level of the deal2lkit distribution.
-##
-##-----------------------------------------------------------
-
 ##
 # CMake script for large project, with one executable
 # and a library of objects depending on deal2lkit.
@@ -22,23 +7,15 @@
 # ./include: containing all class declarations
 # ./tests: containing pairs of files: test.cc/test.output to test
 #
-# If you set the environemnt variable D2K_DIR, 
+# If you set the environemnt variable DEAL2LKIT_DIR or D2K_DIR, 
 # everything will work out of the box
 ##
 
-# Set the name of the project and target
 # If your application follows the structure above, you don't need to 
 # specify anything else. 
 SET(TARGET WaveBEM)
 SET(_main source/main.cc)
 
-# Set the _main variable to empty if you don't want an executable
-# but only a library
-#SET(_main "")
-
-############################################################
-# Normally you shouldn't need to change anything below.
-############################################################
 # Declare all source files the target consists of:
 file(GLOB _files source/*cc)
 
@@ -62,10 +39,11 @@ INCLUDE_DIRECTORIES(include ${DEAL_II_DIR}/include/deal.II)
 
 PROJECT(${TARGET})
 FIND_PACKAGE(deal2lkit 1.0 REQUIRED
-  HINTS ${D2K_DIR} $ENV{D2K_DIR}
+  HINTS ${D2K_DIR} $ENV{D2K_DIR} $ENV{DEAL2LKIT_DIR}
   )
 D2K_INITIALIZE_CACHED_VARIABLES()
 OPTION(ENABLE_APP_TESTING "Enable tests in this application." ON)
+OPTION(ENABLE_DOCUMENTATION "Enable Doxygen documentation." ON)
 
 # We add one library and one target for each type of deal.II library
 # we found. If you compiled deal.II with both Release and Debug
@@ -101,6 +79,10 @@ FOREACH(_build_type ${_d2_build_types})
     SET(TEST_LIBRARIES_${_BUILD_TYPE} ${_lib})
 
     D2K_SETUP_TARGET(${_lib} ${_BUILD_TYPE})
+    SET_TARGET_PROPERTIES(${_lib} PROPERTIES MACOSX_RPATH OFF
+	BUILD_WITH_INSTALL_RPATH OFF
+	INSTALL_NAME_DIR ${CMAKE_INSTALL_PREFIX}/lib
+    )
   ENDIF()
 ENDFOREACH()
 
@@ -109,4 +91,15 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/tests AND ${ENABLE_APP_TESTING})
   ADD_SUBDIRECTORY(tests)
   ENABLE_TESTING()
 endif()
+
+
+IF(ENABLE_DOCUMENTATION)
+  ADD_SUBDIRECTORY(doxygen)
+ENDIF()
+
+
+ADD_CUSTOM_TARGET(indent
+  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+  COMMAND ./scripts/indent
+)
 

@@ -52,39 +52,39 @@ using namespace std;
 using namespace OpenCascade;
 
 
-namespace OpenCascade 
+namespace OpenCascade
 {
   LineSmoothing::LineSmoothing(Vector<double> &euler_vector,
-			       Handle(Geom_Curve) ref_curve,
+                               Handle(Geom_Curve) ref_curve,
                                TopLoc_Location *curr_loc,
-			       const DoFHandler<2,3> &dh,
-			       const vector<bool> &smoothing_dofs,
-			       const unsigned int b_point_id,
-			       const unsigned int d_point_id,
+                               const DoFHandler<2,3> &dh,
+                               const vector<bool> &smoothing_dofs,
+                               const unsigned int b_point_id,
+                               const unsigned int d_point_id,
                                const double tolerance) :
-		  euler_vector(euler_vector),
-		  ref_curve(ref_curve),
-                  curr_location(curr_loc),
-                  curve(ref_curve),
-		  projection(BRepBuilderAPI_MakeEdge(ref_curve)),
-		  dh(dh),
-		  smoothing_dofs(smoothing_dofs),
-                  tolerance(tolerance)
+    euler_vector(euler_vector),
+    ref_curve(ref_curve),
+    curr_location(curr_loc),
+    curve(ref_curve),
+    projection(BRepBuilderAPI_MakeEdge(ref_curve)),
+    dh(dh),
+    smoothing_dofs(smoothing_dofs),
+    tolerance(tolerance)
   {
     if (curr_location)
-       {
-       ref_location = *curr_location;
-       used_location = *curr_location;
-       }
+      {
+        ref_location = *curr_location;
+        used_location = *curr_location;
+      }
     else
-       {
-       ref_location.Identity();
-       used_location.Identity();
-       }
+      {
+        ref_location.Identity();
+        used_location.Identity();
+      }
     update_reference(b_point_id, d_point_id);
   }
 
-  void LineSmoothing::update_reference(unsigned int bid, unsigned int did) 
+  void LineSmoothing::update_reference(unsigned int bid, unsigned int did)
   {
     base_point_id = bid;
     driving_point_id = did;
@@ -95,25 +95,25 @@ namespace OpenCascade
     edge.Location(ref_location);
     BRepAdaptor_Curve AC(edge);
     //GeomAdaptor_Curve AC(ref_curve);
-    
 
-				     // Compute the reference support
-				     // points.
+
+    // Compute the reference support
+    // points.
     support_points.resize(dh.n_dofs());
     //cout<<"dimension "<<dh.n_dofs()<<endl;
     DoFTools::map_dofs_to_support_points<2,3>(StaticMappingQ1<2,3>::mapping,
-					      dh, support_points);
- 
-				     // Store the base point
-				     // parameter.
+                                              dh, support_points);
+
+    // Store the base point
+    // parameter.
     gp_Pnt proj;
     ShapeAnalysis_Curve curve_analysis;
     double off = curve_analysis.Project(AC, Pnt(support_points[3*base_point_id]), tolerance, proj, occ_base_t, Standard_True);
     //cout<<"base_point_id "<<base_point_id<<" (of "<<dh.n_dofs()<<") "<<support_points[3*base_point_id]<<" vs "<<Pnt(proj)<<"  off: "<<off<<endl;
     AssertThrow( (off < tolerance), ExcMessage("Base point is not on curve."));
 
-				     // Store all parameters and
-				     // distances from the base point.
+    // Store all parameters and
+    // distances from the base point.
 //IGESControl_Controller::Init();
 //IGESControl_Writer ICW ("MM", 0);
 //Standard_Boolean ok = ICW.AddGeom (AC);
@@ -121,21 +121,21 @@ namespace OpenCascade
 //Standard_Boolean OK = ICW.Write ("MyFile2.igs");
 
 //cout<<"*"<<endl;
-    for(unsigned int i=0; i<dh.n_dofs()/3; ++i) 
-      if(smoothing_dofs[3*i] == true) 
-	{
-          Point<3> p = support_points[3*i]; 
+    for (unsigned int i=0; i<dh.n_dofs()/3; ++i)
+      if (smoothing_dofs[3*i] == true)
+        {
+          Point<3> p = support_points[3*i];
           gp_Pnt P = Pnt(p);
-	  double t;
+          double t;
           off = curve_analysis.Project(AC, P, tolerance, proj, t, Standard_True);
           //cout<<"in "<<3*i<<"-> p("<<support_points[3*i]<<")   proj="<<Pnt(proj)<<"  off "<<off<<endl;
-          AssertThrow( (off < tolerance), ExcMessage("Point is not on ref curve!")); 
-	  double dist = GCPnts_AbscissaPoint::Length(AC,t,occ_base_t);
-	  smoothing_list[std::pair<double, double >(t, dist)]=i;
+          AssertThrow( (off < tolerance), ExcMessage("Point is not on ref curve!"));
+          double dist = GCPnts_AbscissaPoint::Length(AC,t,occ_base_t);
+          smoothing_list[std::pair<double, double >(t, dist)]=i;
           //cout<<"in "<<3*i<<"-> p("<<support_points[3*i]<<")   t="<<t<<"  dist="<<dist<<"  off "<<off<<endl;
-	}
+        }
 
-				     // Store the new Reference length
+    // Store the new Reference length
     iterator endmap = smoothing_list.end();
     endmap--;
     ref_L = endmap->first.second;
@@ -146,41 +146,41 @@ namespace OpenCascade
     fixed_length_ratios.reinit(smoothing_list.size());
 
     unsigned int count = 0;
-    for (iterator it = smoothing_list.begin(); it != smoothing_list.end(); ++it) 
-	{
+    for (iterator it = smoothing_list.begin(); it != smoothing_list.end(); ++it)
+      {
         fixed_length_ratios(count) = (it->first.second)/ref_L;
-	node_indices[count] = it->second;
+        node_indices[count] = it->second;
         //cout<<count<<"  "<<node_indices[count]<<"  "<<fixed_length_ratios(count)<<endl;
         count++;
-	}
+      }
 
 
-		 		     // Sanity check: the base point
-				     // has to have zero length
+    // Sanity check: the base point
+    // has to have zero length
     AssertThrow( smoothing_list.begin()->first.second < tolerance, ExcInternalError());
 
   }
 
-  void LineSmoothing::smooth(bool maintain_on_original_curve) 
+  void LineSmoothing::smooth(bool maintain_on_original_curve)
   {
     Point<3> dP0 = support_points[driving_point_id*3], dP;
-    for(unsigned int i=0; i<3; ++i)
+    for (unsigned int i=0; i<3; ++i)
       dP0(i) += euler_vector(3*driving_point_id+i);
     //cout<<driving_point_id<<endl;
 
-    if(maintain_on_original_curve == true) 
+    if (maintain_on_original_curve == true)
       {
-	curve = ref_curve;
-        
+        curve = ref_curve;
+
         ////////////////////////////////////////////////////////////////
         // general procedure
-	//projection.normal_projection(dP, dP0);
+        //projection.normal_projection(dP, dP0);
         ////////////////////////////////////////////////////////////////
-        
+
         // procedure only needed for waveBem
-	used_location = *curr_location;
-			   //this is the horizontal plane 
-        TopLoc_Location L_inv = used_location.Inverted(); 
+        used_location = *curr_location;
+        //this is the horizontal plane
+        TopLoc_Location L_inv = used_location.Inverted();
 
         Handle(Geom_Plane) horPlane = new Geom_Plane(0.,0.,1.,-dP0(2));
         horPlane->Transform(L_inv.Transformation());
@@ -188,42 +188,42 @@ namespace OpenCascade
         int npoints = Intersector.NbPoints();
         AssertThrow((npoints != 0), ExcMessage("Reference curve is not intersecting with horizontal plane!"));
         double minDistance=1e7;
-        for (int i=0; i<npoints;++i)
-            {
+        for (int i=0; i<npoints; ++i)
+          {
             gp_Pnt inters_point = Intersector.Point(i+1);
             inters_point.Transform(used_location.Transformation());
             Point<3> inters = Pnt(inters_point);
             if (dP0.distance(inters) < minDistance)
-               {
-               minDistance = dP0.distance(inters);
-               dP = inters;
-               }
-            }
+              {
+                minDistance = dP0.distance(inters);
+                dP = inters;
+              }
+          }
         //*/
-         ////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////
       }
     else
       {
-	dP = dP0;
-	    
-	std::vector<Point<3> > current_points;
-	Point<3> direction(1.0,0.0,0.0);
-	for(iterator it = smoothing_list.begin(); it != smoothing_list.end(); ++it) 
-	  {
-	    unsigned int id=it->second;
-	    Point<3> p = support_points[3*id];
-	    for(unsigned int d=0; d<3; ++d)
-	      p(d) += euler_vector(3*id+d);
-	    current_points.push_back(p);
-	  }
-					 // Get the current curve
+        dP = dP0;
+
+        std::vector<Point<3> > current_points;
+        Point<3> direction(1.0,0.0,0.0);
+        for (iterator it = smoothing_list.begin(); it != smoothing_list.end(); ++it)
+          {
+            unsigned int id=it->second;
+            Point<3> p = support_points[3*id];
+            for (unsigned int d=0; d<3; ++d)
+              p(d) += euler_vector(3*id+d);
+            current_points.push_back(p);
+          }
+        // Get the current curve
         curve = interpolation_curve(current_points);
         used_location.Identity();
 
-        Point<3> base_point; 
+        Point<3> base_point;
         base_point = support_points[base_point_id*3];
-        for(unsigned int i=0; i<3; ++i)
-           base_point(i) += euler_vector(3*base_point_id+i);    
+        for (unsigned int i=0; i<3; ++i)
+          base_point(i) += euler_vector(3*base_point_id+i);
         gp_Pnt occ_driving_point = Pnt(dP);
 
         gp_Pnt proj;
@@ -240,10 +240,10 @@ namespace OpenCascade
         //Standard_Boolean ok = ICW.AddGeom (curve);
         //ICW.ComputeModel();
         //Standard_Boolean OK = ICW.Write ("MyCurve.igs");
-        
+
       }
-				     // Create a geometry adaptor on
-				     // the current curve
+    // Create a geometry adaptor on
+    // the current curve
     TopoDS_Edge edge = BRepBuilderAPI_MakeEdge(curve);
     edge.Location(used_location);
     BRepAdaptor_Curve AC(edge);
@@ -254,21 +254,21 @@ namespace OpenCascade
     ShapeAnalysis_Curve curve_analysis;
     off = curve_analysis.Project(AC, Pnt(driving_point), tolerance, proj, occ_driving_t, Standard_True);
     AssertThrow((off < tolerance), ExcMessage("Driving point is not on curve!"));
-    
-				   // Total length
+
+    // Total length
     double L = GCPnts_AbscissaPoint::Length(AC,occ_driving_t,occ_base_t);
-    
+
     double direction = occ_driving_t > occ_base_t ? 1.0 : -1.0;
-   
-				     // Now perform the smoothing
+
+    // Now perform the smoothing
     unsigned int counter = 0;
-    for(iterator it = smoothing_list.begin(); it != smoothing_list.end(); ++it) 
-      { 
-	unsigned int i=it->second;
-	double dist=it->first.second;
-	Point<3> p = support_points[3*i];
-        for(unsigned int d=0; d<3; ++d)
-	      p(d) += euler_vector(3*i+d);
+    for (iterator it = smoothing_list.begin(); it != smoothing_list.end(); ++it)
+      {
+        unsigned int i=it->second;
+        double dist=it->first.second;
+        Point<3> p = support_points[3*i];
+        for (unsigned int d=0; d<3; ++d)
+          p(d) += euler_vector(3*i+d);
         // we now must compute where the old p lies on the curve (its parameter)
         // to be able to record the old length, useful for possible
         // interpolation of functions which might reconstruct the
@@ -280,68 +280,68 @@ namespace OpenCascade
         lengths_before_smoothing(counter) = GCPnts_AbscissaPoint::Length(AC,old_t,occ_base_t);
         node_indices[counter] = i;
         //cout<<"out "<<3*i<<"--> p("<<p<<") t="<<t<<"  dist="<<dist<<endl;
-	double new_dist = direction*fixed_length_ratios(counter)*L;
+        double new_dist = direction*fixed_length_ratios(counter)*L;
         lengths_after_smoothing(counter) = new_dist;
-	GCPnts_AbscissaPoint AP(AC, new_dist, occ_base_t);
-	double new_t = AP.Parameter();
-	Point<3> pnew = Pnt(AC.Value(new_t));
+        GCPnts_AbscissaPoint AP(AC, new_dist, occ_base_t);
+        double new_t = AP.Parameter();
+        Point<3> pnew = Pnt(AC.Value(new_t));
         //cout<<"pnew("<<pnew<<") tnew="<<new_t<<"  distnew="<<new_dist<<endl;
-					 // Euler distance
+        // Euler distance
         pnew -= support_points[3*i];
-        for(unsigned int j=0; j<3;++j)
+        for (unsigned int j=0; j<3; ++j)
           {
-          //cout<<3*i+j<<" "<<pnew(j)<<endl;
-	  euler_vector(3*i+j) = pnew(j);
+            //cout<<3*i+j<<" "<<pnew(j)<<endl;
+            euler_vector(3*i+j) = pnew(j);
           }
         counter++;
       }
-     }
+  }
 
 }
 
 
-  void LineSmoothing::get_curve_tangent_vectors_at_smoothing_dofs(Vector<double> &tangents)
-  {
-    AssertThrow(tangents.size()==dh.n_dofs(),
-		ExcMessage("Tangent vector has wrong size"));
-    
-    TopoDS_Edge edge = BRepBuilderAPI_MakeEdge(curve);
-    edge.Location(used_location);
-    BRepAdaptor_Curve AC(edge);
+void LineSmoothing::get_curve_tangent_vectors_at_smoothing_dofs(Vector<double> &tangents)
+{
+  AssertThrow(tangents.size()==dh.n_dofs(),
+              ExcMessage("Tangent vector has wrong size"));
 
-    for(iterator it = smoothing_list.begin(); it != smoothing_list.end(); ++it) 
-      {
-	unsigned int i=it->second;
-	double t=it->first.first;
-        gp_Pnt P;
-        gp_Vec V1;
-        AC.D1(t,P,V1);
+  TopoDS_Edge edge = BRepBuilderAPI_MakeEdge(curve);
+  edge.Location(used_location);
+  BRepAdaptor_Curve AC(edge);
 
-	tangents[3*i] = V1.X();
-        tangents[3*i+1] = V1.Y();
-        tangents[3*i+2] = V1.Z();
-      }  
+  for (iterator it = smoothing_list.begin(); it != smoothing_list.end(); ++it)
+    {
+      unsigned int i=it->second;
+      double t=it->first.first;
+      gp_Pnt P;
+      gp_Vec V1;
+      AC.D1(t,P,V1);
 
-  }
+      tangents[3*i] = V1.X();
+      tangents[3*i+1] = V1.Y();
+      tangents[3*i+2] = V1.Z();
+    }
 
-  void LineSmoothing::get_curve_length_ratios_at_smoothing_dofs(Vector<double> &length_ratios)
-  { 
-    AssertThrow(length_ratios.size()==dh.n_dofs(),
-		ExcMessage("Length ratios vector has wrong size"));
-				     // Create a geometry adaptor on
-				     // the current curve
-    TopoDS_Edge edge = BRepBuilderAPI_MakeEdge(curve);
-    edge.Location(used_location);
-    BRepAdaptor_Curve AC(edge);
-    				   // Total length
-    double L = GCPnts_AbscissaPoint::Length(AC,occ_driving_t,occ_base_t);
+}
 
-    for(iterator it = smoothing_list.begin(); it != smoothing_list.end(); ++it) 
-      {
-	unsigned int i=it->second;
-        double dist = it->first.second;
+void LineSmoothing::get_curve_length_ratios_at_smoothing_dofs(Vector<double> &length_ratios)
+{
+  AssertThrow(length_ratios.size()==dh.n_dofs(),
+              ExcMessage("Length ratios vector has wrong size"));
+  // Create a geometry adaptor on
+  // the current curve
+  TopoDS_Edge edge = BRepBuilderAPI_MakeEdge(curve);
+  edge.Location(used_location);
+  BRepAdaptor_Curve AC(edge);
+  // Total length
+  double L = GCPnts_AbscissaPoint::Length(AC,occ_driving_t,occ_base_t);
 
-        for(unsigned int j=0; j<3;++j)
-	   length_ratios(3*i+j) = dist/L;
-      } 
-  }
+  for (iterator it = smoothing_list.begin(); it != smoothing_list.end(); ++it)
+    {
+      unsigned int i=it->second;
+      double dist = it->first.second;
+
+      for (unsigned int j=0; j<3; ++j)
+        length_ratios(3*i+j) = dist/L;
+    }
+}

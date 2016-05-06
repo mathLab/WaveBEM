@@ -29,7 +29,7 @@ fi
 # collect a list of files and then spawn a parallel process to
 # indent all of them
 echo "--- Indenting all header and source files"
-for dir in source include tests examples; do
+for dir in source include tests; do
 files=`find $dir | egrep '\.(cc|h)$'` ;
     if test -n "$files" ; then
 	(astyle --options=scripts/astyle.rc $files ) &
