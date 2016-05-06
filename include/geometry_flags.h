@@ -15,9 +15,9 @@
 
 #include <deal.II/base/config.h>
 /**
- * The enum type given to the constructors of LocalAssembleBase objects, 
- * telling those objects which data to assemble on each mesh cell. 
- * When the GlobalAssembler calls the local one, it checks for each flag, 
+ * The enum type given to the constructors of LocalAssembleBase objects,
+ * telling those objects which data to assemble on each mesh cell.
+ * When the GlobalAssembler calls the local one, it checks for each flag,
  * and if it finds one, it assemble the corresponding object.
  *
  * By default, all flags are off, i.e. no procedure will be called.
@@ -26,31 +26,31 @@
  * using the bitwise or operator|(GeometryFlags,GeometryFlags).
  */
 enum GeometryFlags
-  {
-    //! No update
-    none                      = 0,
-				     // Surface nodes
-    water		      = 0x0001,
-    boat		      = 0x0002,
-    walls		      = 0x0004,
-    inflow		      = 0x0008,
-    				     // Edge nodes
-    near_water		      = 0x0010,
-    near_boat		      = 0x0020,
-    near_walls		      = 0x0040,
-    edge		      = 0x0080,
-    keel		      = 0x0100,
-    near_inflow		      = 0x0200,
-				    // Position characterization
-    right_side                = 0x0400,
-    left_side                 = 0x0800,   
-				    // transom on water or boat
-    transom_on_boat           = 0x1000,
-    transom_on_water          = 0x2000,
-                                    // pressure condition nodes
-    pressure                  = 0x4000,
-    near_pressure                  = 0x8000
-  };
+{
+  //! No update
+  none                      = 0,
+  // Surface nodes
+  water         = 0x0001,
+  boat          = 0x0002,
+  walls         = 0x0004,
+  inflow          = 0x0008,
+  // Edge nodes
+  near_water          = 0x0010,
+  near_boat         = 0x0020,
+  near_walls          = 0x0040,
+  edge          = 0x0080,
+  keel          = 0x0100,
+  near_inflow         = 0x0200,
+  // Position characterization
+  right_side                = 0x0400,
+  left_side                 = 0x0800,
+  // transom on water or boat
+  transom_on_boat           = 0x1000,
+  transom_on_water          = 0x2000,
+  // pressure condition nodes
+  pressure                  = 0x4000,
+  near_pressure                  = 0x8000
+};
 
 
 
@@ -68,8 +68,8 @@ GeometryFlags
 operator | (GeometryFlags f1, GeometryFlags f2)
 {
   return static_cast<GeometryFlags> (
-				     static_cast<unsigned int> (f1) |
-				     static_cast<unsigned int> (f2));
+           static_cast<unsigned int> (f1) |
+           static_cast<unsigned int> (f2));
 }
 
 /**
@@ -85,8 +85,8 @@ GeometryFlags
 operator ^ (GeometryFlags f1, GeometryFlags f2)
 {
   return static_cast<GeometryFlags> (
-				     static_cast<unsigned int> (f1) ^
-				     static_cast<unsigned int> (f2));
+           static_cast<unsigned int> (f1) ^
+           static_cast<unsigned int> (f2));
 }
 
 /**
@@ -127,8 +127,8 @@ GeometryFlags
 operator & (GeometryFlags f1, GeometryFlags f2)
 {
   return static_cast<GeometryFlags> (
-				     static_cast<unsigned int> (f1) &
-				     static_cast<unsigned int> (f2));
+           static_cast<unsigned int> (f1) &
+           static_cast<unsigned int> (f2));
 }
 
 
@@ -144,6 +144,6 @@ operator &= (GeometryFlags &f1, GeometryFlags f2)
   return f1;
 }
 
-			  
+
 
 #endif

@@ -50,26 +50,26 @@
 #include <deal.II/grid/tria_accessor.h>
 
 
-namespace OpenCascade 
+namespace OpenCascade
 {
 
   ArclengthProjection::ArclengthProjection(const TopoDS_Shape &sh,
-					   double tolerance) :
-		  sh(sh),
-		  tolerance(tolerance)
+                                           double tolerance) :
+    sh(sh),
+    tolerance(tolerance)
   {
-				     // Check that we have at most
-				     // one edge.
+    // Check that we have at most
+    // one edge.
     TopExp_Explorer edgeExplorer(sh , TopAbs_EDGE);
     unsigned int n_edges = 0;
-    while(edgeExplorer.More())
+    while (edgeExplorer.More())
       {
-	n_edges++;
-	edgeExplorer.Next();
+        n_edges++;
+        edgeExplorer.Next();
       }
     AssertThrow(n_edges == 1, ExcMessage("We can do this only "
-					 "on a single edge: "
-					 "split your geometry."));
+                                         "on a single edge: "
+                                         "split your geometry."));
 
   }
 
@@ -81,12 +81,12 @@ namespace OpenCascade
     Point<3> projected_point;
 
     Assert((0. <= distance) &&
-	   (distance <= 1.),
-	   ExcMessage("Distance should be between 0. and 1."));
-  
+           (distance <= 1.),
+           ExcMessage("Distance should be between 0. and 1."));
+
     gp_Pnt P0(p0(0),p0(1),p0(2));
     gp_Pnt P1(p1(0),p1(1),p1(2));
-  
+
     TopExp_Explorer edgeExplorer(sh , TopAbs_EDGE);
     TopoDS_Edge edge;
     edgeExplorer.More();
@@ -97,26 +97,26 @@ namespace OpenCascade
     Standard_Real Last;
 
 
-				     // the projection function
-				     // needs a curve, so we
-				     // obtain the curve upon
-				     // which the edge is defined
+    // the projection function
+    // needs a curve, so we
+    // obtain the curve upon
+    // which the edge is defined
     BRepAdaptor_Curve gg_curve(edge);
     First = gg_curve.FirstParameter();
     Last = gg_curve.LastParameter();
     //Handle(Geom_Curve) g_curve = BRep_Tool::Curve(edge,L,First,Last);
 
-    
-    //gp_Trsf L_transformation = this->sh.Location().Transformation(); 
+
+    //gp_Trsf L_transformation = this->sh.Location().Transformation();
     //TopLoc_Location L_inv = L.Inverted();
-    //gp_Trsf L_inv_transformation = L_inv.Transformation(); 
+    //gp_Trsf L_inv_transformation = L_inv.Transformation();
     //P0.Transform(L_inv_transformation);
-    //P1.Transform(L_inv_transformation); 	
+    //P1.Transform(L_inv_transformation);
     //cout<<P0.X()<<" "<<P0.Y()<<" "<<P0.Z()<<"  --"<<distance<<"--  "<<P1.X()<<" "<<P1.Y()<<" "<<P1.Z()<<endl;
     Standard_Real t0;
     Standard_Real t1;
     Standard_Real t2;
-  
+
 
     gp_Pnt proj;
     ShapeAnalysis_Curve curve_analysis;
@@ -133,18 +133,18 @@ namespace OpenCascade
     //tool.Parameter(gg_curve, P0, tolerance, t0);
     //tool.Parameter(gg_curve, P1, tolerance, t1);
 
-				     //Check that we are in the right
-				     //range.
+    //Check that we are in the right
+    //range.
     AssertThrow((First-1000*tolerance <= t0) &&
-	        (t0 <= Last+1000*tolerance),
-	        ExcMessage("Parameter 1 is out of range!"));
+                (t0 <= Last+1000*tolerance),
+                ExcMessage("Parameter 1 is out of range!"));
     AssertThrow((First-1000*tolerance <= t1) &&
-	        (t1 <= Last+1000*tolerance),
-	        ExcMessage("Parameter 2 is out of range!"));
-  
-  
-				     // we now get the mean
-				     // curvilinear distance point
+                (t1 <= Last+1000*tolerance),
+                ExcMessage("Parameter 2 is out of range!"));
+
+
+    // we now get the mean
+    // curvilinear distance point
     //cout<<endl;
     //cout<<"Points "<<p0<<" vs "<<p1<<endl;
     //cout<<"Params "<<t0<<" vs "<<t1<<endl;
@@ -158,19 +158,19 @@ namespace OpenCascade
     t2 = AP.Parameter();
 
     AssertThrow((First <= t2) &&
-	        (t2 <= Last),
-	        ExcMessage("Parameter 3 is out of range!"));
-  
-  
+                (t2 <= Last),
+                ExcMessage("Parameter 3 is out of range!"));
+
+
     gp_Pnt P2 = gg_curve.Value(t2);
     //cout<<"new_point "<<P2.X()<<" "<<P2.Y()<<" "<<P2.Z()<<endl;
     //P2.Transform(L_transformation);
     //cout<<"new_point re-located "<<P2.X()<<" "<<P2.Y()<<" "<<P2.Z()<<endl;
-  
+
     projected_point(0) = P2.X();
     projected_point(1) = P2.Y();
     projected_point(2) = P2.Z();
-  
+
     return projected_point;
   }
 
@@ -180,5 +180,5 @@ namespace OpenCascade
     //cout<<"V1: "<<line->vertex(0)<<"   V2: "<<line->vertex(1)<<"  NP: "<<arclength_projection(line->vertex(0), line->vertex(1))<<endl;
     return arclength_projection(line->vertex(0), line->vertex(1));
   }
-  
+
 }

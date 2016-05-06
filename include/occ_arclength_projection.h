@@ -17,27 +17,28 @@
 
 using namespace dealii;
 
-namespace OpenCascade 
+namespace OpenCascade
 {
-  
-  class ArclengthProjection : public  StraightBoundary<2,3> {
-    public:
-    
-      ArclengthProjection(const TopoDS_Shape &sh,
-			  double tolerance=1e-7);
-    
-      virtual Point<3> get_new_point_on_line
-      (const Triangulation< 2,3 >::line_iterator &line) const;
-    
-      Point<3> arclength_projection(const Point<3> &p0,
-				    const Point<3> &p1,
-				    const double distance=.5) const;
 
-      const TopoDS_Shape sh;
+  class ArclengthProjection : public  StraightBoundary<2,3>
+  {
+  public:
 
-    
-    private:
-      const double tolerance;
+    ArclengthProjection(const TopoDS_Shape &sh,
+                        double tolerance=1e-7);
+
+    virtual Point<3> get_new_point_on_line
+    (const Triangulation< 2,3 >::line_iterator &line) const;
+
+    Point<3> arclength_projection(const Point<3> &p0,
+                                  const Point<3> &p1,
+                                  const double distance=.5) const;
+
+    const TopoDS_Shape sh;
+
+
+  private:
+    const double tolerance;
   };
 
 }

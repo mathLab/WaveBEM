@@ -6,8 +6,8 @@
 #include <deal.II/numerics/vector_tools.h>
 #include <deal.II/numerics/solution_transfer.h>
 #include <deal.II/base/utilities.h>
-				 // And here are a few C++ standard header
-				 // files that we will need:
+// And here are a few C++ standard header
+// files that we will need:
 #include <cmath>
 #include <iostream>
 #include <fstream>
@@ -25,40 +25,40 @@ using namespace dealii;
 
 
 template <int dim>
-class Driver 
+class Driver
 {
-  public:
-   
-   Driver(int argc, char **argv);
-   
-   ~Driver();
+public:
 
-   void run();
-    
-   void DeclareParameters(); 
+  Driver(int argc, char **argv);
 
-   void ParseParameters();
+  ~Driver();
 
-   static std::string get_library_names(); 
-   
-   private:
-   
-   NumericalTowingTank computational_domain;
-   
+  void run();
 
-   BEMFMA<dim> fma;
+  void DeclareParameters();
 
-   BEMProblem<dim> bem_problem;
-      
-   FreeSurface<dim> free_surface;
+  void ParseParameters();
 
-   DAETimeIntegrator dae_time_int;
-   
-   ParameterHandler prm;
+  static std::string get_library_names();
 
-   std::string library_str;
+private:
 
-   unsigned int maxNumSteps;
+  NumericalTowingTank computational_domain;
+
+
+  BEMFMA<dim> fma;
+
+  BEMProblem<dim> bem_problem;
+
+  FreeSurface<dim> free_surface;
+
+  DAETimeIntegrator dae_time_int;
+
+  ParameterHandler prm;
+
+  std::string library_str;
+
+  unsigned int maxNumSteps;
 
 };
 
