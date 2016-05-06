@@ -1,0 +1,26 @@
+var class_b_e_m_f_m_a =
+[
+    [ "cell_it", "class_b_e_m_f_m_a.html#ae921701a4ba5cafefac6d16032eb4b28", null ],
+    [ "BEMFMA", "class_b_e_m_f_m_a.html#aeb1c528cf9fa3c846d0a8f23fb8233f3", null ],
+    [ "declare_parameters", "class_b_e_m_f_m_a.html#a55d91fc973c36959be3d583b9959d474", null ],
+    [ "direct_integrals", "class_b_e_m_f_m_a.html#a07da5104fddcaaa622d56ff3472168a6", null ],
+    [ "FMA_preconditioner", "class_b_e_m_f_m_a.html#a689eb305e9935357e56295adb1d81bf0", null ],
+    [ "generate_multipole_expansions", "class_b_e_m_f_m_a.html#a1aebebaee8f599613a9dab870517cb62", null ],
+    [ "multipole_integrals", "class_b_e_m_f_m_a.html#ae57258216109c786aa27e0ce8a799e17", null ],
+    [ "multipole_matr_vect_products", "class_b_e_m_f_m_a.html#afd96c5f71a6576a6306b5d2f1c385069", null ],
+    [ "parse_parameters", "class_b_e_m_f_m_a.html#a82331a0c35f5d556804cee28843d0a91", null ],
+    [ "assLegFunction", "class_b_e_m_f_m_a.html#a519a492bcaa75879a0b6d2eeabbc8cab", null ],
+    [ "blockLocalExpansionsKer1", "class_b_e_m_f_m_a.html#a7819752eba7641a74716622f7333d6c7", null ],
+    [ "blockLocalExpansionsKer2", "class_b_e_m_f_m_a.html#a120c0e3efe8a5f137d30d88db69a016b", null ],
+    [ "blockMultipoleExpansionsKer1", "class_b_e_m_f_m_a.html#ada35df439bfa38460f94874d9b8a7908", null ],
+    [ "blockMultipoleExpansionsKer2", "class_b_e_m_f_m_a.html#a57c8e7ac04e6ca37f9a05f7e0b529f85", null ],
+    [ "comp_dom", "class_b_e_m_f_m_a.html#a3695a4aafa21c945c686a5c38fa79bc1", null ],
+    [ "elemMultipoleExpansionsKer1", "class_b_e_m_f_m_a.html#a751ca0a09b7af5fb7b9e2d87638ab2e1", null ],
+    [ "elemMultipoleExpansionsKer2", "class_b_e_m_f_m_a.html#a9bc1fc1991108ea9f12acfd8fb42d28b", null ],
+    [ "inv", "class_b_e_m_f_m_a.html#a353b34d6d9fc3ba20de977aa3130f8ed", null ],
+    [ "prec_dirichlet_matrix", "class_b_e_m_f_m_a.html#a2f7346fc03de3f8e4c2953c67e9a25f6", null ],
+    [ "prec_neumann_matrix", "class_b_e_m_f_m_a.html#af4faaecc78e116b684892ad889e216b4", null ],
+    [ "prec_sparsity_pattern", "class_b_e_m_f_m_a.html#aac618ef2f690360a564b22b6d58fd1a7", null ],
+    [ "preconditioner", "class_b_e_m_f_m_a.html#a940d7e8b8354c93876c774363e22becc", null ],
+    [ "trunc_order", "class_b_e_m_f_m_a.html#ae1388f58ac820669e8affe8f8b944363", null ]
+];

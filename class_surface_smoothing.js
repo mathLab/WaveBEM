@@ -1,0 +1,25 @@
+var class_surface_smoothing =
+[
+    [ "SurfaceSmoothing", "class_surface_smoothing.html#a9c04351a4aa3f4df86ad1d6fe3b5029d", null ],
+    [ "apply_curvatures", "class_surface_smoothing.html#a10187e712bd220d6e2de72d4d7621c01", null ],
+    [ "assemble_system", "class_surface_smoothing.html#aef60b81b65dcadf3ac309425a5994cdc", null ],
+    [ "assemble_system", "class_surface_smoothing.html#a6257bf16a571117749ad60e53d9d677e", null ],
+    [ "compute_curvatures", "class_surface_smoothing.html#a97a67f0709f7eb4d5ca54105f92266cf", null ],
+    [ "fix_boundary_values", "class_surface_smoothing.html#aeb076c729105c9784392786b9af060a7", null ],
+    [ "smooth", "class_surface_smoothing.html#abd819b4801c119394fe1a5eeccb553e8", null ],
+    [ "solve_system", "class_surface_smoothing.html#ad4e111f3b9fc4e6bd1b56096339c260a", null ],
+    [ "update_reference", "class_surface_smoothing.html#a562e98888a015942615d49c9c7372d70", null ],
+    [ "boundary_dofs", "class_surface_smoothing.html#ab647aac1133f12b3bca8736a28df4ecd", null ],
+    [ "boundary_values", "class_surface_smoothing.html#a6202c75908c88316569bb682c741af19", null ],
+    [ "constraints", "class_surface_smoothing.html#a2d831d4d1ecda5bd663f8f6d93f161b0", null ],
+    [ "curvature_vector", "class_surface_smoothing.html#ad78006fd00e80feb6b52708ff2f65843", null ],
+    [ "dh", "class_surface_smoothing.html#a9e8f5f62bb17769e15ec265490ae0e63", null ],
+    [ "euler_vector", "class_surface_smoothing.html#a3e7f9aa9f77f14e99a21b43b02e4c5d6", null ],
+    [ "mapping", "class_surface_smoothing.html#a0910a41e849fff131a8c063c470134ae", null ],
+    [ "mass_matrix", "class_surface_smoothing.html#a2c01a42461975a575244cde1e2f75323", null ],
+    [ "matrix", "class_surface_smoothing.html#af9f72d5a00b7e62db68143d419d3c351", null ],
+    [ "reference_identity", "class_surface_smoothing.html#acc1f0227a4f1ee9e80ce13c2218df8dd", null ],
+    [ "rhs", "class_surface_smoothing.html#af02cc48893d667bcc96229736bf73fd4", null ],
+    [ "solution", "class_surface_smoothing.html#a299248f12fa5a4654d9693ad3a40bb0c", null ],
+    [ "sparsity", "class_surface_smoothing.html#a8796b66e76a80bf4534d156a96ca7740", null ]
+];

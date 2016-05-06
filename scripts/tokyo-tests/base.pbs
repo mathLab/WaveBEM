@@ -1,8 +1,0 @@
-#PBS -l walltime=50:00:00
-#PBS -l nodes=1:ppn=4
-#PBS -q smp
-
-cd $PBS_O_WORKDIR
-
-time ./waveBem 
-
