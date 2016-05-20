@@ -1,6 +1,6 @@
 # WaveBEM: Nonlinear Unsteady Potential Flow Solver for Ship-Wave Interaction Problems [![Build Status](https://travis-ci.org/mathLab/WaveBEM.svg?branch=master)](https://travis-ci.org/mathLab/WaveBEM)
 
-![WaveBEM logo](readme/logo_waveBEM.png)
+![WaveBEM logo](readme/logo_waveBem.png)
 
 Copyright (C) 2012 -- 2016 by Andrea Mola (1) and Luca Heltai (2)
 
