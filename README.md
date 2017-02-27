@@ -65,6 +65,26 @@ and tested using
 
 You can modify the resulting `CMakeCache.txt` to set a different installation path, or you can call cmake with the additional option `-DCMAKE_INSTALL_PREFIX=/path/to/install/dir`, to install the executable on your system after compilation.
 
+Alternatively, if you have docker installed, you can run WaveBEM directly using the following command:
+
+    wget https://raw.githubusercontent.com/mathLab/WaveBEM/master/WaveBEM.sh
+    ./WaveBEM.sh [optional_parameters.prm]
+
+The first time this is run, an image containing WaveBEM executable will be downloaded from hub.docker.com and run in an isolated container only sharing the current directory with the file system.
+
+Something like
+
+    ./WaveBEM.sh ../parameters.prm 
+
+will not work, but
+
+    ./WaveBEM.sh parameters.prm
+
+will.
+
+If you run without parameters, a default one is created for you. Subsequent runs won't need to download the full image, and will run much faster. 
+
+
 3. Extensive documentation
 ==========================
 
@@ -95,6 +115,17 @@ for example, using wget
 
 If you use this software, please consider citing the following works:
 
+
+	@article{MolaHeltaiDeSimone-2017-a,
+	Author = {Andrea Mola and Luca Heltai and Antonio DeSimone},
+	Journal = {Journal of Ship Research},
+	Number = {1},
+	Pages = {1--14},
+	Title = {Wet and Dry Transom Stern Treatment for Fully Nonlinear Potential Flow Simulations of Naval Hydrodynamics},
+	Volume = {61},
+	Year = {2017}}
+
+
 	@article{MolaHeltaiDeSimone-2013-a,
 	Author = {Andrea Mola and Luca Heltai and Antonio DeSimone},
 	Journal = {Engineering Analysis with Boundary Elements},
@@ -114,14 +145,15 @@ If you use this software, please consider citing the following works:
 	Year = {2015}}
 
 
-	@article{BangerthHeisterHeltai-2016-a,
-	Author = {Wolfgang Bangerth and Timo Heister and Luca Heltai and Guido Kanschat and Martin Kronbichler and Matthias Maier and Bruno Turcksin},
-	Journal = {Archive of Numerical Software},
-	Number = {100},
-	Pages = {1--11},
-	Title = {The deal.II library, Version 8.3},
-	Volume = {4},
+	@article{BangerthHeisterHeltai-2016-b,
+	Author = {Wolfgang Bangerth and Denis Davydov and Timo Heister and Luca Heltai and Guido Kanschat and Martin Kronbichler and Matthias Maier and Bruno Turcksin and David Wells},
+	Journal = {Journal of Numerical Mathematics},
+	Number = {3},
+	Pages = {135--141},
+	Title = {The deal.II library, Version 8.4},
+	Volume = {24},
 	Year = {2016}}
+
 
 	@techreport{SartoriGiulianiBardelloni-2015-a,
 	Author = {Alberto Sartori and Nicola Giuliani and Mauro Bardelloni and Luca Heltai},
@@ -130,14 +162,16 @@ If you use this software, please consider citing the following works:
 	Title = {deal2lkit: a Toolkit Library for deal.II},
 	Year = {2015}}
 
+
 	@inproceedings{MolaHeltaiDesimone-2014-a,
-	Author = {Mola, Andrea and Heltai, Luca and Desimone, Antonio},
+	Author = {Mola, Andrea and Heltai, Luca and DeSimone, Antonio},
 	Booktitle = {The 24th International Ocean and Polar Engineering Conference},
 	Title = {{A fully nonlinear potential model for ship hydrodynamics directly interfaced with CAD data structures}},
 	Year = {2014}}
 
+
 	@inproceedings{MolaHeltaiDesimone-2015-a,
-	Author = {Mola, Andrea and Heltai, Luca and Desimone, Antonio},
+	Author = {Mola, Andrea and Heltai, Luca and DeSimone, Antonio},
 	Booktitle = {18th International Conference on Ships and Shipping Research},
 	Title = {{Nonlinear free surface potential flow simulations for hulls with a transom stern operating in dry and wet conditions}},
 	Year = {2015}}

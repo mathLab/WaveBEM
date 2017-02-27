@@ -17,6 +17,5 @@ before_install:
 - ./scripts/dr.sh "cd WaveBEM; ./scripts/check_indentation.sh"
 
 script:
-- alias dr="docker run -P -v `pwd`:/home/dealii/WaveBEM:rw mathlab/deal2lkit:8.5.pre.4-debugrelease /bin/sh -c"
 - ./scripts/dr.sh "mkdir WaveBEM/build-travis; cd WaveBEM/build-travis; cmake -GNinja -DENABLE_DOCUMENTATION=OFF -DCMAKE_BUILD_TYPE=$BUILD_TYPE ../; ninja"
 - ./scripts/dr.sh "cd WaveBEM/build-travis; ctest"
