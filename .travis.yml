@@ -1,8 +1,8 @@
 sudo: required
 
 env:
-  - BUILD_TYPE=release
-  - BUILD_TYPE=debug
+  - BUILD_TYPE=Release
+  - BUILD_TYPE=Debug
 
 services:
   - docker
