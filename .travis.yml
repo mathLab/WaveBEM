@@ -13,9 +13,11 @@ notifications:
 language: C++
 
 before_install:
-- docker pull mathlab/deal2lkit:$BUILD_TYPE
-- docker run -P -v `pwd`:/home/dealii/WaveBEM:rw mathlab/deal2lkit:$BUILD_TYPE /bin/sh -c "cd WaveBEM; ./scripts/check_indentation.sh"
+- docker pull mathlab/deal2lkit:8.5.pre.4-debugrelease
+- alias dr="docker run -P -v `pwd`:/home/dealii/WaveBEM:rw mathlab/deal2lkit:8.5.pre.4-debugrelease /bin/sh -c"
+- dr "cd WaveBEM; ./scripts/check_indentation.sh"
 
 script:
-- docker run -P -v `pwd`:/home/dealii/WaveBEM:rw mathlab/deal2lkit:$BUILD_TYPE /bin/sh -c "mkdir WaveBEM/build; cd WaveBEM/build; cmake -GNinja -DENABLE_DOCUMENTATION=OFF ../; ninja"
-- docker run -P -v `pwd`:/home/dealii/WaveBEM:rw mathlab/deal2lkit:$BUILD_TYPE /bin/sh -c "cd WaveBEM/build; ctest"
+- alias dr="docker run -P -v `pwd`:/home/dealii/WaveBEM:rw mathlab/deal2lkit:8.5.pre.4-debugrelease /bin/sh -c"
+- dr "mkdir WaveBEM/build-travis; cd WaveBEM/build-travis; cmake -GNinja -DENABLE_DOCUMENTATION=OFF ../; ninja"
+- dr "cd WaveBEM/build-travis; ctest"
