@@ -11,7 +11,7 @@
 #include <deal.II/grid/tria_boundary_lib.h>
 
 #include <deal.II/lac/sparse_direct.h>
-#include <deal.II/lac/compressed_sparsity_pattern.h>
+#include <deal.II/lac/dynamic_sparsity_pattern.h>
 #include <deal.II/lac/constraint_matrix.h>
 #include <deal.II/lac/vector_view.h>
 #include <deal.II/lac/sparse_direct.h>
@@ -65,7 +65,7 @@ void SurfaceSmoothing::update_reference()
   DoFTools::make_hanging_node_constraints (dh,constraints);
   constraints.close();
 
-  CompressedSparsityPattern csp (dh.n_dofs(), dh.n_dofs());
+  DynamicSparsityPattern csp (dh.n_dofs(), dh.n_dofs());
   DoFTools::make_sparsity_pattern (dh, csp, constraints);
   sparsity.copy_from (csp);
 
