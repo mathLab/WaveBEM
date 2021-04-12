@@ -77,7 +77,7 @@ namespace OpenCascade
   (const Point<3> &p0, const Point<3> &p1, const double distance) const
   {
 
-    //cout<<p0<<"  --"<<distance<<"--  "<<p1<<endl;
+    cout<<p0<<"  --"<<distance<<"--  "<<p1<<endl;
     Point<3> projected_point;
 
     Assert((0. <= distance) &&
@@ -112,7 +112,6 @@ namespace OpenCascade
     //gp_Trsf L_inv_transformation = L_inv.Transformation();
     //P0.Transform(L_inv_transformation);
     //P1.Transform(L_inv_transformation);
-    //cout<<P0.X()<<" "<<P0.Y()<<" "<<P0.Z()<<"  --"<<distance<<"--  "<<P1.X()<<" "<<P1.Y()<<" "<<P1.Z()<<endl;
     Standard_Real t0;
     Standard_Real t1;
     Standard_Real t2;
@@ -163,22 +162,25 @@ namespace OpenCascade
 
 
     gp_Pnt P2 = gg_curve.Value(t2);
-    //cout<<"new_point "<<P2.X()<<" "<<P2.Y()<<" "<<P2.Z()<<endl;
+    cout<<"new_point "<<P2.X()<<" "<<P2.Y()<<" "<<P2.Z()<<endl;
     //P2.Transform(L_transformation);
     //cout<<"new_point re-located "<<P2.X()<<" "<<P2.Y()<<" "<<P2.Z()<<endl;
 
     projected_point(0) = P2.X();
     projected_point(1) = P2.Y();
     projected_point(2) = P2.Z();
-
     return projected_point;
   }
 
   Point<3> ArclengthProjection::get_new_point_on_line
   (const Triangulation< 2,3 >::line_iterator &line) const
   {
-    //cout<<"V1: "<<line->vertex(0)<<"   V2: "<<line->vertex(1)<<"  NP: "<<arclength_projection(line->vertex(0), line->vertex(1))<<endl;
     return arclength_projection(line->vertex(0), line->vertex(1));
   }
 
+  Point<3> ArclengthProjection::project_to_manifold(const std::vector<Point<3> > &points,
+                               const Point<3 > & candidate) const
+  {
+    return arclength_projection(points[0], points[1]);
+  }
 }

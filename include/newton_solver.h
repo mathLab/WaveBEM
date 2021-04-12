@@ -71,10 +71,21 @@ public:
            ExcDimensionMismatch(X.Map().NumGlobalElements(), solver.n_dofs()));
     Assert(Y.Map().NumGlobalElements() == int(solver.n_dofs()),
            ExcDimensionMismatch(Y.Map().NumGlobalElements(), solver.n_dofs()));
-    const VectorView<double> x(X.Map().NumGlobalElements(), &X[0][0]);
-    VectorView<double> dst(Y.Map().NumGlobalElements(), &Y[0][0]);
+    //const VectorView<double> x(X.Map().NumGlobalElements(), &X[0][0]);
+    //VectorView<double> dst(Y.Map().NumGlobalElements(), &Y[0][0]);
+    
+    Vector<double> x(solver.n_dofs());
+    Vector<double> dst(solver.n_dofs());
+    for (unsigned int i=0; i<solver.n_dofs(); ++i)
+        x(i) = X[0][i];
+    
 
     solver.jacobian(dst,y,x);
+    
+    for (unsigned int i=0; i<solver.n_dofs(); ++i)
+        Y[0][i] = dst(i);
+    
+    
     //cout<<"X: "<<X[0][0]<<" "<<X[0][1]<<" (t)"<<endl;
     //cout<<"x: "<<x(0)<<" "<<x(1)<<" (d)"<<endl;
     //cout<<"Y: "<<Y[0][0]<<" "<<Y[0][1]<<" (t)"<<endl;
@@ -190,10 +201,23 @@ public:
            ExcDimensionMismatch(X.Map().NumGlobalElements(), solver.n_dofs()));
     Assert(Y.Map().NumGlobalElements() == int(solver.n_dofs()),
            ExcDimensionMismatch(Y.Map().NumGlobalElements(), solver.n_dofs()));
-    const VectorView<double> x(X.Map().NumGlobalElements(), &X[0][0]);
-    VectorView<double> dst(Y.Map().NumGlobalElements(), &Y[0][0]);
+    //const VectorView<double> x(X.Map().NumGlobalElements(), &X[0][0]);
+    //VectorView<double> dst(Y.Map().NumGlobalElements(), &Y[0][0]);
+
+
+    Vector<double> x(solver.n_dofs());
+    Vector<double> dst(solver.n_dofs());
+    for (unsigned int i=0; i<solver.n_dofs(); ++i)
+        x(i) = X[0][i];
+    
 
     solver.jacobian_prec_prod(dst,y,x);
+    
+    for (unsigned int i=0; i<solver.n_dofs(); ++i)
+        Y[0][i] = dst(i);
+
+
+    
 
     return 0;
 
@@ -214,10 +238,22 @@ public:
            ExcDimensionMismatch(X.Map().NumGlobalElements(), solver.n_dofs()));
     Assert(Y.Map().NumGlobalElements() == int(solver.n_dofs()),
            ExcDimensionMismatch(Y.Map().NumGlobalElements(), solver.n_dofs()));
-    const VectorView<double> x(X.Map().NumGlobalElements(), &X[0][0]);
-    VectorView<double> dst(Y.Map().NumGlobalElements(), &Y[0][0]);
+    //const VectorView<double> x(X.Map().NumGlobalElements(), &X[0][0]);
+    //VectorView<double> dst(Y.Map().NumGlobalElements(), &Y[0][0]);
+
+    Vector<double> x(solver.n_dofs());
+    Vector<double> dst(solver.n_dofs());
+    for (unsigned int i=0; i<solver.n_dofs(); ++i)
+        x(i) = X[0][i];
+    
 
     solver.jacobian_prec(dst,y,x);
+    
+    for (unsigned int i=0; i<solver.n_dofs(); ++i)
+        Y[0][i] = dst(i);
+
+
+
 
     //cout<<"X: "<<X[0][0]<<" "<<X[0][1]<<" (t)"<<endl;
     //cout<<"x: "<<x(0)<<" "<<x(1)<<" (d)"<<endl;
@@ -340,11 +376,21 @@ public:
            ExcDimensionMismatch(f.Map().NumGlobalElements(), solver.n_dofs()));
 
 
-    const VectorView<double> yy(x.Map().NumGlobalElements(), &x[0]);
-    VectorView<double> residual(f.Map().NumGlobalElements(), &f[0]);
+    //const VectorView<double> yy(x.Map().NumGlobalElements(), &x[0]);
+    //VectorView<double> residual(f.Map().NumGlobalElements(), &f[0]);
+    
+    
+    Vector<double> yy(solver.n_dofs());
+    Vector<double> residual(solver.n_dofs());
+    for (unsigned int i=0; i<solver.n_dofs(); ++i)
+        yy(i) = x[i];
+    
 
     solver.residual(residual, yy);
-
+    
+    for (unsigned int i=0; i<solver.n_dofs(); ++i)
+        f[i] = residual(i);
+    
     return true;
   };
 
@@ -355,8 +401,11 @@ public:
     Assert(x.Map().NumGlobalElements() == int(solver.n_dofs()),
            ExcDimensionMismatch(x.Map().NumGlobalElements(), solver.n_dofs()));
 
-    const VectorView<double> yy(x.Map().NumGlobalElements(), &x[0]);
-    y = yy;
+    //const VectorView<double> yy(x.Map().NumGlobalElements(), &x[0]);
+    
+    for (unsigned int i=0; i<solver.n_dofs(); ++i)
+        y(i) = x[i];
+    
     Jac = jacobian_operator;
     //Epetra_Vector y(x);
     //cout<<"Test "<<endl,
@@ -382,8 +431,12 @@ public:
     Assert(x.Map().NumGlobalElements() == int(solver.n_dofs()),
            ExcDimensionMismatch(x.Map().NumGlobalElements(), solver.n_dofs()));
 
-    const VectorView<double> yy(x.Map().NumGlobalElements(), &x[0]);
-    solver.setup_jacobian_prec((const Vector<double> &)yy);
+    //const VectorView<double> yy(x.Map().NumGlobalElements(), &x[0]);
+    Vector<double> yy(solver.n_dofs());
+    for (unsigned int i=0; i<solver.n_dofs(); ++i)
+        yy(i) = x[i];
+    
+    solver.setup_jacobian_prec(yy);
     y = yy;
     Prec = preconditioner_operator;
 

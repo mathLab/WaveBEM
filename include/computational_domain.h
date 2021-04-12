@@ -252,7 +252,7 @@ public:
   // and singular kernel quadrature to be
   // used
 
-  std_cxx1x::shared_ptr<Quadrature<dim-1> > quadrature;
+  std::shared_ptr<Quadrature<dim-1> > quadrature;
   unsigned int singular_quadrature_order;
 
   // the material ID numbers in the mesh
@@ -351,7 +351,7 @@ public:
   // a std::map of std::vectors containing the
   // list of normals at quadrature points
 
-  std::map <cell_it, std::vector <Point <dim> > > quadNormals;
+  std::map <cell_it, std::vector <Tensor <1,dim> > > quadNormals;
 
   // a std::map of std::vectors containing the
   // list of shape function values at

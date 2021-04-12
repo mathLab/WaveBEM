@@ -2,13 +2,14 @@
 #define occ_utilities_h
 
 #include <string>
-#include <TopoDS_Shape.hxx>
 
+#include <deal.II/base/point.h>
+
+#include <TopoDS_Shape.hxx>
 #include <Geom_Plane.hxx>
 #include <Geom_Curve.hxx>
 #include <gp_Pnt.hxx>
 
-#include <deal.II/base/point.h>
 
 
 /** We collect in this namespace all utilities which operate on

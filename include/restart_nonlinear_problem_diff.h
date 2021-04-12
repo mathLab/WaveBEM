@@ -60,7 +60,6 @@ public:
         {
           unsigned int i = comp_dom.moving_point_ids[k];
           bow_stern_indices.insert(i);
-          //cout<<"BS "<<i<<" ("<<3*i<<" "<<3*i+1<<" "<<3*i+2<<")"<<endl;
         }
 
     for (unsigned int i=0; i<comp_dom.dh.n_dofs(); ++i)
@@ -226,17 +225,18 @@ public:
     for (std::set <unsigned int>::iterator pos = rigid_modes_indices.begin(); pos != rigid_modes_indices.end(); ++pos)
       {
         unsigned int i=*pos;
-        for (SparsityPattern::iterator col=free_surf_jacobian_dot.get_sparsity_pattern().begin(i+comp_dom.vector_dh.n_dofs());
-             col!=free_surf_jacobian_dot.get_sparsity_pattern().end(i+comp_dom.vector_dh.n_dofs()); ++col)
+        for (SparsityPattern::iterator col=free_surf_jacobian_dot.get_sparsity_pattern().begin(i+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
+           col!=free_surf_jacobian_dot.get_sparsity_pattern().end(i+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()); ++col)
           if ( indices_map.count(col->column()) )
+             {
             jacobian_sparsity_pattern.add(count,indices_map.find(col->column())->second);
+            }
         count++;
       }
     jacobian_sparsity_pattern.compress();
     jacobian_matrix.reinit(jacobian_sparsity_pattern);
 
-
-
+  
   }
 
   virtual unsigned int n_dofs() const;

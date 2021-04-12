@@ -132,7 +132,7 @@ void BEMProblem<dim>::assemble_system()
   // polynomial functions.
   FEValues<dim-1,dim> fe_v(*comp_dom.mapping,comp_dom.fe, *comp_dom.quadrature,
                            update_values |
-                           update_cell_normal_vectors |
+                           update_normal_vectors |
                            update_quadrature_points |
                            update_JxW_values);
 
@@ -193,7 +193,7 @@ void BEMProblem<dim>::assemble_system()
       cell->get_dof_indices(local_dof_indices);
 
       const std::vector<Point<dim> > &q_points = fe_v.get_quadrature_points();
-      const std::vector<Point<dim> > &normals = fe_v.get_normal_vectors();
+      const std::vector<Tensor<1,dim> > &normals = fe_v.get_normal_vectors();
 
       // We then form the integral over
       // the current cell for all
@@ -495,12 +495,12 @@ void BEMProblem<dim>::assemble_system()
               FEValues<dim-1,dim> fe_v_singular (*comp_dom.mapping, comp_dom.fe, *singular_quadrature,
                                                  update_jacobians |
                                                  update_values |
-                                                 update_cell_normal_vectors |
+                                                 update_normal_vectors |
                                                  update_quadrature_points );
 
               fe_v_singular.reinit(cell);
 
-              const std::vector<Point<dim> > &singular_normals = fe_v_singular.get_normal_vectors();
+              const std::vector<Tensor<1,dim> > &singular_normals = fe_v_singular.get_normal_vectors();
               const std::vector<Point<dim> > &singular_q_points = fe_v_singular.get_quadrature_points();
 
               for (unsigned int q=0; q<singular_quadrature->size(); ++q)
@@ -916,8 +916,8 @@ void BEMProblem<dim>::residual(Vector<double> &res, const Vector<double> &phi,
 
   serv_dphi_dn.scale(comp_dom.other_nodes);
   serv_phi.scale(comp_dom.surface_nodes);
-  serv_tmp_rhs.add(serv_dphi_dn);
-  serv_tmp_rhs.add(serv_phi);
+  serv_tmp_rhs.add(1.0, serv_dphi_dn);
+  serv_tmp_rhs.add(1.0, serv_phi);
 
   //for (unsigned int i=0;i<comp_dom.dh.n_dofs();++i)
   //    cout<<i<<" "<<serv_tmp_rhs(i)<<" "<<serv_dphi_dn(i)<<" "<<serv_phi(i)<<" "<<comp_dom.surface_nodes(i)<<endl;
@@ -943,8 +943,8 @@ void BEMProblem<dim>::residual(Vector<double> &res, const Vector<double> &phi,
   serv_dphi_dn = dphi_dn;
   serv_dphi_dn.scale(comp_dom.surface_nodes);
   serv_phi.scale(comp_dom.other_nodes);
-  sol.add(serv_dphi_dn);
-  sol.add(serv_phi);
+  sol.add(1.0, serv_dphi_dn);
+  sol.add(1.0, serv_phi);
 
   if (solution_method == "Direct")
     {
@@ -988,7 +988,7 @@ void BEMProblem<dim>::solve(Vector<double> &phi, Vector<double> &dphi_dn,
 
 
 template <int dim>
-void BEMProblem<dim>::compute_constraints(ConstraintMatrix &c, const Vector<double> &tmp_rhs)
+void BEMProblem<dim>::compute_constraints(AffineConstraints<double> &c, const Vector<double> &tmp_rhs)
 
 {
 
@@ -1164,7 +1164,7 @@ void BEMProblem<dim>::compute_surface_gradients(const Vector<double> &tmp_rhs)
   gradients_sparsity_pattern.reinit(comp_dom.vector_dh.n_dofs(),
                                     comp_dom.vector_dh.n_dofs(),
                                     comp_dom.vector_dh.max_couplings_between_dofs());
-  ConstraintMatrix  vector_constraints;
+  AffineConstraints<double>  vector_constraints;
   vector_constraints.clear();
   DoFTools::make_hanging_node_constraints (comp_dom.vector_dh,vector_constraints);
   vector_constraints.close();
@@ -1182,13 +1182,13 @@ void BEMProblem<dim>::compute_surface_gradients(const Vector<double> &tmp_rhs)
 
   FEValues<dim-1,dim> vector_fe_v(*comp_dom.mapping, comp_dom.vector_fe, *comp_dom.quadrature,
                                   update_values | update_gradients |
-                                  update_cell_normal_vectors |
+                                  update_normal_vectors |
                                   update_quadrature_points |
                                   update_JxW_values);
 
   FEValues<dim-1,dim> fe_v(*comp_dom.mapping, comp_dom.fe, *comp_dom.quadrature,
                            update_values | update_gradients |
-                           update_cell_normal_vectors |
+                           update_normal_vectors |
                            update_quadrature_points |
                            update_JxW_values);
 
@@ -1220,7 +1220,7 @@ void BEMProblem<dim>::compute_surface_gradients(const Vector<double> &tmp_rhs)
   Quadrature <dim-1> dummy_quadrature(comp_dom.fe.get_unit_support_points());
   FEValues<dim-1,dim> dummy_fe_v(*comp_dom.mapping, comp_dom.fe, dummy_quadrature,
                                  update_values | update_gradients |
-                                 update_cell_normal_vectors |
+                                 update_normal_vectors |
                                  update_quadrature_points);
 
   const unsigned int   dofs_per_cell = comp_dom.fe.dofs_per_cell;
@@ -1237,7 +1237,7 @@ void BEMProblem<dim>::compute_surface_gradients(const Vector<double> &tmp_rhs)
       vector_fe_v.reinit (vector_cell);
       local_gradients_matrix = 0;
       local_gradients_rhs = 0;
-      const std::vector<Point<dim> > &vector_node_normals = vector_fe_v.get_normal_vectors();
+      const std::vector<Tensor<1,dim> > &vector_node_normals = vector_fe_v.get_normal_vectors();
       fe_v.get_function_gradients(phi, phi_surf_grads);
       unsigned int comp_i, comp_j;
 

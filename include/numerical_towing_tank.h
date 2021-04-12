@@ -30,9 +30,9 @@
 #include <deal.II/base/logstream.h>
 
 #include "occ_utilities.h"
-#include "occ_normal_projection.h"
+//#include "occ_normal_projection.h"
 #include "occ_arclength_projection.h"
-#include "occ_axis_projection.h"
+//#include "occ_axis_projection.h"
 
 #include <TopTools.hxx>
 #include <Standard_Stream.hxx>
@@ -174,7 +174,7 @@ public:
 
   void compute_normals_at_nodes(Vector<double> &map_points_used);
 
-  void compute_constraints(ConstraintMatrix &cc);
+  void compute_constraints(AffineConstraints<double> &cc);
 
   // this routine detects if mesh is not
   // conformal at water/boat edges (because of double
@@ -238,7 +238,7 @@ public:
   std::vector< std::vector<bool> > boundary_dofs;
   // contains the ids of the boundaries involved in each
   // line smoothing
-  std::vector<unsigned int> boundary_ids;
+  std::vector<types::boundary_id> boundary_ids;
   // contains the base points of each line smoothing
   std::vector<Point<3> > base_points;
   // contains the moving points of each line smoothing
@@ -262,18 +262,18 @@ public:
   std::vector<GeometryFlags> vector_flags;
   // vector containing the normals on boat nodes
   // zero vectors on other nodes
-  std::vector< Point<3> > iges_normals;
+  std::vector< Tensor<1,3> > iges_normals;
   // vector containing the normals on boat nodes
   // zero vectors on other nodes, but referred to
   // grid after remesh
-  std::vector< Point<3> > old_iges_normals;
+  std::vector< Tensor<1,3> > old_iges_normals;
   // vector containing the mean curvatures on boat
   // nodes, and zeros on other nodes
   std::vector<double> iges_mean_curvatures;
   // sparsity pattern for the normals problem
   SparsityPattern      normals_sparsity_pattern;
   // constraint matrix for normals problem
-  ConstraintMatrix     vector_constraints;
+  AffineConstraints<double>     vector_constraints;
   // matrix for the problem for node normals computation
   SparseMatrix<double> vector_normals_matrix;
   // vector for the rhs of the problem for node normals computation
@@ -281,7 +281,7 @@ public:
   // solution vector to problem for node normals computation
   Vector<double>       vector_normals_solution;
   // node normals at mesh nodes
-  std::vector<Point<3> > node_normals;
+  std::vector<Tensor<1,3> > node_normals;
   // set containing cells on edges
   std::set<tria_it> edge_cells;
   // set containing cells on boat bordering with free surface

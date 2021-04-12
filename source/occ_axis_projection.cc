@@ -30,13 +30,13 @@ namespace OpenCascade
 
 
   AxisProjection::AxisProjection(const TopoDS_Shape &sh,
-                                 Point<3> direction,
+                                 Tensor<1,3> direction,
                                  double tolerance,
                                  double recovery_tolerance) :
     sh(sh),
-    direction(direction(0),
-              direction(1),
-              direction(2)),
+    direction(direction[0],
+              direction[1],
+              direction[2]),
     Direction(direction),
     tolerance(tolerance),
     recovery_tolerance(recovery_tolerance)
@@ -57,10 +57,12 @@ namespace OpenCascade
 
 
   bool AxisProjection::axis_projection_and_diff_forms(Point<3> &projection,
-                                                      Point<3> &normal,
+                                                      Tensor<1,3> &normal,
                                                       double &mean_curvature,
                                                       const Point<3> &origin) const
   {
+  
+  cout<<"******* "<<origin<<endl;
     // translating original
     // Point<dim> to gp point
     gp_Pnt P0 = Pnt(origin);
@@ -301,9 +303,9 @@ namespace OpenCascade
     projection = Pnt(Pproj);
 
 // translating normal vector
-    normal(0) = Normal.X();
-    normal(1) = Normal.Y();
-    normal(2) = Normal.Z();
+    normal[0] = Normal.X();
+    normal[1] = Normal.Y();
+    normal[2] = Normal.Z();
 
 
 // translating mean curvature
@@ -482,19 +484,19 @@ namespace OpenCascade
 
 // translating destination point
     projection = Pnt(Pproj);
-
+    //cout<<"y dir projection: "<<projection<<endl;
     return true;
   }
 
 
   bool AxisProjection::assigned_axis_projection(Point<3> &projection,
                                                 const Point<3> &origin,
-                                                const Point<3> &assigned_axis) const
+                                                const Tensor<1,3> &assigned_axis) const
   {
     // translating original
     // Point<dim> to gp point
     gp_Pnt P0 = Pnt(origin);
-    gp_Dir axis(assigned_axis(0),assigned_axis(1),assigned_axis(2));
+    gp_Dir axis(assigned_axis[0],assigned_axis[1],assigned_axis[2]);
     gp_Ax1 gpaxis(P0, axis);
     gp_Lin line(gpaxis);
 
@@ -661,15 +663,15 @@ namespace OpenCascade
 
 
   bool AxisProjection::assigned_axis_projection_and_diff_forms(Point<3> &projection,
-      Point<3> &normal,
+      Tensor<1,3> &normal,
       double &mean_curvature,
       const Point<3> &origin,
-      const Point<3> &assigned_axis) const
+      const Tensor<1,3> &assigned_axis) const
   {
     // translating original
     // Point<dim> to gp point
     gp_Pnt P0 = Pnt(origin);
-    gp_Dir axis(assigned_axis(0),assigned_axis(1),assigned_axis(2));
+    gp_Dir axis(assigned_axis[0],assigned_axis[1],assigned_axis[2]);
     gp_Ax1 gpaxis(P0, axis);
     gp_Lin line(gpaxis);
 
@@ -689,7 +691,7 @@ namespace OpenCascade
     Inters.Perform(line,-RealLast(),+RealLast());
 
     Point<3> average(0.0,0.0,0.0);
-    Point<3> av_normal(0.0,0.0,0.0);
+    Tensor<1,3> av_normal;
     double av_curvature = 0.0;
     if (Inters.NbPnt() == 0)
       {
@@ -735,7 +737,10 @@ namespace OpenCascade
                 Normal1.SetCoord(-1.0*Normal1.X(),-1.0*Normal1.Y(),-1.0*Normal1.Z());
                 Mean_Curvature1*=-1.0;
               }
-            av_normal += Point<3>(Normal1.X(),Normal1.Y(),Normal1.Z());
+            av_normal[0] += Normal1.X();
+            av_normal[1] += Normal1.Y();
+            av_normal[2] += Normal1.Z();
+
             av_curvature += Mean_Curvature1;
           }
 
@@ -776,7 +781,9 @@ namespace OpenCascade
                 Normal2.SetCoord(-1.0*Normal2.X(),-1.0*Normal2.Y(),-1.0*Normal2.Z());
                 Mean_Curvature2*=-1.0;
               }
-            av_normal += Point<3>(Normal2.X(),Normal2.Y(),Normal2.Z());
+            av_normal[0] += Normal2.X();
+            av_normal[1] += Normal2.Y();
+            av_normal[2] += Normal2.Z();
             av_curvature += Mean_Curvature2;
           }
 
@@ -817,7 +824,9 @@ namespace OpenCascade
                 Normal3.SetCoord(-1.0*Normal3.X(),-1.0*Normal3.Y(),-1.0*Normal3.Z());
                 Mean_Curvature3*=-1.0;
               }
-            av_normal += Point<3>(Normal3.X(),Normal3.Y(),Normal3.Z());
+            av_normal[0] += Normal3.X();
+            av_normal[1] += Normal3.Y();
+            av_normal[2] += Normal3.Z();
             av_curvature += Mean_Curvature3;
           }
 
@@ -858,7 +867,9 @@ namespace OpenCascade
                 Normal4.SetCoord(-1.0*Normal4.X(),-1.0*Normal4.Y(),-1.0*Normal4.Z());
                 Mean_Curvature4*=-1.0;
               }
-            av_normal += Point<3>(Normal4.X(),Normal4.Y(),Normal4.Z());
+            av_normal[0] += Normal4.X();
+            av_normal[1] += Normal4.Y();
+            av_normal[2] += Normal4.Z();
             av_curvature += Mean_Curvature4;
           }
         if (succeeded > 0)
@@ -871,7 +882,7 @@ namespace OpenCascade
 
         Pproj = Pnt(average/succeeded);
         av_normal/=succeeded;
-        Normal.SetCoord(av_normal(0),av_normal(1),av_normal(2));
+        Normal.SetCoord(av_normal[0],av_normal[1],av_normal[2]);
         Mean_Curvature = av_curvature/succeeded;
       }
     else
@@ -909,21 +920,22 @@ namespace OpenCascade
     projection = Pnt(Pproj);
 
 // translating normal vector
-    normal(0) = Normal.X();
-    normal(1) = Normal.Y();
-    normal(2) = Normal.Z();
+    normal[0] = Normal.X();
+    normal[1] = Normal.Y();
+    normal[2] = Normal.Z();
 
 // translating mean curvature
     mean_curvature = double(Mean_Curvature);
+
     return true;
   }
 
 
   Point<3> AxisProjection::get_new_point_on_line
   (const Triangulation< 2,3 >::line_iterator &line) const
-  {
+  {cout<<"Here? Do we ever pass by here?"<<endl;
     Point<3> projected_point;
-    Point<3> source_point = StraightBoundary<2,3>::get_new_point_on_line(line);
+    Point<3> source_point = FlatManifold<2,3>::get_new_point_on_line(line);
     axis_projection(projected_point, source_point);
     return projected_point;
   }
@@ -933,7 +945,7 @@ namespace OpenCascade
   (const Triangulation< 2,3 >::quad_iterator &quad) const
   {
     Point<3> projected_point;
-    Point<3> source_point = StraightBoundary<2,3>::get_new_point_on_quad(quad);
+    Point<3> source_point = FlatManifold<2,3>::get_new_point_on_quad(quad);
 
     axis_projection(projected_point, source_point);
 

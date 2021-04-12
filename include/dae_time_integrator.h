@@ -13,6 +13,8 @@
 #include <nvector/nvector_serial.h>
 #include <sundials/sundials_math.h>
 #include <sundials/sundials_types.h>
+#include <ida/ida_spils.h>
+#include <sunlinsol/sunlinsol_spgmr.h>
 
 
 #include "ode_argument.h"

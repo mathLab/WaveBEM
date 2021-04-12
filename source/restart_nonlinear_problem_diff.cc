@@ -40,7 +40,7 @@ int RestartNonlinearProblemDiff::residual(Vector<double> &dst,
   for (std::set <unsigned int>::iterator pos = water_line_indices.begin(); pos != water_line_indices.end(); ++pos)
     {
       unsigned int i=*pos;
-      dst(count) = src_yy(count) + src_yy(count+1)*comp_dom.iges_normals[i](2)/comp_dom.iges_normals[i](1);
+      dst(count) = src_yy(count) + src_yy(count+1)*comp_dom.iges_normals[i][2]/comp_dom.iges_normals[i][1];
       //cout<<count<<"("<<3*i+1<<")WL  "<<dst(count)<<"    "<<src_yy(count)<<endl;
       count++;
       dst(count) = free_surf_res(3*i+2);
@@ -109,7 +109,7 @@ int RestartNonlinearProblemDiff::jacobian(Vector<double> &dst,
     {
       unsigned int i=*pos;
       jacobian_matrix.set(count,count,1.0);
-      jacobian_matrix.set(count,count+1,comp_dom.iges_normals[i](2)/comp_dom.iges_normals[i](1));
+      jacobian_matrix.set(count,count+1,comp_dom.iges_normals[i][2]/comp_dom.iges_normals[i][1]);
       //cout<<count<<" "<<count<<" "<<1.0<<endl;
       //cout<<count<<" "<<count+1<<" "<<comp_dom.iges_normals[i](2)/comp_dom.iges_normals[i](1)<<endl;
       count++;
@@ -169,14 +169,16 @@ int RestartNonlinearProblemDiff::jacobian(Vector<double> &dst,
           }
       count++;
     }
-
+//for (std::map<unsigned int,unsigned int>::iterator it=indices_map.begin(); it!=indices_map.end(); ++it)
+    //std::cout << it->first << " => " << it->second << '\n';
   for (std::set <unsigned int>::iterator pos = rigid_modes_indices.begin(); pos != rigid_modes_indices.end(); ++pos)
     {
       unsigned int i=*pos;
       for (SparsityPattern::iterator col=free_surf_jacobian_dot.get_sparsity_pattern().begin(i+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
            col!=free_surf_jacobian_dot.get_sparsity_pattern().end(i+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()); ++col)
+        
         if ( indices_map.count(col->column()) )
-          {
+          { 
             jacobian_matrix.set(count,indices_map.find(col->column())->second,free_surf_jacobian_dot(i+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),col->column()));
             //cout<<count<<" "<<indices_map.find(col->column())->second<<" "<<free_surf_jacobian_dot(i+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),col->column())<<endl;
           }

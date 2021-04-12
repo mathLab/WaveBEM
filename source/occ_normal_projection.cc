@@ -333,7 +333,7 @@ namespace OpenCascade
   (const Triangulation< 2,3 >::line_iterator &line) const
   {
     Point<3> projected_point;
-    Point<3> source_point = StraightBoundary<2,3>::get_new_point_on_line(line);
+    Point<3> source_point = FlatManifold<2,3>::get_new_point_on_line(line);
     normal_projection(projected_point, source_point);
     return projected_point;
   }
@@ -347,7 +347,7 @@ namespace OpenCascade
                                      " geometry type."));
     Point<3> proj_point;
     Point<3> init_point =
-      StraightBoundary<2,3>::get_new_point_on_quad(quad);
+      FlatManifold<2,3>::get_new_point_on_quad(quad);
     normal_projection(proj_point, init_point);
     return proj_point;
   }

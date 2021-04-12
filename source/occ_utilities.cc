@@ -178,6 +178,7 @@ namespace OpenCascade
         Handle(Geom_Curve) curvez = please[i];
         First = curvez->FirstParameter();
         Last = curvez->LastParameter();
+        cout<<"First: "<<First<<"   Last: "<<Last<<endl;
         curvez->D0(First,PIn);
         curvez->D0(Last,PFin);
         curvez->D0((First+Last)/2.0,PMid);
@@ -621,13 +622,14 @@ namespace OpenCascade
   {
     //TopoDS_Shape sh = read_IGES("/home/amola/workspace/FRANCO_TETGEN/tower_bridge_cf_IGES.igs",0.001);
     //TopoDS_Shape sh = read_IGES("/home/amola/workspace/FRANCO_TETGEN/VIOLA_BRIDGE/viola-bridge-1/viola_bridge.iges",0.0254);
-    TopoDS_Shape sh = read_IGES("/home/amola/workspace/openship/trunk/WaveBEM/utilities/kcs.iges",0.001);
+    //TopoDS_Shape sh = read_IGES("/home/amola/workspace/openship/trunk/WaveBEM/utilities/kcs.iges",0.001);
     //TopoDS_Shape sh = read_IGES("/home/amola/workspace/openship/trunk/WaveBEM/utilities/goteborg.iges",0.001);
     //TopoDS_Shape sh = read_IGES("/home/amola/workspace/FRANCO_TETGEN/cognit.iges",0.001);
     //TopoDS_Shape sh = read_IGES("/home/amola/workspace/FRANCO_TETGEN/COFANO/cofanoSpostatoTanto.igs",0.001);
     //TopoDS_Shape sh = read_IGES("/home/amola/workspace/FRANCO_TETGEN/CANOTTAGGIO/doppio_placido.iges",0.001);
     //TopoDS_Shape sh = read_IGES("/home/amola/workspace/openship/trunk/WaveBEM/utilities/fc_ship.iges",0.001);
     //TopoDS_Shape sh = read_IGES("/home/amola/workspace/FRANCO_TETGEN/ESEMPIO_HANG/22imr_retro.igs",0.001);
+    TopoDS_Shape sh = read_IGES("./CarenaSTD.iges",0.001);
 
     using dealii::numbers::PI;
     Standard_Real AngTol = 10.0/180.0;
@@ -883,9 +885,17 @@ namespace OpenCascade
         GeomLProp_CLProps curve_props_First(curve, First,1, LinTol);
         GeomLProp_CLProps curve_props_Last(curve, Last, 1, LinTol);
         if (curve_props_First.IsTangentDefined() == false )
+          {
           std::cout<<"Warning! Tangent vector at start of edge "<<i<<" is undefined!"<<std::endl;
+          cout<<"Start point is: "<<Pnt(start_points[i])<<endl;
+          active_flag[i] = false;
+          }
         if (curve_props_Last.IsTangentDefined() == false )
+          {
           std::cout<<"Warning! Tangent vector at end of edge "<<i<<" is undefined!"<<std::endl;
+          cout<<"End point is: "<<Pnt(end_points[i])<<endl;
+          active_flag[i] = false;
+          }
         curve_props_First.Tangent(start_tangents[i]);
         curve_props_Last.Tangent(end_tangents[i]);
         GeomAdaptor_Curve AC(curve);

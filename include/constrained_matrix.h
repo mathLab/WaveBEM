@@ -20,7 +20,7 @@
 #include <deal.II/base/thread_management.h>
 #include <deal.II/base/memory_consumption.h>
 #include <deal.II/lac/pointer_matrix.h>
-#include <deal.II/lac/constraint_matrix.h>
+#include <deal.II/lac/affine_constraints.h>
 #include <deal.II/lac/vector_memory.h>
 #include <vector>
 #include <algorithm>
@@ -46,7 +46,7 @@ class ConstrainedOperator
 {
 public:
   ConstrainedOperator(const MATRIX &m,
-                      const ConstraintMatrix &c) :
+                      const AffineConstraints<double> &c) :
     constraints(c),
     matrix(m)
   {}
@@ -58,7 +58,7 @@ public:
   void distribute_rhs(VEC &rhs) const;
 
 private:
-  const ConstraintMatrix &constraints;
+  const AffineConstraints<double> &constraints;
   const MATRIX &matrix;
 };
 

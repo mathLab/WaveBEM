@@ -111,43 +111,25 @@ using namespace dealii;
 using namespace OpenCascade;
 
 BoatModel::BoatModel() :
-  boat_surface_right(NULL),
-  boat_surface_left(NULL),
-  boat_water_line_right(NULL),
-  boat_water_line_left(NULL),
-  boat_keel(NULL),
-  boat_keel_norm(NULL),
-  boat_transom_left(NULL),
-  boat_transom_right(NULL),
-  wake_line_left(NULL),
-  wake_line_right(NULL),
-  water_line_right(NULL),
-  water_line_left(NULL)
+  Boat_surface_right(NULL),
+  Boat_surface_left(NULL),
+  Boat_water_line_right(NULL),
+  Boat_water_line_left(NULL),
+  Boat_keel(NULL),
+  Boat_keel_norm(NULL),
+  Boat_transom_left(NULL),
+  Boat_transom_right(NULL),
+  Undist_water_surf(NULL),
+  Wake_line_left(NULL),
+  Wake_line_right(NULL),
+  Water_line_right(NULL),
+  Water_line_left(NULL)
 {
 }
 
 BoatModel::~BoatModel()
 {
-  if (boat_surface_right)
-    delete boat_surface_right;
-  if (boat_surface_left)
-    delete boat_surface_left;
-  if (boat_water_line_right)
-    delete boat_water_line_right;
-  if (boat_water_line_left)
-    delete boat_water_line_left;
-  if (boat_keel)
-    delete boat_keel;
-  if (boat_keel_norm)
-    delete boat_keel_norm;
-  if (boat_transom_left)
-    delete boat_transom_left;
-  if (boat_transom_right)
-    delete boat_transom_right;
-  if (water_line_right)
-    delete water_line_right;
-  if (water_line_left)
-    delete water_line_left;
+
 }
 
 
@@ -363,7 +345,7 @@ void BoatModel::start_iges_model(std::string igesFileName,
   //*/
   //here we extract the undisturbed right water line from
   //the hull shape
-  intersect_plane(sh,right_undist_water_line,0.0,0.0,1.0,0.0,1e-4); // 1e-2 tolerance for comacina
+  intersect_plane(sh,right_undist_water_line,0.0,0.0,1.0,0.0,1e-3); // 1e-2 tolerance for comacina
   //here we extract the undisturbed left water line from
   //the hull shape by applying
   //to the right water line the y mirroring transformation
@@ -530,19 +512,21 @@ void BoatModel::start_iges_model(std::string igesFileName,
                   ExcMessage("Keel and has no intersection or too many intersections with horizontal plane!"));
     }
   //we define the keel arclength and normal projection
-  wake_line_left = new ArclengthProjection(BRepBuilderAPI_MakeEdge(left_wake_bspline));
-  wake_line_right = new ArclengthProjection(BRepBuilderAPI_MakeEdge(right_wake_bspline));
+  Wake_line_left =   std::make_shared< dealii::OpenCASCADE::ArclengthProjectionLineManifold<2,3> >(BRepBuilderAPI_MakeEdge(left_wake_bspline),1e-5);
+  Wake_line_right =   std::make_shared< dealii::OpenCASCADE::ArclengthProjectionLineManifold<2,3> >(BRepBuilderAPI_MakeEdge(right_wake_bspline),1e-5);
 
   cout<<"gpFront: "<<Pnt(gpFront)<<endl;
   cout<<"gpBack:"<<Pnt(gpBack)<<endl;
   cout<<"Boat Wet Lenght Lpp: "<<boatWetLength<<endl;
 
   //we define the hull surface normal projections
-  boat_surface_right = new NormalProjection<2>(sh);
-  boat_surface_left = new NormalProjection<2>(refl_sh);
+  Boat_surface_right = std::make_shared< dealii::OpenCASCADE::NormalProjectionManifold<2,3> >(sh,1e-5);
+  Boat_surface_left = std::make_shared< dealii::OpenCASCADE::NormalProjectionManifold<2,3> >(refl_sh,1e-5);
+  
   //we define the hull surface y direction projections
-  boat_water_line_right = new AxisProjection(sh, Point<3>(0,1,0),1e-7,1e-2*boatWetLength);
-  boat_water_line_left = new AxisProjection(refl_sh, Point<3>(0,-1,0),1e-7,1e-2*boatWetLength);
+  Boat_water_line_right = std::make_shared< dealii::OpenCASCADE::DirectionalProjectionManifold<2,3> >(sh, Tensor<1,3>({0,1,0}),1e-2);
+  Boat_water_line_left = std::make_shared< dealii::OpenCASCADE::DirectionalProjectionManifold<2,3> >(refl_sh, Tensor<1,3>({0,-1,0}),1e-2);
+  
   //we define the projection on undisturbed free surface
   //gp_Pln xy_plane(0.,0.,1.,0.);
   double xdim = 20*boatWetLength, ydim = 20*boatWetLength;
@@ -556,38 +540,64 @@ void BoatModel::start_iges_model(std::string igesFileName,
   TopoDS_Wire wire = polygon.Wire();
   BRepBuilderAPI_MakeFace faceBuilder(wire);
   undisturbed_water_surface_face = faceBuilder.Face();
-  undist_water_surf = new AxisProjection(undisturbed_water_surface_face, Point<3>(0,0,-1),1e-7,1e-3*boatWetLength);
+  Undist_water_surf = std::make_shared< dealii::OpenCASCADE::DirectionalProjectionManifold<2,3> >(undisturbed_water_surface_face, Tensor<1,3>({0,0,-1}),1e-3) ;
   //we define the corresponding waterline arclength and projection
-  water_line_right = new ArclengthProjection(right_undist_water_line,1e-5*boatWetLength);
-  water_line_left = new ArclengthProjection(left_undist_water_line,1e-5*boatWetLength);
+  Water_line_right = std::make_shared< dealii::OpenCASCADE::ArclengthProjectionLineManifold<2,3> >(right_undist_water_line,1e-5);
+  Water_line_left = std::make_shared< dealii::OpenCASCADE::ArclengthProjectionLineManifold<2,3> >(left_undist_water_line,1e-5);
   //we define the keel arclength and normal projection
-  boat_keel = new ArclengthProjection(keel_edge,1e-5*boatWetLength);
-  boat_keel_norm = new NormalProjection<1>(keel_edge);
+  Boat_keel = std::make_shared< dealii::OpenCASCADE::ArclengthProjectionLineManifold<2,3> >(keel_edge,1e-5);
+  Boat_keel_norm = std::make_shared< dealii::OpenCASCADE::NormalProjectionManifold<1,3> >(keel_edge,1e-5);
   //we define the left and right transom arclength projection
-  boat_transom_left = new ArclengthProjection(left_transom_edge,1e-5*boatWetLength);
-  boat_transom_right = new ArclengthProjection(right_transom_edge,1e-5*boatWetLength);
+  Boat_transom_left = std::make_shared< dealii::OpenCASCADE::ArclengthProjectionLineManifold<2,3> >(left_transom_edge,1e-5);
+  Boat_transom_right = std::make_shared< dealii::OpenCASCADE::ArclengthProjectionLineManifold<2,3> >(right_transom_edge,1e-5);
 
 
   PointFrontTop = Pnt(gpFront);
-
   PointBackTop= Pnt(gpBack);
-  PointBackBot = boat_keel->arclength_projection(PointBackTop, PointFrontTop,
-                                                 back_keel_length);
+  
+  Point<1> PointFrontTop_arclength_param = Boat_keel->pull_back(PointFrontTop);
+  Point<1> PointBackTop_arclength_param = Boat_keel->pull_back(PointBackTop);
+  
+  if (PointFrontTop_arclength_param(0) < PointBackTop_arclength_param(0))
+     {
+     PointBackBot = Boat_keel->push_forward(PointFrontTop_arclength_param+
+                                            (1.0-back_keel_length)*
+                                            (PointBackTop_arclength_param - PointFrontTop_arclength_param));
+     PointFrontBot = Boat_keel->push_forward(PointFrontTop_arclength_param+
+                                             front_keel_length*
+                                             (PointBackTop_arclength_param - PointFrontTop_arclength_param));
+     PointMidBot = Boat_keel->push_forward(PointFrontTop_arclength_param+
+                                           (1.0-middle_keel_length)*
+                                           (PointBackTop_arclength_param - PointFrontTop_arclength_param));
+     
+     }
+  else
+     {
+     PointBackBot = Boat_keel->push_forward(PointBackTop_arclength_param+
+                                            back_keel_length*
+                                            (PointFrontTop_arclength_param - PointBackTop_arclength_param));
+     PointFrontBot = Boat_keel->push_forward(PointBackTop_arclength_param+
+                                             (1.0-front_keel_length)*
+                                             (PointFrontTop_arclength_param - PointBackTop_arclength_param));
+     PointMidBot = Boat_keel->push_forward(PointBackTop_arclength_param+
+                                             middle_keel_length*
+                                             (PointFrontTop_arclength_param - PointBackTop_arclength_param));
+     }
 
-  PointFrontBot = boat_keel->arclength_projection(PointBackTop, PointFrontTop,
-                                                  1.0-front_keel_length);
+
 
   PointLeftTransom = Pnt(transomLeft);
 
   PointRightTransom = Pnt(transomRight);
 
-  PointMidBot = boat_keel->arclength_projection(PointBackTop, PointFrontTop,
-                                                middle_keel_length);
 
-
-  boat_water_line_right->axis_projection(PointMidTop, Point<3>(0.0,0.0,0.0));
-
-
+  std::vector<Point<3> > surr_points;
+  PointMidTop = Boat_water_line_right->project_to_manifold(surr_points, Point<3>(0.0,0.0,0.0));
+  cout<<"****** "<<PointMidTop<<endl;
+  Point<1> p1 = Water_line_right->pull_back(PointFrontTop);
+  Point<1> p2 = Water_line_right->pull_back(PointBackTop);
+  Point<3> test = Water_line_right->push_forward((p1+(p2-p1))*0.5);
+  cout<<"###### "<<test<<endl;
 
 }
 

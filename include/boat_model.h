@@ -9,6 +9,8 @@
 #include <vector>
 
 #include <deal.II/base/logstream.h>
+#include <deal.II/opencascade/manifold_lib.h>
+#include <deal.II/opencascade/utilities.h>
 
 #include "occ_utilities.h"
 #include "occ_normal_projection.h"
@@ -104,31 +106,31 @@ public:
   //in CURRENT position)
   TopLoc_Location current_loc;
   // surface normal projector on boat surface right side
-  OpenCascade::NormalProjection<2> *boat_surface_right;
+  std::shared_ptr<dealii::OpenCASCADE::NormalProjectionManifold<2,3> > Boat_surface_right;
   // surface normal projector on boat surface left side
-  OpenCascade::NormalProjection<2> *boat_surface_left;
+  std::shared_ptr<dealii::OpenCASCADE::NormalProjectionManifold<2,3> > Boat_surface_left;
   // y-axis direction projector on boat surface right side
-  OpenCascade::AxisProjection *boat_water_line_right;
+  std::shared_ptr<dealii::OpenCASCADE::DirectionalProjectionManifold<2,3> > Boat_water_line_right;
   // y-axis direction projector on boat surface left side
-  OpenCascade::AxisProjection *boat_water_line_left;
+  std::shared_ptr<dealii::OpenCASCADE::DirectionalProjectionManifold<2,3> > Boat_water_line_left;
   // z-axis direction projector on undisturbed free surface
-  OpenCascade::AxisProjection *undist_water_surf;
+  std::shared_ptr<dealii::OpenCASCADE::DirectionalProjectionManifold<2,3> > Undist_water_surf;
   // arclength projection on keel
-  OpenCascade::ArclengthProjection *boat_keel;
+  std::shared_ptr<dealii::OpenCASCADE::ArclengthProjectionLineManifold<2,3> > Boat_keel;
   // normal projection on keel
-  OpenCascade::NormalProjection<1> *boat_keel_norm;
+  std::shared_ptr<dealii::OpenCASCADE::NormalProjectionManifold<1,3> > Boat_keel_norm;
   // arclength projection on transom left edge
-  OpenCascade::ArclengthProjection *boat_transom_left;
+  std::shared_ptr<dealii::OpenCASCADE::ArclengthProjectionLineManifold<2,3> > Boat_transom_left;
   // arclength projection on transom right edge
-  OpenCascade::ArclengthProjection *boat_transom_right;
+  std::shared_ptr<dealii::OpenCASCADE::ArclengthProjectionLineManifold<2,3> > Boat_transom_right;
   // arclength projection on left wake line
-  OpenCascade::ArclengthProjection *wake_line_left;
+  std::shared_ptr<dealii::OpenCASCADE::ArclengthProjectionLineManifold<2,3> > Wake_line_left;
   // arclength projection on right wake line
-  OpenCascade::ArclengthProjection *wake_line_right;
+  std::shared_ptr<dealii::OpenCASCADE::ArclengthProjectionLineManifold<2,3> > Wake_line_right;
   // arclength projection on boat surface right side
-  OpenCascade::ArclengthProjection *water_line_right;
+  std::shared_ptr<dealii::OpenCASCADE::ArclengthProjectionLineManifold<2,3> > Water_line_right;
   // arclength projectionon boat surface left side
-  OpenCascade::ArclengthProjection *water_line_left;
+  std::shared_ptr<dealii::OpenCASCADE::ArclengthProjectionLineManifold<2,3> > Water_line_left;
   // keel curve
   Handle(Geom_Curve) equiv_keel_bspline;
   // undisturbed right water line curve

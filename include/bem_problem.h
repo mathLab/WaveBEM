@@ -31,7 +31,7 @@
 
 #include <deal.II/lac/full_matrix.h>
 #include <deal.II/lac/sparse_matrix.h>
-#include <deal.II/lac/constraint_matrix.h>
+#include <deal.II/lac/affine_constraints.h>
 #include <deal.II/lac/matrix_lib.h>
 #include <deal.II/lac/vector.h>
 #include <deal.II/lac/solver_control.h>
@@ -98,7 +98,7 @@ public:
 
   void reinit();
 
-  void compute_constraints(ConstraintMatrix &constraints, const Vector<double> &tmp_rhs);
+  void compute_constraints(AffineConstraints<double> &constraints, const Vector<double> &tmp_rhs);
 
   //  private:
 
@@ -161,7 +161,7 @@ public:
   Vector<double>              serv_dphi_dn;
   Vector<double>              serv_tmp_rhs;
 
-  ConstraintMatrix     constraints;
+  AffineConstraints<double>     constraints;
 
   std::string solution_method;
 

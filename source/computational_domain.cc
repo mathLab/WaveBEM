@@ -123,7 +123,7 @@ void ComputationalDomain<dim>::parse_parameters (ParameterHandler &prm)
   prm.enter_subsection("Quadrature rules");
   {
     quadrature =
-      std_cxx1x::shared_ptr<Quadrature<dim-1> >
+      std::shared_ptr<Quadrature<dim-1> >
       (new QuadratureSelector<dim-1> (prm.get("Quadrature type"),
                                       prm.get_integer("Quadrature order")));
     singular_quadrature_order = prm.get_integer("Singular quadrature order");
@@ -327,7 +327,7 @@ void ComputationalDomain<dim>::generate_octree_blocking()
 
   FEValues<dim-1,dim> fe_v(*mapping,fe, *quadrature,
                            update_values |
-                           update_cell_normal_vectors |
+                           update_normal_vectors |
                            update_quadrature_points |
                            update_JxW_values);
 
@@ -1486,7 +1486,7 @@ void ComputationalDomain<dim>::restore_tria(std::string fname)
 
   if (mapping == NULL)
     mapping = new MappingQEulerian<dim-1, Vector<double>, dim>
-    (mapping_degree, map_points, vector_dh);
+    (mapping_degree, vector_dh, map_points);
 
   generate_double_nodes_set();
   compute_min_diameter();
@@ -1530,7 +1530,7 @@ void ComputationalDomain<dim>::compute_normals()
   normals_sparsity_pattern.reinit(vector_dh.n_dofs(),
                                   vector_dh.n_dofs(),
                                   vector_dh.max_couplings_between_dofs());
-  ConstraintMatrix  vector_constraints;
+  AffineConstraints<double>  vector_constraints;
   vector_constraints.clear();
   DoFTools::make_hanging_node_constraints (vector_dh,vector_constraints);
   vector_constraints.close();
@@ -1547,7 +1547,7 @@ void ComputationalDomain<dim>::compute_normals()
 
 
   FEValues<dim-1,dim> vector_fe_v(*mapping, vector_fe, *quadrature,
-                                  update_values | update_cell_normal_vectors |
+                                  update_values | update_normal_vectors |
                                   update_JxW_values);
 
   const unsigned int vector_n_q_points = vector_fe_v.n_quadrature_points;
@@ -1566,7 +1566,7 @@ void ComputationalDomain<dim>::compute_normals()
       vector_fe_v.reinit (vector_cell);
       local_normals_matrix = 0;
       local_normals_rhs = 0;
-      const std::vector<Point<dim> > &vector_node_normals = vector_fe_v.get_normal_vectors();
+      const std::vector<Tensor<1,dim> > &vector_node_normals = vector_fe_v.get_normal_vectors();
       unsigned int comp_i, comp_j;
 
       for (unsigned int q=0; q<vector_n_q_points; ++q)
@@ -1584,7 +1584,7 @@ void ComputationalDomain<dim>::compute_normals()
                   }
               }
             local_normals_rhs(i) += (vector_fe_v.shape_value(i, q)) *
-                                    vector_node_normals[q](comp_i) * vector_fe_v.JxW(q);
+                                    vector_node_normals[q][comp_i] * vector_fe_v.JxW(q);
           }
 
       vector_cell->get_dof_indices (vector_local_dof_indices);

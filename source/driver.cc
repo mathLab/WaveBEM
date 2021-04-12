@@ -26,7 +26,7 @@ Driver<dim>::Driver(int argc, char **argv) :
   // The default parameter file is the name of the application plus prm
   default_prm = args.back() + ".prm";
 
-  prm.read_input(default_prm, false, true);
+  prm.parse_input(default_prm);
 
   // Now that we have the final version of the parameters, parse them.
   ParseParameters();

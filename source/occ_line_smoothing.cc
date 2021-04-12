@@ -123,11 +123,13 @@ namespace OpenCascade
 //cout<<"*"<<endl;
     for (unsigned int i=0; i<dh.n_dofs()/3; ++i)
       if (smoothing_dofs[3*i] == true)
-        {
+        { 
           Point<3> p = support_points[3*i];
+          //cout<<"Point: "<<p<<endl;
           gp_Pnt P = Pnt(p);
           double t;
           off = curve_analysis.Project(AC, P, tolerance, proj, t, Standard_True);
+          //cout<<"Proj: "<<Pnt(proj)<<endl;
           //cout<<"in "<<3*i<<"-> p("<<support_points[3*i]<<")   proj="<<Pnt(proj)<<"  off "<<off<<endl;
           AssertThrow( (off < tolerance), ExcMessage("Point is not on ref curve!"));
           double dist = GCPnts_AbscissaPoint::Length(AC,t,occ_base_t);

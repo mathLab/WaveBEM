@@ -118,7 +118,7 @@ private:
   Vector<double> solution;
   Vector<double> rhs;
 
-  ConstraintMatrix constraints;
+  AffineConstraints<double> constraints;
 
   SparsityPattern sparsity;
   SparseMatrix<double> matrix;

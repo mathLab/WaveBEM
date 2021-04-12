@@ -100,7 +100,8 @@ void SurfaceSmoothing::smooth()
 //cout<<"S2"<<endl;
   solve_system();
 //cout<<"S3"<<endl;
-  euler_vector.sadd(0., 1., solution, -1., reference_identity);
+  euler_vector.sadd(0., 1., solution);
+  euler_vector.sadd(1.,-1., reference_identity);
 //cout<<"S4"<<endl;
 }
 
@@ -244,6 +245,7 @@ void SurfaceSmoothing::apply_curvatures(const Vector<double> &curvatures,
 
   assemble_system(curvatures);
   solve_system();
-  euler_vector.sadd(0., 1., solution, -1., reference_identity);
+  euler_vector.sadd(0., 1., solution);
+  euler_vector.sadd(1.,-1., reference_identity);
 }
 
