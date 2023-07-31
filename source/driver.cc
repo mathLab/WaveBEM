@@ -26,14 +26,14 @@ Driver<dim>::Driver(int argc, char **argv) :
   // The default parameter file is the name of the application plus prm
   default_prm = args.back() + ".prm";
 
-  prm.read_input(default_prm, false, true);
+  prm.parse_input(default_prm);
 
   // Now that we have the final version of the parameters, parse them.
   ParseParameters();
 
   // And write the used ones.
   default_prm = args.front() + "_used.prm";
-  ofstream outprm(default_prm.c_str());
+  std::ofstream outprm(default_prm.c_str());
   prm.print_parameters(outprm, ParameterHandler::ShortText);
 }
 
@@ -75,7 +75,7 @@ void Driver<dim>::run()
   dae_time_int.start_ode(y, yp, maxNumSteps);
 
 
-  cout<<"Number of rhs evaluations is "<<free_surface.Rhs_evaluations_counter()<<endl; //*/
+  std::cout<<"Number of rhs evaluations is "<<free_surface.Rhs_evaluations_counter()<<std::endl; //*/
 
 }
 

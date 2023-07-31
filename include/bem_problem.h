@@ -31,8 +31,7 @@
 
 #include <deal.II/lac/full_matrix.h>
 #include <deal.II/lac/sparse_matrix.h>
-#include <deal.II/lac/constraint_matrix.h>
-#include <deal.II/lac/matrix_lib.h>
+#include <deal.II/lac/affine_constraints.h>
 #include <deal.II/lac/vector.h>
 #include <deal.II/lac/solver_control.h>
 #include <deal.II/lac/solver_gmres.h>
@@ -46,7 +45,7 @@
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/grid/grid_in.h>
 #include <deal.II/grid/grid_out.h>
-#include <deal.II/grid/tria_boundary_lib.h>
+
 
 #include <deal.II/dofs/dof_handler.h>
 #include <deal.II/dofs/dof_accessor.h>
@@ -98,7 +97,7 @@ public:
 
   void reinit();
 
-  void compute_constraints(ConstraintMatrix &constraints, const Vector<double> &tmp_rhs);
+  void compute_constraints(AffineConstraints<double> &constraints, const Vector<double> &tmp_rhs);
 
   //  private:
 
@@ -161,7 +160,7 @@ public:
   Vector<double>              serv_dphi_dn;
   Vector<double>              serv_tmp_rhs;
 
-  ConstraintMatrix     constraints;
+  AffineConstraints<double>     constraints;
 
   std::string solution_method;
 

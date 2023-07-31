@@ -7,12 +7,11 @@
 
 // For time integration.
 #include <ida/ida.h>
-#include <ida/ida_dense.h>
-#include <ida/ida_lapack.h>
-#include <ida/ida_spgmr.h>
 #include <nvector/nvector_serial.h>
 #include <sundials/sundials_math.h>
 #include <sundials/sundials_types.h>
+#include <ida/ida_spils.h>
+#include <sunlinsol/sunlinsol_spgmr.h>
 
 
 #include "ode_argument.h"
@@ -125,6 +124,8 @@ private:
   N_Vector abs_tolls;
   /** Ida differential components vector. */
   N_Vector diff_id;
+  
+  SUNContext sunctx;
 
 
 };

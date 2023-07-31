@@ -3,7 +3,7 @@
 
 #include <deal.II/base/point.h>
 #include <deal.II/base/parameter_handler.h>
-#include <deal.II/grid/tria_boundary.h>
+
 
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/fe/fe_values.h>
@@ -13,7 +13,7 @@
 #include <gp_Dir.hxx>
 
 #include <deal.II/base/point.h>
-#include <deal.II/grid/tria_boundary.h>
+#include <deal.II/grid/manifold.h>
 
 
 
@@ -24,10 +24,10 @@ using namespace dealii;
 namespace OpenCascade
 {
 
-  class AxisProjection : public  StraightBoundary<2,3>
+  class AxisProjection : public  FlatManifold<2,3>
   {
   public:
-    AxisProjection(const TopoDS_Shape &sh, Point<3> direction, double tolerance=1e-7, double recovery_tolerance=1e-7);
+    AxisProjection(const TopoDS_Shape &sh, Tensor<1,3> direction, double tolerance=1e-7, double recovery_tolerance=1e-7);
 
     virtual Point<3> get_new_point_on_line
     (const Triangulation< 2,3 >::line_iterator &line) const;
@@ -45,18 +45,18 @@ namespace OpenCascade
 
     bool assigned_axis_projection(Point<3> &projection,
                                   const Point<3> &origin,
-                                  const Point<3> &assigned_axis) const;
+                                  const Tensor<1,3> &assigned_axis) const;
 
 
     bool assigned_axis_projection_and_diff_forms(Point<3> &projection,
-                                                 Point<3> &normal,
+                                                 Tensor<1,3> &normal,
                                                  double &mean_curvature,
                                                  const Point<3> &origin,
-                                                 const Point<3> &assigned_axis) const;
+                                                 const Tensor<1,3> &assigned_axis) const;
 
 
     bool axis_projection_and_diff_forms(Point<3> &projection,
-                                        Point<3> &normal,
+                                        Tensor<1,3> &normal,
                                         double &mean_curvature,
                                         const Point<3> &origin) const;
 
@@ -64,7 +64,7 @@ namespace OpenCascade
 
   private:
     gp_Dir direction;
-    Point<3> Direction;
+    Tensor<1,3> Direction;
     double tolerance;
     double recovery_tolerance;
 

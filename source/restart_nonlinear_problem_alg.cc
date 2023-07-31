@@ -33,17 +33,17 @@ int RestartNonlinearProblemAlg::residual(Vector<double> &dst,
 
 
   // the resulting free surface residual must be "distributed" on the present problem degrees of freedom (with proper ordering)
-  cout<<"Restart problem residual "<<endl;
+  std::cout<<"Restart problem residual "<<std::endl;
   unsigned int count = 0;
   for (std::set <unsigned int>::iterator pos = dphi_dn_indices.begin(); pos != dphi_dn_indices.end(); ++pos)
     {
       unsigned int i=*pos;
       dst(count) = free_surf_res(i+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs());
-      //cout<<count<<"("<<3*i+2<<")W  "<<dst(count)<<"    "<<src_yy(count)<<endl;
+      //std::cout<<count<<"("<<3*i+2<<")W  "<<dst(count)<<"    "<<src_yy(count)<<std::endl;
       count++;
     }
 
-  cout<<"Restart problem nonlin residual: "<<dst.l2_norm()<<endl;
+  std::cout<<"Restart problem nonlin residual: "<<dst.l2_norm()<<std::endl;
   return 0;
 }
 
@@ -54,14 +54,14 @@ int RestartNonlinearProblemAlg::jacobian(Vector<double> &dst,
 {
 
 
-  //cout<<"Original jacobian"<<endl;
+  //std::cout<<"Original jacobian"<<std::endl;
   //for (unsigned int i=0; i<free_surf_res.size(); ++i)
   //    for (SparsityPattern::iterator c=free_surf_jacobian.get_sparsity_pattern().row_begin(i); c!=free_surf_jacobian.get_sparsity_pattern().row_end(i); ++c)
   //        {
   //        unsigned int j = *c;
-  //        cout<<" "<<i<<" "<<j<<" "<<free_surf_jacobian(i,j)<<endl;
+  //        std::cout<<" "<<i<<" "<<j<<" "<<free_surf_jacobian(i,j)<<std::endl;
   //        }
-  cout<<"Restart problem jacobian"<<endl;
+  std::cout<<"Restart problem jacobian"<<std::endl;
   jacobian_matrix = 0;
 
   unsigned int count = 0;
@@ -73,8 +73,8 @@ int RestartNonlinearProblemAlg::jacobian(Vector<double> &dst,
         if ( (indices_map.count(col->column())) && ((col->column()) > (comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()-1)) )
           {
             jacobian_matrix.set(count,indices_map.find(col->column())->second,free_surf_jacobian(i+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs(),col->column()));
-            //cout<<"dopo "<<count<<","<<indices_map.find(col->column())->second<<endl;
-            //cout<<count<<" "<<indices_map.find(col->column())->second<<" "<<free_surf_jacobian(i+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs(),col->column())<<endl;
+            //std::cout<<"dopo "<<count<<","<<indices_map.find(col->column())->second<<std::endl;
+            //std::cout<<count<<" "<<indices_map.find(col->column())->second<<" "<<free_surf_jacobian(i+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs(),col->column())<<std::endl;
           }
       count++;
     }

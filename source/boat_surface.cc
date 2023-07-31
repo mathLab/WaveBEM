@@ -227,7 +227,7 @@ template <int dim>
 Point<dim> BoatSurface<dim>::get_new_point_on_line
 (const typename Triangulation< dim-1,dim >::line_iterator &line) const
 {
-  Point<dim> newp = StraightBoundary<dim-1,dim>::get_new_point_on_line(line);
+  Point<dim> newp = FlatManifold<dim-1,dim>::get_new_point_on_line(line);
   newp(1) = HullFunction(newp);
   return newp;
 }
@@ -238,7 +238,7 @@ Point<dim> BoatSurface<dim>::get_new_point_on_quad
 (const typename Triangulation< dim-1,dim >::quad_iterator &quad) const
 {
 
-  Point<dim> newp = StraightBoundary<dim-1,dim>::get_new_point_on_quad(quad);
+  Point<dim> newp = FlatManifold<dim-1,dim>::get_new_point_on_quad(quad);
   newp(1) = HullFunction(newp);
   return newp;
 }

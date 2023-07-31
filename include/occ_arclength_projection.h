@@ -3,13 +3,13 @@
 
 #include <deal.II/base/point.h>
 #include <deal.II/base/parameter_handler.h>
-#include <deal.II/grid/tria_boundary.h>
+
 
 #include <TopoDS.hxx>
 #include <Geom_Curve.hxx>
 
 #include <deal.II/base/point.h>
-#include <deal.II/grid/tria_boundary.h>
+#include <deal.II/grid/manifold.h>
 
 
 #include <stdio.h>
@@ -20,7 +20,7 @@ using namespace dealii;
 namespace OpenCascade
 {
 
-  class ArclengthProjection : public  StraightBoundary<2,3>
+  class ArclengthProjection : public  FlatManifold<2,3>
   {
   public:
 
@@ -33,6 +33,9 @@ namespace OpenCascade
     Point<3> arclength_projection(const Point<3> &p0,
                                   const Point<3> &p1,
                                   const double distance=.5) const;
+
+    virtual Point<3> project_to_manifold(const std::vector<Point<3> > &points,
+                                        const Point<3> & candidate) const;
 
     const TopoDS_Shape sh;
 

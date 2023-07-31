@@ -48,7 +48,6 @@
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/grid/grid_in.h>
 #include <deal.II/grid/grid_out.h>
-#include <deal.II/grid/tria_boundary_lib.h>
 #include <deal.II/grid/grid_refinement.h>
 
 #include <deal.II/dofs/dof_handler.h>
@@ -185,8 +184,8 @@ public:
                                   const Vector<double> &src_yp,
                                   const double alpha);
 
-  void compute_constraints(ConstraintMatrix &constraints,
-                           ConstraintMatrix &vector_constraints);
+  void compute_constraints(AffineConstraints<double> &constraints,
+                           AffineConstraints<double> &vector_constraints);
 
   /** Jacobian inverse preconditioner
   vector product for dae. */
@@ -368,8 +367,8 @@ private:
 
   // set of vectors and (mass) matrices
   // needed in compute_DXDt_and_DphiDt
-  ConstraintMatrix     constraints;
-  ConstraintMatrix     vector_constraints;
+  AffineConstraints<double>     constraints;
+  AffineConstraints<double>     vector_constraints;
 
   SparsityPattern      DphiDt_sparsity_pattern;
   SparseMatrix<double> DphiDt_sys_matrix;

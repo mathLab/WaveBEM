@@ -30,13 +30,13 @@ namespace OpenCascade
 
 
   AxisProjection::AxisProjection(const TopoDS_Shape &sh,
-                                 Point<3> direction,
+                                 Tensor<1,3> direction,
                                  double tolerance,
                                  double recovery_tolerance) :
     sh(sh),
-    direction(direction(0),
-              direction(1),
-              direction(2)),
+    direction(direction[0],
+              direction[1],
+              direction[2]),
     Direction(direction),
     tolerance(tolerance),
     recovery_tolerance(recovery_tolerance)
@@ -57,10 +57,12 @@ namespace OpenCascade
 
 
   bool AxisProjection::axis_projection_and_diff_forms(Point<3> &projection,
-                                                      Point<3> &normal,
+                                                      Tensor<1,3> &normal,
                                                       double &mean_curvature,
                                                       const Point<3> &origin) const
   {
+  
+  std::cout<<"******* "<<origin<<std::endl;
     // translating original
     // Point<dim> to gp point
     gp_Pnt P0 = Pnt(origin);
@@ -87,8 +89,8 @@ namespace OpenCascade
     if (Inters.NbPnt() == 0)
       {
         unsigned int succeeded = 0;
-        cout<<"Axis A("<<Direction<<") direction projection of point P("<<origin<<")  on shape FAILED!"<<endl;
-        cout<<"Trying to fix this"<<endl;
+        std::cout<<"Axis A("<<Direction<<") direction projection of point P("<<origin<<")  on shape FAILED!"<<std::endl;
+        std::cout<<"Trying to fix this"<<std::endl;
 
         gp_Pnt P1 = Pnt(origin+recovery_tolerance*Point<3>(1.0,0.0,0.0));
         gp_Ax1 gpaxis1(P1, direction);
@@ -107,7 +109,7 @@ namespace OpenCascade
             for (int i=0; i<Inters1.NbPnt(); ++i)
               {
                 distance = Pnt(origin).Distance(Inters1.Pnt(i+1));
-                //cout<<"Point "<<i<<": "<<Pnt(Inters1.Pnt(i+1))<<"  distance: "<<distance<<endl;
+                //std::cout<<"Point "<<i<<": "<<Pnt(Inters1.Pnt(i+1))<<"  distance: "<<distance<<std::endl;
                 if (distance < min_distance)
                   {
                     min_distance = distance;
@@ -148,7 +150,7 @@ namespace OpenCascade
             for (int i=0; i<Inters2.NbPnt(); ++i)
               {
                 distance = Pnt(origin).Distance(Inters2.Pnt(i+1));
-                //cout<<"Point "<<i<<": "<<Pnt(Inters2.Pnt(i+1))<<"  distance: "<<distance<<endl;
+                //std::cout<<"Point "<<i<<": "<<Pnt(Inters2.Pnt(i+1))<<"  distance: "<<distance<<std::endl;
                 if (distance < min_distance)
                   {
                     min_distance = distance;
@@ -189,7 +191,7 @@ namespace OpenCascade
             for (int i=0; i<Inters3.NbPnt(); ++i)
               {
                 distance = Pnt(origin).Distance(Inters3.Pnt(i+1));
-                //cout<<"Point "<<i<<": "<<Pnt(Inters3.Pnt(i+1))<<"  distance: "<<distance<<endl;
+                //std::cout<<"Point "<<i<<": "<<Pnt(Inters3.Pnt(i+1))<<"  distance: "<<distance<<std::endl;
                 if (distance < min_distance)
                   {
                     min_distance = distance;
@@ -230,7 +232,7 @@ namespace OpenCascade
             for (int i=0; i<Inters4.NbPnt(); ++i)
               {
                 distance = Pnt(origin).Distance(Inters4.Pnt(i+1));
-                //cout<<"Point "<<i<<": "<<Pnt(Inters4.Pnt(i+1))<<"  distance: "<<distance<<endl;
+                //std::cout<<"Point "<<i<<": "<<Pnt(Inters4.Pnt(i+1))<<"  distance: "<<distance<<std::endl;
                 if (distance < min_distance)
                   {
                     min_distance = distance;
@@ -255,7 +257,7 @@ namespace OpenCascade
           }
         if (succeeded > 0)
           {
-            cout<<"Recovery attempt of point projection on surface in given direction FAILED"<<endl;
+            std::cout<<"Recovery attempt of point projection on surface in given direction FAILED"<<std::endl;
             return false;
           }
         //AssertThrow(succeeded > 0,
@@ -268,14 +270,14 @@ namespace OpenCascade
       }
     else
       {
-        //cout<<"Intersections found: "<<Inters.NbPnt()<<endl;
+        //std::cout<<"Intersections found: "<<Inters.NbPnt()<<std::endl;
         Standard_Real min_distance = 1e15;
         Standard_Real distance;
         int lowest_dist_int=0;
         for (int i=0; i<Inters.NbPnt(); ++i)
           {
             distance = Pnt(origin).Distance(Inters.Pnt(i+1));
-            //cout<<"Point "<<i<<": "<<Pnt(Inters.Pnt(i+1))<<"  distance: "<<distance<<endl;
+            //std::cout<<"Point "<<i<<": "<<Pnt(Inters.Pnt(i+1))<<"  distance: "<<distance<<std::endl;
             if (distance < min_distance)
               {
                 min_distance = distance;
@@ -301,9 +303,9 @@ namespace OpenCascade
     projection = Pnt(Pproj);
 
 // translating normal vector
-    normal(0) = Normal.X();
-    normal(1) = Normal.Y();
-    normal(2) = Normal.Z();
+    normal[0] = Normal.X();
+    normal[1] = Normal.Y();
+    normal[2] = Normal.Z();
 
 
 // translating mean curvature
@@ -339,8 +341,8 @@ namespace OpenCascade
     if (Inters.NbPnt() == 0)
       {
         unsigned int succeeded = 0;
-        cout<<"Axis A("<<Direction<<") direction projection of point P("<<origin<<")  on shape FAILED!"<<endl;
-        cout<<"Trying to fix this"<<endl;
+        std::cout<<"Axis A("<<Direction<<") direction projection of point P("<<origin<<")  on shape FAILED!"<<std::endl;
+        std::cout<<"Trying to fix this"<<std::endl;
 
         gp_Pnt P1 = Pnt(origin+recovery_tolerance*Point<3>(1.0,0.0,0.0));
         gp_Ax1 gpaxis1(P1, direction);
@@ -358,7 +360,7 @@ namespace OpenCascade
             for (int i=0; i<Inters1.NbPnt(); ++i)
               {
                 distance = Pnt(origin).Distance(Inters1.Pnt(i+1));
-                //cout<<"Point "<<i<<": "<<Pnt(Inters1.Pnt(i+1))<<"  distance: "<<distance<<endl;
+                //std::cout<<"Point "<<i<<": "<<Pnt(Inters1.Pnt(i+1))<<"  distance: "<<distance<<std::endl;
                 if (distance < min_distance)
                   {
                     min_distance = distance;
@@ -386,7 +388,7 @@ namespace OpenCascade
             for (int i=0; i<Inters2.NbPnt(); ++i)
               {
                 distance = Pnt(origin).Distance(Inters2.Pnt(i+1));
-                //cout<<"Point "<<i<<": "<<Pnt(Inters2.Pnt(i+1))<<"  distance: "<<distance<<endl;
+                //std::cout<<"Point "<<i<<": "<<Pnt(Inters2.Pnt(i+1))<<"  distance: "<<distance<<std::endl;
                 if (distance < min_distance)
                   {
                     min_distance = distance;
@@ -414,7 +416,7 @@ namespace OpenCascade
             for (int i=0; i<Inters3.NbPnt(); ++i)
               {
                 distance = Pnt(origin).Distance(Inters3.Pnt(i+1));
-                //cout<<"Point "<<i<<": "<<Pnt(Inters3.Pnt(i+1))<<"  distance: "<<distance<<endl;
+                //std::cout<<"Point "<<i<<": "<<Pnt(Inters3.Pnt(i+1))<<"  distance: "<<distance<<std::endl;
                 if (distance < min_distance)
                   {
                     min_distance = distance;
@@ -442,7 +444,7 @@ namespace OpenCascade
             for (int i=0; i<Inters4.NbPnt(); ++i)
               {
                 distance = Pnt(origin).Distance(Inters4.Pnt(i+1));
-                //cout<<"Point "<<i<<": "<<Pnt(Inters4.Pnt(i+1))<<"  distance: "<<distance<<endl;
+                //std::cout<<"Point "<<i<<": "<<Pnt(Inters4.Pnt(i+1))<<"  distance: "<<distance<<std::endl;
                 if (distance < min_distance)
                   {
                     min_distance = distance;
@@ -455,7 +457,7 @@ namespace OpenCascade
           }
         if (succeeded > 0)
           {
-            cout<<"Recovery attempt of point projection on surface in given direction FAILED"<<endl;
+            std::cout<<"Recovery attempt of point projection on surface in given direction FAILED"<<std::endl;
             return false;
           }
         //AssertThrow(succeeded > 0,
@@ -465,13 +467,13 @@ namespace OpenCascade
       }
     else
       {
-        //cout<<"Intersections found: "<<Inters.NbPnt()<<endl;
+        //std::cout<<"Intersections found: "<<Inters.NbPnt()<<std::endl;
         Standard_Real min_distance = 1e15;
         Standard_Real distance;
         for (int i=0; i<Inters.NbPnt(); ++i)
           {
             distance = Pnt(origin).Distance(Inters.Pnt(i+1));
-            //cout<<"Point "<<i<<": "<<Pnt(Inters.Pnt(i+1))<<"  distance: "<<distance<<endl;
+            //std::cout<<"Point "<<i<<": "<<Pnt(Inters.Pnt(i+1))<<"  distance: "<<distance<<std::endl;
             if (distance < min_distance)
               {
                 min_distance = distance;
@@ -482,19 +484,19 @@ namespace OpenCascade
 
 // translating destination point
     projection = Pnt(Pproj);
-
+    //std::cout<<"y dir projection: "<<projection<<std::endl;
     return true;
   }
 
 
   bool AxisProjection::assigned_axis_projection(Point<3> &projection,
                                                 const Point<3> &origin,
-                                                const Point<3> &assigned_axis) const
+                                                const Tensor<1,3> &assigned_axis) const
   {
     // translating original
     // Point<dim> to gp point
     gp_Pnt P0 = Pnt(origin);
-    gp_Dir axis(assigned_axis(0),assigned_axis(1),assigned_axis(2));
+    gp_Dir axis(assigned_axis[0],assigned_axis[1],assigned_axis[2]);
     gp_Ax1 gpaxis(P0, axis);
     gp_Lin line(gpaxis);
 
@@ -512,8 +514,8 @@ namespace OpenCascade
     if (Inters.NbPnt() == 0)
       {
         unsigned int succeeded = 0;
-        cout<<"Axis A("<<assigned_axis <<") direction projection of point P("<<origin<<")  on shape FAILED!"<<endl;
-        cout<<"Trying to fix this"<<endl;
+        std::cout<<"Axis A("<<assigned_axis <<") direction projection of point P("<<origin<<")  on shape FAILED!"<<std::endl;
+        std::cout<<"Trying to fix this"<<std::endl;
 
         gp_Pnt P1 = Pnt(origin+recovery_tolerance*Point<3>(1.0,0.0,0.0));
         gp_Ax1 gpaxis1(P1, direction);
@@ -531,7 +533,7 @@ namespace OpenCascade
             for (int i=0; i<Inters1.NbPnt(); ++i)
               {
                 distance = Pnt(origin).Distance(Inters1.Pnt(i+1));
-                //cout<<"Point "<<i<<": "<<Pnt(Inters1.Pnt(i+1))<<"  distance: "<<distance<<endl;
+                //std::cout<<"Point "<<i<<": "<<Pnt(Inters1.Pnt(i+1))<<"  distance: "<<distance<<std::endl;
                 if (distance < min_distance)
                   {
                     min_distance = distance;
@@ -559,7 +561,7 @@ namespace OpenCascade
             for (int i=0; i<Inters2.NbPnt(); ++i)
               {
                 distance = Pnt(origin).Distance(Inters2.Pnt(i+1));
-                //cout<<"Point "<<i<<": "<<Pnt(Inters2.Pnt(i+1))<<"  distance: "<<distance<<endl;
+                //std::cout<<"Point "<<i<<": "<<Pnt(Inters2.Pnt(i+1))<<"  distance: "<<distance<<std::endl;
                 if (distance < min_distance)
                   {
                     min_distance = distance;
@@ -587,7 +589,7 @@ namespace OpenCascade
             for (int i=0; i<Inters3.NbPnt(); ++i)
               {
                 distance = Pnt(origin).Distance(Inters3.Pnt(i+1));
-                //cout<<"Point "<<i<<": "<<Pnt(Inters3.Pnt(i+1))<<"  distance: "<<distance<<endl;
+                //std::cout<<"Point "<<i<<": "<<Pnt(Inters3.Pnt(i+1))<<"  distance: "<<distance<<std::endl;
                 if (distance < min_distance)
                   {
                     min_distance = distance;
@@ -614,7 +616,7 @@ namespace OpenCascade
             for (int i=0; i<Inters4.NbPnt(); ++i)
               {
                 distance = Pnt(origin).Distance(Inters4.Pnt(i+1));
-                //cout<<"Point "<<i<<": "<<Pnt(Inters4.Pnt(i+1))<<"  distance: "<<distance<<endl;
+                //std::cout<<"Point "<<i<<": "<<Pnt(Inters4.Pnt(i+1))<<"  distance: "<<distance<<std::endl;
                 if (distance < min_distance)
                   {
                     min_distance = distance;
@@ -626,7 +628,7 @@ namespace OpenCascade
           }
         if (succeeded > 0)
           {
-            cout<<"Recovery attempt of point projection on surface in given direction FAILED"<<endl;
+            std::cout<<"Recovery attempt of point projection on surface in given direction FAILED"<<std::endl;
             return false;
           }
         //AssertThrow(succeeded > 0,
@@ -636,13 +638,13 @@ namespace OpenCascade
       }
     else
       {
-        //cout<<"Intersections found: "<<Inters.NbPnt()<<endl;
+        //std::cout<<"Intersections found: "<<Inters.NbPnt()<<std::endl;
         Standard_Real min_distance = 1e15;
         Standard_Real distance;
         for (int i=0; i<Inters.NbPnt(); ++i)
           {
             distance = Pnt(origin).Distance(Inters.Pnt(i+1));
-            //cout<<"Point "<<i<<": "<<Pnt(Inters.Pnt(i+1))<<"  distance: "<<distance<<endl;
+            //std::cout<<"Point "<<i<<": "<<Pnt(Inters.Pnt(i+1))<<"  distance: "<<distance<<std::endl;
             if (distance < min_distance)
               {
                 min_distance = distance;
@@ -661,15 +663,15 @@ namespace OpenCascade
 
 
   bool AxisProjection::assigned_axis_projection_and_diff_forms(Point<3> &projection,
-      Point<3> &normal,
+      Tensor<1,3> &normal,
       double &mean_curvature,
       const Point<3> &origin,
-      const Point<3> &assigned_axis) const
+      const Tensor<1,3> &assigned_axis) const
   {
     // translating original
     // Point<dim> to gp point
     gp_Pnt P0 = Pnt(origin);
-    gp_Dir axis(assigned_axis(0),assigned_axis(1),assigned_axis(2));
+    gp_Dir axis(assigned_axis[0],assigned_axis[1],assigned_axis[2]);
     gp_Ax1 gpaxis(P0, axis);
     gp_Lin line(gpaxis);
 
@@ -689,13 +691,13 @@ namespace OpenCascade
     Inters.Perform(line,-RealLast(),+RealLast());
 
     Point<3> average(0.0,0.0,0.0);
-    Point<3> av_normal(0.0,0.0,0.0);
+    Tensor<1,3> av_normal;
     double av_curvature = 0.0;
     if (Inters.NbPnt() == 0)
       {
         unsigned int succeeded = 0;
-        cout<<"Axis A("<<assigned_axis <<") direction projection of point P("<<origin<<")  on shape FAILED!"<<endl;
-        cout<<"Trying to fix this"<<endl;
+        std::cout<<"Axis A("<<assigned_axis <<") direction projection of point P("<<origin<<")  on shape FAILED!"<<std::endl;
+        std::cout<<"Trying to fix this"<<std::endl;
 
 
         gp_Pnt P1 = Pnt(origin+recovery_tolerance*Point<3>(1.0,0.0,0.0));
@@ -715,7 +717,7 @@ namespace OpenCascade
             for (int i=0; i<Inters1.NbPnt(); ++i)
               {
                 distance = Pnt(origin).Distance(Inters1.Pnt(i+1));
-                //cout<<"Point "<<i<<": "<<Pnt(Inters1.Pnt(i+1))<<"  distance: "<<distance<<endl;
+                //std::cout<<"Point "<<i<<": "<<Pnt(Inters1.Pnt(i+1))<<"  distance: "<<distance<<std::endl;
                 if (distance < min_distance)
                   {
                     min_distance = distance;
@@ -735,7 +737,10 @@ namespace OpenCascade
                 Normal1.SetCoord(-1.0*Normal1.X(),-1.0*Normal1.Y(),-1.0*Normal1.Z());
                 Mean_Curvature1*=-1.0;
               }
-            av_normal += Point<3>(Normal1.X(),Normal1.Y(),Normal1.Z());
+            av_normal[0] += Normal1.X();
+            av_normal[1] += Normal1.Y();
+            av_normal[2] += Normal1.Z();
+
             av_curvature += Mean_Curvature1;
           }
 
@@ -756,7 +761,7 @@ namespace OpenCascade
             for (int i=0; i<Inters2.NbPnt(); ++i)
               {
                 distance = Pnt(origin).Distance(Inters2.Pnt(i+1));
-                //cout<<"Point "<<i<<": "<<Pnt(Inters2.Pnt(i+1))<<"  distance: "<<distance<<endl;
+                //std::cout<<"Point "<<i<<": "<<Pnt(Inters2.Pnt(i+1))<<"  distance: "<<distance<<std::endl;
                 if (distance < min_distance)
                   {
                     min_distance = distance;
@@ -776,7 +781,9 @@ namespace OpenCascade
                 Normal2.SetCoord(-1.0*Normal2.X(),-1.0*Normal2.Y(),-1.0*Normal2.Z());
                 Mean_Curvature2*=-1.0;
               }
-            av_normal += Point<3>(Normal2.X(),Normal2.Y(),Normal2.Z());
+            av_normal[0] += Normal2.X();
+            av_normal[1] += Normal2.Y();
+            av_normal[2] += Normal2.Z();
             av_curvature += Mean_Curvature2;
           }
 
@@ -797,7 +804,7 @@ namespace OpenCascade
             for (int i=0; i<Inters3.NbPnt(); ++i)
               {
                 distance = Pnt(origin).Distance(Inters3.Pnt(i+1));
-                //cout<<"Point "<<i<<": "<<Pnt(Inters3.Pnt(i+1))<<"  distance: "<<distance<<endl;
+                //std::cout<<"Point "<<i<<": "<<Pnt(Inters3.Pnt(i+1))<<"  distance: "<<distance<<std::endl;
                 if (distance < min_distance)
                   {
                     min_distance = distance;
@@ -817,7 +824,9 @@ namespace OpenCascade
                 Normal3.SetCoord(-1.0*Normal3.X(),-1.0*Normal3.Y(),-1.0*Normal3.Z());
                 Mean_Curvature3*=-1.0;
               }
-            av_normal += Point<3>(Normal3.X(),Normal3.Y(),Normal3.Z());
+            av_normal[0] += Normal3.X();
+            av_normal[1] += Normal3.Y();
+            av_normal[2] += Normal3.Z();
             av_curvature += Mean_Curvature3;
           }
 
@@ -838,7 +847,7 @@ namespace OpenCascade
             for (int i=0; i<Inters4.NbPnt(); ++i)
               {
                 distance = Pnt(origin).Distance(Inters4.Pnt(i+1));
-                //cout<<"Point "<<i<<": "<<Pnt(Inters4.Pnt(i+1))<<"  distance: "<<distance<<endl;
+                //std::cout<<"Point "<<i<<": "<<Pnt(Inters4.Pnt(i+1))<<"  distance: "<<distance<<std::endl;
                 if (distance < min_distance)
                   {
                     min_distance = distance;
@@ -858,12 +867,14 @@ namespace OpenCascade
                 Normal4.SetCoord(-1.0*Normal4.X(),-1.0*Normal4.Y(),-1.0*Normal4.Z());
                 Mean_Curvature4*=-1.0;
               }
-            av_normal += Point<3>(Normal4.X(),Normal4.Y(),Normal4.Z());
+            av_normal[0] += Normal4.X();
+            av_normal[1] += Normal4.Y();
+            av_normal[2] += Normal4.Z();
             av_curvature += Mean_Curvature4;
           }
         if (succeeded > 0)
           {
-            cout<<"Recovery attempt of point projection on surface in given direction FAILED"<<endl;
+            std::cout<<"Recovery attempt of point projection on surface in given direction FAILED"<<std::endl;
             return false;
           }
         //AssertThrow(succeeded > 0,
@@ -871,19 +882,19 @@ namespace OpenCascade
 
         Pproj = Pnt(average/succeeded);
         av_normal/=succeeded;
-        Normal.SetCoord(av_normal(0),av_normal(1),av_normal(2));
+        Normal.SetCoord(av_normal[0],av_normal[1],av_normal[2]);
         Mean_Curvature = av_curvature/succeeded;
       }
     else
       {
-        //cout<<"Intersections found: "<<Inters.NbPnt()<<endl;
+        //std::cout<<"Intersections found: "<<Inters.NbPnt()<<std::endl;
         Standard_Real min_distance = 1e15;
         Standard_Real distance;
         int lowest_dist_int=0;
         for (int i=0; i<Inters.NbPnt(); ++i)
           {
             distance = Pnt(origin).Distance(Inters.Pnt(i+1));
-            //cout<<"Point "<<i<<": "<<Pnt(Inters.Pnt(i+1))<<"  distance: "<<distance<<endl;
+            //std::cout<<"Point "<<i<<": "<<Pnt(Inters.Pnt(i+1))<<"  distance: "<<distance<<std::endl;
             if (distance < min_distance)
               {
                 min_distance = distance;
@@ -909,21 +920,22 @@ namespace OpenCascade
     projection = Pnt(Pproj);
 
 // translating normal vector
-    normal(0) = Normal.X();
-    normal(1) = Normal.Y();
-    normal(2) = Normal.Z();
+    normal[0] = Normal.X();
+    normal[1] = Normal.Y();
+    normal[2] = Normal.Z();
 
 // translating mean curvature
     mean_curvature = double(Mean_Curvature);
+
     return true;
   }
 
 
   Point<3> AxisProjection::get_new_point_on_line
   (const Triangulation< 2,3 >::line_iterator &line) const
-  {
+  {std::cout<<"Here? Do we ever pass by here?"<<std::endl;
     Point<3> projected_point;
-    Point<3> source_point = StraightBoundary<2,3>::get_new_point_on_line(line);
+    Point<3> source_point = FlatManifold<2,3>::get_new_point_on_line(line);
     axis_projection(projected_point, source_point);
     return projected_point;
   }
@@ -933,7 +945,7 @@ namespace OpenCascade
   (const Triangulation< 2,3 >::quad_iterator &quad) const
   {
     Point<3> projected_point;
-    Point<3> source_point = StraightBoundary<2,3>::get_new_point_on_quad(quad);
+    Point<3> source_point = FlatManifold<2,3>::get_new_point_on_quad(quad);
 
     axis_projection(projected_point, source_point);
 

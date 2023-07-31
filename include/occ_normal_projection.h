@@ -3,7 +3,8 @@
 
 #include <deal.II/base/point.h>
 #include <deal.II/base/parameter_handler.h>
-#include <deal.II/grid/tria_boundary.h>
+#include <deal.II/grid/manifold.h>
+
 
 #include <TopoDS.hxx>
 #include <Geom_Curve.hxx>
@@ -18,7 +19,7 @@ namespace OpenCascade
 {
 
   template <int dim>
-  class NormalProjection : public  StraightBoundary<2,3>
+  class NormalProjection : public  FlatManifold<2,3>
   {
   public:
     NormalProjection(const TopoDS_Shape &sh);

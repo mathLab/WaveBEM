@@ -8,12 +8,10 @@
 #include <deal.II/grid/grid_out.h>
 #include <deal.II/grid/tria_iterator.h>
 #include <deal.II/grid/grid_generator.h>
-#include <deal.II/grid/tria_boundary_lib.h>
 
 #include <deal.II/lac/sparse_direct.h>
 #include <deal.II/lac/dynamic_sparsity_pattern.h>
 #include <deal.II/lac/constraint_matrix.h>
-#include <deal.II/lac/vector_view.h>
 #include <deal.II/lac/sparse_direct.h>
 #include <deal.II/grid/grid_refinement.h>
 #include <deal.II/numerics/matrix_tools.h>
@@ -100,7 +98,8 @@ void SurfaceSmoothing::smooth()
 //cout<<"S2"<<endl;
   solve_system();
 //cout<<"S3"<<endl;
-  euler_vector.sadd(0., 1., solution, -1., reference_identity);
+  euler_vector.sadd(0., 1., solution);
+  euler_vector.sadd(1.,-1., reference_identity);
 //cout<<"S4"<<endl;
 }
 
@@ -244,6 +243,7 @@ void SurfaceSmoothing::apply_curvatures(const Vector<double> &curvatures,
 
   assemble_system(curvatures);
   solve_system();
-  euler_vector.sadd(0., 1., solution, -1., reference_identity);
+  euler_vector.sadd(0., 1., solution);
+  euler_vector.sadd(1.,-1., reference_identity);
 }
 

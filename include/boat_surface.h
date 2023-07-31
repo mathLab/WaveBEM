@@ -4,13 +4,13 @@
 
 #include <deal.II/base/point.h>
 #include <deal.II/base/parameter_handler.h>
-#include <deal.II/grid/tria_boundary.h>
+#include <deal.II/grid/manifold.h>
 
 
 using namespace dealii;
 
 template <int dim>
-class BoatSurface : public StraightBoundary<dim-1,dim>
+class BoatSurface : public FlatManifold<dim-1,dim>
 {
 public:
 

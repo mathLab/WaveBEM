@@ -8,7 +8,6 @@
 #include <TopoDS_Face.hxx>
 #include <BRepTools.hxx>
 #include <TopTools_SequenceOfShape.hxx>
-#include <Handle_Standard_Transient.hxx>
 #include <TColStd_SequenceOfTransient.hxx>
 #include <TColStd_HSequenceOfTransient.hxx>
 #include <TopExp_Explorer.hxx>
@@ -77,7 +76,7 @@ namespace OpenCascade
   (const Point<3> &p0, const Point<3> &p1, const double distance) const
   {
 
-    //cout<<p0<<"  --"<<distance<<"--  "<<p1<<endl;
+    std::cout<<p0<<"  --"<<distance<<"--  "<<p1<<std::endl;
     Point<3> projected_point;
 
     Assert((0. <= distance) &&
@@ -112,7 +111,6 @@ namespace OpenCascade
     //gp_Trsf L_inv_transformation = L_inv.Transformation();
     //P0.Transform(L_inv_transformation);
     //P1.Transform(L_inv_transformation);
-    //cout<<P0.X()<<" "<<P0.Y()<<" "<<P0.Z()<<"  --"<<distance<<"--  "<<P1.X()<<" "<<P1.Y()<<" "<<P1.Z()<<endl;
     Standard_Real t0;
     Standard_Real t1;
     Standard_Real t2;
@@ -126,8 +124,8 @@ namespace OpenCascade
     off = curve_analysis.Project(gg_curve, P1, tolerance, proj, t1, Standard_True);
     AssertThrow( (off < 1000*tolerance), ExcMessage("Point of the edge to be refined is not on curve."));
 
-    //cout<<"First: "<<First<<"  Last: "<<Last<<endl;
-    //cout<<"P0: "<<p0<<" ("<<t0<<")  vs  P1: "<<p1<<" ("<<t1<<")"<<endl;
+    //std::cout<<"First: "<<First<<"  Last: "<<Last<<std::endl;
+    //std::cout<<"P0: "<<p0<<" ("<<t0<<")  vs  P1: "<<p1<<" ("<<t1<<")"<<std::endl;
 
     //GeomLib_Tool tool;
     //tool.Parameter(gg_curve, P0, tolerance, t0);
@@ -145,16 +143,16 @@ namespace OpenCascade
 
     // we now get the mean
     // curvilinear distance point
-    //cout<<endl;
-    //cout<<"Points "<<p0<<" vs "<<p1<<endl;
-    //cout<<"Params "<<t0<<" vs "<<t1<<endl;
+    //std::cout<<std::endl;
+    //std::cout<<"Points "<<p0<<" vs "<<p1<<std::endl;
+    //std::cout<<"Params "<<t0<<" vs "<<t1<<std::endl;
     double direction = t1 > t0 ? 1.0 : -1.0;
-    //cout<<"Direction "<<direction<<endl;
+    //std::cout<<"Direction "<<direction<<std::endl;
     //GeomAdaptor_Curve AC(g_curve);
     Standard_Real arcLength = GCPnts_AbscissaPoint::Length(gg_curve,t0,t1);
-    //cout<<"arcLength "<<arcLength<<endl;
+    //std::cout<<"arcLength "<<arcLength<<std::endl;
     GCPnts_AbscissaPoint AP(gg_curve, direction*arcLength*distance, t0);
-    //cout<<"direction*arcLength*distance "<<direction*arcLength*distance<<endl;
+    //std::cout<<"direction*arcLength*distance "<<direction*arcLength*distance<<std::endl;
     t2 = AP.Parameter();
 
     AssertThrow((First <= t2) &&
@@ -163,22 +161,25 @@ namespace OpenCascade
 
 
     gp_Pnt P2 = gg_curve.Value(t2);
-    //cout<<"new_point "<<P2.X()<<" "<<P2.Y()<<" "<<P2.Z()<<endl;
+    std::cout<<"new_point "<<P2.X()<<" "<<P2.Y()<<" "<<P2.Z()<<std::endl;
     //P2.Transform(L_transformation);
-    //cout<<"new_point re-located "<<P2.X()<<" "<<P2.Y()<<" "<<P2.Z()<<endl;
+    //std::cout<<"new_point re-located "<<P2.X()<<" "<<P2.Y()<<" "<<P2.Z()<<std::endl;
 
     projected_point(0) = P2.X();
     projected_point(1) = P2.Y();
     projected_point(2) = P2.Z();
-
     return projected_point;
   }
 
   Point<3> ArclengthProjection::get_new_point_on_line
   (const Triangulation< 2,3 >::line_iterator &line) const
   {
-    //cout<<"V1: "<<line->vertex(0)<<"   V2: "<<line->vertex(1)<<"  NP: "<<arclength_projection(line->vertex(0), line->vertex(1))<<endl;
     return arclength_projection(line->vertex(0), line->vertex(1));
   }
 
+  Point<3> ArclengthProjection::project_to_manifold(const std::vector<Point<3> > &points,
+                               const Point<3 > & candidate) const
+  {
+    return arclength_projection(points[0], points[1]);
+  }
 }

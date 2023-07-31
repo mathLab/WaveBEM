@@ -2,17 +2,20 @@
 #define occ_line_smoothing_h
 
 #include <string>
+#include <deal.II/base/point.h>
+#include <deal.II/grid/tria.h>
+#include <deal.II/fe/mapping.h>
+#include <deal.II/dofs/dof_handler.h>
+#include <deal.II/lac/vector.h>
+
+
 #include <TopoDS_Shape.hxx>
 #include <Geom_Plane.hxx>
 #include <GeomLib_Tool.hxx>
 #include <GeomAdaptor_Curve.hxx>
 #include <gp_Pnt.hxx>
 
-#include <deal.II/base/point.h>
-#include <deal.II/grid/tria.h>
-#include <deal.II/fe/mapping.h>
-#include <deal.II/dofs/dof_handler.h>
-#include <deal.II/lac/vector.h>
+
 
 using namespace dealii;
 

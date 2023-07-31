@@ -474,14 +474,14 @@ void BEMFMA<dim>::direct_integrals()
                       FEValues<dim-1,dim> fe_v_singular (*comp_dom.mapping, comp_dom.fe, *singular_quadrature,
                                                          update_jacobians |
                                                          update_values |
-                                                         update_cell_normal_vectors |
+                                                         update_normal_vectors |
                                                          update_quadrature_points );
 
                       fe_v_singular.reinit(cell);
 
                       // here are the vectors of the quad points and normals vectors
 
-                      const std::vector<Point<dim> > &singular_normals = fe_v_singular.get_normal_vectors();
+                      const std::vector<Tensor<1,dim> > &singular_normals = fe_v_singular.get_normal_vectors();
                       const std::vector<Point<dim> > &singular_q_points = fe_v_singular.get_quadrature_points();
 
 

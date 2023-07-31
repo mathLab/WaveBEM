@@ -35,16 +35,16 @@ int RestartNonlinearProblemDiff::residual(Vector<double> &dst,
 
 
   // the resulting free surface residual must be "distributed" on the present problem degrees of freedom (with proper ordering)
-  cout<<"Restart problem residual "<<endl;
+  std::cout<<"Restart problem residual "<<std::endl;
   unsigned int count = 0;
   for (std::set <unsigned int>::iterator pos = water_line_indices.begin(); pos != water_line_indices.end(); ++pos)
     {
       unsigned int i=*pos;
-      dst(count) = src_yy(count) + src_yy(count+1)*comp_dom.iges_normals[i](2)/comp_dom.iges_normals[i](1);
-      //cout<<count<<"("<<3*i+1<<")WL  "<<dst(count)<<"    "<<src_yy(count)<<endl;
+      dst(count) = src_yy(count) + src_yy(count+1)*comp_dom.iges_normals[i][2]/comp_dom.iges_normals[i][1];
+      //std::cout<<count<<"("<<3*i+1<<")WL  "<<dst(count)<<"    "<<src_yy(count)<<std::endl;
       count++;
       dst(count) = free_surf_res(3*i+2);
-      //cout<<count<<"("<<3*i+2<<")WL  "<<dst(count)<<"    "<<src_yy(count)<<endl;
+      //std::cout<<count<<"("<<3*i+2<<")WL  "<<dst(count)<<"    "<<src_yy(count)<<std::endl;
       count++;
     }
   for (std::set <unsigned int>::iterator pos = bow_stern_indices.begin(); pos != bow_stern_indices.end(); ++pos)
@@ -52,38 +52,38 @@ int RestartNonlinearProblemDiff::residual(Vector<double> &dst,
       unsigned int i=*pos;
       Point<3> t(comp_dom.edges_tangents[3*i],comp_dom.edges_tangents[3*i+1],comp_dom.edges_tangents[3*i+2]);
       dst(count) = src_yy(count) - src_yy(count+2)*t(0)/t(2);
-      //cout<<count<<"("<<3*i<<")BS  "<<dst(count)<<"    "<<src_yy(count)<<endl;
+      //std::cout<<count<<"("<<3*i<<")BS  "<<dst(count)<<"    "<<src_yy(count)<<std::endl;
       count++;
       dst(count) = src_yy(count) - src_yy(count+1)*t(1)/t(2);
-      //cout<<count<<"("<<3*i+1<<")BS  "<<dst(count)<<"    "<<src_yy(count)<<endl;
+      //std::cout<<count<<"("<<3*i+1<<")BS  "<<dst(count)<<"    "<<src_yy(count)<<std::endl;
       count++;
       dst(count) = free_surf_res(3*i+2);
-      //cout<<count<<"("<<3*i+2<<")BS  "<<dst(count)<<"    "<<src_yy(count)<<endl;
+      //std::cout<<count<<"("<<3*i+2<<")BS  "<<dst(count)<<"    "<<src_yy(count)<<std::endl;
       count++;
     }
   for (std::set <unsigned int>::iterator pos = water_indices.begin(); pos != water_indices.end(); ++pos)
     {
       unsigned int i=*pos;
       dst(count) = free_surf_res(3*i+2);
-      //cout<<count<<"("<<3*i+2<<")W  "<<dst(count)<<"    "<<src_yy(count)<<endl;
+      //std::cout<<count<<"("<<3*i+2<<")W  "<<dst(count)<<"    "<<src_yy(count)<<std::endl;
       count++;
     }
   for (std::set <unsigned int>::iterator pos = phi_indices.begin(); pos != phi_indices.end(); ++pos)
     {
       unsigned int i=*pos;
       dst(count) = free_surf_res(i+comp_dom.vector_dh.n_dofs());
-      //cout<<count<<"("<<3*i+2<<")W  "<<dst(count)<<"    "<<src_yy(count)<<endl;
+      //std::cout<<count<<"("<<3*i+2<<")W  "<<dst(count)<<"    "<<src_yy(count)<<std::endl;
       count++;
     }
   for (std::set <unsigned int>::iterator pos = rigid_modes_indices.begin(); pos != rigid_modes_indices.end(); ++pos)
     {
       unsigned int i=*pos;
       dst(count) = free_surf_res(i+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
-      //cout<<count<<"("<<3*i+2<<")W  "<<dst(count)<<"    "<<src_yy(count)<<endl;
+      //std::cout<<count<<"("<<3*i+2<<")W  "<<dst(count)<<"    "<<src_yy(count)<<std::endl;
       count++;
     }
 
-  cout<<"Restart problem nonlin residual: "<<dst.l2_norm()<<endl;
+  std::cout<<"Restart problem nonlin residual: "<<dst.l2_norm()<<std::endl;
   return 0;
 }
 
@@ -94,14 +94,14 @@ int RestartNonlinearProblemDiff::jacobian(Vector<double> &dst,
 {
 
 
-  //cout<<"Original jacobian"<<endl;
+  //std::cout<<"Original jacobian"<<std::endl;
   //for (unsigned int i=0; i<free_surf_res.size(); ++i)
   //    for (SparsityPattern::iterator c=free_surf_jacobian.get_sparsity_pattern().begin(i); c!=free_surf_jacobian.get_sparsity_pattern().end(i); ++c)
   //        {
   //        unsigned int j = c->column();
-  //        cout<<" "<<i<<" "<<j<<" "<<free_surf_jacobian(i,j)<<endl;
+  //        std::cout<<" "<<i<<" "<<j<<" "<<free_surf_jacobian(i,j)<<std::endl;
   //        }
-  cout<<"Restart problem jacobian"<<endl;
+  std::cout<<"Restart problem jacobian"<<std::endl;
   jacobian_matrix = 0;
 
   unsigned int count = 0;
@@ -109,16 +109,16 @@ int RestartNonlinearProblemDiff::jacobian(Vector<double> &dst,
     {
       unsigned int i=*pos;
       jacobian_matrix.set(count,count,1.0);
-      jacobian_matrix.set(count,count+1,comp_dom.iges_normals[i](2)/comp_dom.iges_normals[i](1));
-      //cout<<count<<" "<<count<<" "<<1.0<<endl;
-      //cout<<count<<" "<<count+1<<" "<<comp_dom.iges_normals[i](2)/comp_dom.iges_normals[i](1)<<endl;
+      jacobian_matrix.set(count,count+1,comp_dom.iges_normals[i][2]/comp_dom.iges_normals[i][1]);
+      //std::cout<<count<<" "<<count<<" "<<1.0<<std::endl;
+      //std::cout<<count<<" "<<count+1<<" "<<comp_dom.iges_normals[i](2)/comp_dom.iges_normals[i](1)<<std::endl;
       count++;
       for (SparsityPattern::iterator col=free_surf_jacobian_dot.get_sparsity_pattern().begin(3*i+2);
            col!=free_surf_jacobian_dot.get_sparsity_pattern().end(3*i+2); ++col)
         if ( indices_map.count(col->column()) )
           {
             jacobian_matrix.set(count,indices_map.find(col->column())->second,free_surf_jacobian_dot(3*i+2,col->column()));
-            //cout<<count<<" "<<indices_map.find(col->column())->second<<" "<<free_surf_jacobian_dot(3*i+2,col->column())<<endl;
+            //std::cout<<count<<" "<<indices_map.find(col->column())->second<<" "<<free_surf_jacobian_dot(3*i+2,col->column())<<std::endl;
           }
       count++;
     }
@@ -128,20 +128,20 @@ int RestartNonlinearProblemDiff::jacobian(Vector<double> &dst,
       Point<3> t(comp_dom.edges_tangents[3*i],comp_dom.edges_tangents[3*i+1],comp_dom.edges_tangents[3*i+2]);
       jacobian_matrix.set(count,count,1.0);
       jacobian_matrix.set(count,count+2,-t(0)/t(2));
-      //cout<<count<<" "<<count<<" "<<1.0<<endl;
-      //cout<<count<<" "<<count+2<<" "<<-t(0)/t(2)<<endl;
+      //std::cout<<count<<" "<<count<<" "<<1.0<<std::endl;
+      //std::cout<<count<<" "<<count+2<<" "<<-t(0)/t(2)<<std::endl;
       count++;
       jacobian_matrix.set(count,count,1.0);
       jacobian_matrix.set(count,count+1,-t(1)/t(2));
-      //cout<<count<<" "<<count<<" "<<1.0<<endl;
-      //cout<<count<<" "<<count+1<<" "<<-t(1)/t(2)<<endl;
+      //std::cout<<count<<" "<<count<<" "<<1.0<<std::endl;
+      //std::cout<<count<<" "<<count+1<<" "<<-t(1)/t(2)<<std::endl;
       count++;
       for (SparsityPattern::iterator col=free_surf_jacobian_dot.get_sparsity_pattern().begin(3*i+2);
            col!=free_surf_jacobian_dot.get_sparsity_pattern().end(3*i+2); ++col)
         if ( indices_map.count(col->column()) )
           {
             jacobian_matrix.set(count,indices_map.find(col->column())->second,free_surf_jacobian_dot(3*i+2,col->column()));
-            //cout<<count<<" "<<indices_map.find(col->column())->second<<" "<<free_surf_jacobian_dot(3*i+2,col->column())<<endl;
+            //std::cout<<count<<" "<<indices_map.find(col->column())->second<<" "<<free_surf_jacobian_dot(3*i+2,col->column())<<std::endl;
           }
       count++;
     }
@@ -153,7 +153,7 @@ int RestartNonlinearProblemDiff::jacobian(Vector<double> &dst,
         if ( indices_map.count(col->column()) )
           {
             jacobian_matrix.set(count,indices_map.find(col->column())->second,free_surf_jacobian_dot(3*i+2,col->column()));
-            //cout<<count<<" "<<indices_map.find(col->column())->second<<" "<<free_surf_jacobian_dot(3*i+2,col->column())<<endl;
+            //std::cout<<count<<" "<<indices_map.find(col->column())->second<<" "<<free_surf_jacobian_dot(3*i+2,col->column())<<std::endl;
           }
       count++;
     }
@@ -165,20 +165,22 @@ int RestartNonlinearProblemDiff::jacobian(Vector<double> &dst,
         if ( indices_map.count(col->column()) )
           {
             jacobian_matrix.set(count,indices_map.find(col->column())->second,free_surf_jacobian_dot(i+comp_dom.vector_dh.n_dofs(),col->column()));
-            //cout<<count<<" "<<indices_map.find(col->column())->second<<" "<<free_surf_jacobian_dot(i+comp_dom.vector_dh.n_dofs(),col->column())<<endl;
+            //std::cout<<count<<" "<<indices_map.find(col->column())->second<<" "<<free_surf_jacobian_dot(i+comp_dom.vector_dh.n_dofs(),col->column())<<std::endl;
           }
       count++;
     }
-
+//for (std::map<unsigned int,unsigned int>::iterator it=indices_map.begin(); it!=indices_map.end(); ++it)
+    //std::cout << it->first << " => " << it->second << '\n';
   for (std::set <unsigned int>::iterator pos = rigid_modes_indices.begin(); pos != rigid_modes_indices.end(); ++pos)
     {
       unsigned int i=*pos;
       for (SparsityPattern::iterator col=free_surf_jacobian_dot.get_sparsity_pattern().begin(i+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs());
            col!=free_surf_jacobian_dot.get_sparsity_pattern().end(i+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs()); ++col)
+        
         if ( indices_map.count(col->column()) )
-          {
+          { 
             jacobian_matrix.set(count,indices_map.find(col->column())->second,free_surf_jacobian_dot(i+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),col->column()));
-            //cout<<count<<" "<<indices_map.find(col->column())->second<<" "<<free_surf_jacobian_dot(i+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),col->column())<<endl;
+            //std::cout<<count<<" "<<indices_map.find(col->column())->second<<" "<<free_surf_jacobian_dot(i+comp_dom.vector_dh.n_dofs()+comp_dom.dh.n_dofs()+comp_dom.dh.n_dofs(),col->column())<<std::endl;
           }
       count++;
     }

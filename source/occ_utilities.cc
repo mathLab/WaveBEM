@@ -16,7 +16,6 @@
 #include <BRepTools.hxx>
 #include <XSControl_Reader.hxx>
 #include <TopTools_SequenceOfShape.hxx>
-#include <Handle_Standard_Transient.hxx>
 #include <TColStd_SequenceOfTransient.hxx>
 #include <TColStd_HSequenceOfTransient.hxx>
 #include <TopExp_Explorer.hxx>
@@ -44,14 +43,13 @@
 #include <Geom_BoundedCurve.hxx>
 #include <Geom_TrimmedCurve.hxx>
 #include <Geom_BSplineCurve.hxx>
+#include <Geom_BSplineSurface.hxx>
 #include <GeomAPI_Interpolate.hxx>
 #include <BRepAlgo_Section.hxx>
 #include <boost/bind.hpp>
 #include <GeomLib_Tool.hxx>
 #include <TColGeom_Array2OfBezierSurface.hxx>
 #include <ProjLib_ProjectOnPlane.hxx>
-#include <Adaptor3d_HCurve.hxx>
-#include <GeomAdaptor_HCurve.hxx>
 #include <ShapeAnalysis_Surface.hxx>
 #include <GeomLProp_SLProps.hxx>
 #include <BRepExtrema_DistShapeShape.hxx>
@@ -61,11 +59,8 @@
 #include <BRep_Builder.hxx>
 #include <Bnd_Box.hxx>
 #include <BRepBndLib.hxx>
-#include <BRepMesh.hxx>
 #include <GeomPlate_BuildPlateSurface.hxx>
 #include <GeomPlate_MakeApprox.hxx>
-#include <GeomAdaptor_HCurve.hxx>
-#include <Adaptor3d_HCurveOnSurface.hxx>
 #include <GeomPlate_CurveConstraint.hxx>
 #include <TColgp_SequenceOfXY.hxx>
 #include <TColgp_SequenceOfXYZ.hxx>
@@ -178,6 +173,7 @@ namespace OpenCascade
         Handle(Geom_Curve) curvez = please[i];
         First = curvez->FirstParameter();
         Last = curvez->LastParameter();
+        cout<<"First: "<<First<<"   Last: "<<Last<<endl;
         curvez->D0(First,PIn);
         curvez->D0(Last,PFin);
         curvez->D0((First+Last)/2.0,PMid);
@@ -236,7 +232,7 @@ namespace OpenCascade
     Handle(Geom_Curve) bspline = convert_keel_bspline.BSplineCurve();
 
     GeomAdaptor_Curve AC = GeomAdaptor_Curve(bspline);
-    Handle(GeomAdaptor_HCurve) ACH = new GeomAdaptor_HCurve(AC);
+    Handle(GeomAdaptor_Curve) ACH = new GeomAdaptor_Curve(AC);
     gp_Ax3 Ax(gp_Pnt(0.0,0.0,0.0),gp_Dir(0.0,1.0,0.0),gp_Dir(1.0,0.0,0.0));
     ProjLib_ProjectOnPlane projOnPlane(Ax);
 
@@ -621,13 +617,14 @@ namespace OpenCascade
   {
     //TopoDS_Shape sh = read_IGES("/home/amola/workspace/FRANCO_TETGEN/tower_bridge_cf_IGES.igs",0.001);
     //TopoDS_Shape sh = read_IGES("/home/amola/workspace/FRANCO_TETGEN/VIOLA_BRIDGE/viola-bridge-1/viola_bridge.iges",0.0254);
-    TopoDS_Shape sh = read_IGES("/home/amola/workspace/openship/trunk/WaveBEM/utilities/kcs.iges",0.001);
+    //TopoDS_Shape sh = read_IGES("/home/amola/workspace/openship/trunk/WaveBEM/utilities/kcs.iges",0.001);
     //TopoDS_Shape sh = read_IGES("/home/amola/workspace/openship/trunk/WaveBEM/utilities/goteborg.iges",0.001);
     //TopoDS_Shape sh = read_IGES("/home/amola/workspace/FRANCO_TETGEN/cognit.iges",0.001);
     //TopoDS_Shape sh = read_IGES("/home/amola/workspace/FRANCO_TETGEN/COFANO/cofanoSpostatoTanto.igs",0.001);
     //TopoDS_Shape sh = read_IGES("/home/amola/workspace/FRANCO_TETGEN/CANOTTAGGIO/doppio_placido.iges",0.001);
     //TopoDS_Shape sh = read_IGES("/home/amola/workspace/openship/trunk/WaveBEM/utilities/fc_ship.iges",0.001);
     //TopoDS_Shape sh = read_IGES("/home/amola/workspace/FRANCO_TETGEN/ESEMPIO_HANG/22imr_retro.igs",0.001);
+    TopoDS_Shape sh = read_IGES("./CarenaSTD.iges",0.001);
 
     using dealii::numbers::PI;
     Standard_Real AngTol = 10.0/180.0;
@@ -883,9 +880,17 @@ namespace OpenCascade
         GeomLProp_CLProps curve_props_First(curve, First,1, LinTol);
         GeomLProp_CLProps curve_props_Last(curve, Last, 1, LinTol);
         if (curve_props_First.IsTangentDefined() == false )
+          {
           std::cout<<"Warning! Tangent vector at start of edge "<<i<<" is undefined!"<<std::endl;
+          cout<<"Start point is: "<<Pnt(start_points[i])<<endl;
+          active_flag[i] = false;
+          }
         if (curve_props_Last.IsTangentDefined() == false )
+          {
           std::cout<<"Warning! Tangent vector at end of edge "<<i<<" is undefined!"<<std::endl;
+          cout<<"End point is: "<<Pnt(end_points[i])<<endl;
+          active_flag[i] = false;
+          }
         curve_props_First.Tangent(start_tangents[i]);
         curve_props_Last.Tangent(end_tangents[i]);
         GeomAdaptor_Curve AC(curve);
@@ -1147,9 +1152,8 @@ namespace OpenCascade
             Handle(Geom_Curve) curve = unified_curve_handles_vector[i]; //BRep_Tool::Curve(feature_edges[i],L,First,Last);
             cout<<Pnt(curve->Value(curve->FirstParameter()))<<" and "<<Pnt(curve->Value(curve->LastParameter()))<<endl;
             //cout<<Pnt(curve->Value(First))<<" and "<<Pnt(curve->Value(Last))<<endl;
-            GeomAdaptor_HCurve geom_adaptor_hcurve(curve);
-            const Handle(GeomAdaptor_HCurve)& aHC = new GeomAdaptor_HCurve(geom_adaptor_hcurve);
-            Handle (GeomPlate_CurveConstraint) aConst = new GeomPlate_CurveConstraint (aHC, 0, n_points, tol_3d);
+            Handle(GeomAdaptor_Curve) HCA = new GeomAdaptor_Curve(curve);
+            Handle (GeomPlate_CurveConstraint) aConst = new GeomPlate_CurveConstraint (HCA, 0, n_points, tol_3d);
             plate_surface_builder.Add(aConst);
             gp_Pnt first_point;
             gp_Pnt last_point;

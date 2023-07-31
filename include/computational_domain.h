@@ -28,7 +28,6 @@
 
 #include <deal.II/lac/full_matrix.h>
 #include <deal.II/lac/sparse_matrix.h>
-#include <deal.II/lac/matrix_lib.h>
 #include <deal.II/lac/vector.h>
 #include <deal.II/lac/solver_control.h>
 #include <deal.II/lac/solver_gmres.h>
@@ -43,7 +42,7 @@
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/grid/grid_in.h>
 #include <deal.II/grid/grid_out.h>
-#include <deal.II/grid/tria_boundary_lib.h>
+
 
 #include <deal.II/dofs/dof_handler.h>
 #include <deal.II/dofs/dof_accessor.h>
@@ -252,7 +251,7 @@ public:
   // and singular kernel quadrature to be
   // used
 
-  std_cxx1x::shared_ptr<Quadrature<dim-1> > quadrature;
+  std::shared_ptr<Quadrature<dim-1> > quadrature;
   unsigned int singular_quadrature_order;
 
   // the material ID numbers in the mesh
@@ -351,7 +350,7 @@ public:
   // a std::map of std::vectors containing the
   // list of normals at quadrature points
 
-  std::map <cell_it, std::vector <Point <dim> > > quadNormals;
+  std::map <cell_it, std::vector <Tensor <1,dim> > > quadNormals;
 
   // a std::map of std::vectors containing the
   // list of shape function values at

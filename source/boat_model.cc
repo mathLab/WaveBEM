@@ -44,7 +44,6 @@
 #include <BRepTools.hxx>
 #include <XSControl_Reader.hxx>
 #include <TopTools_SequenceOfShape.hxx>
-#include <Handle_Standard_Transient.hxx>
 #include <TColStd_SequenceOfTransient.hxx>
 #include <TColStd_HSequenceOfTransient.hxx>
 #include <TopExp_Explorer.hxx>
@@ -94,7 +93,6 @@
 #include <deal.II/grid/grid_out.h>
 #include <deal.II/grid/tria_iterator.h>
 #include <deal.II/grid/grid_generator.h>
-#include <deal.II/grid/tria_boundary_lib.h>
 #include <deal.II/dofs/dof_handler.h>
 #include <deal.II/dofs/dof_accessor.h>
 #include <deal.II/dofs/dof_tools.h>
@@ -111,43 +109,25 @@ using namespace dealii;
 using namespace OpenCascade;
 
 BoatModel::BoatModel() :
-  boat_surface_right(NULL),
-  boat_surface_left(NULL),
-  boat_water_line_right(NULL),
-  boat_water_line_left(NULL),
-  boat_keel(NULL),
-  boat_keel_norm(NULL),
-  boat_transom_left(NULL),
-  boat_transom_right(NULL),
-  wake_line_left(NULL),
-  wake_line_right(NULL),
-  water_line_right(NULL),
-  water_line_left(NULL)
+  Boat_surface_right(NULL),
+  Boat_surface_left(NULL),
+  Boat_water_line_right(NULL),
+  Boat_water_line_left(NULL),
+  Boat_keel(NULL),
+  Boat_keel_norm(NULL),
+  Boat_transom_left(NULL),
+  Boat_transom_right(NULL),
+  Undist_water_surf(NULL),
+  Wake_line_left(NULL),
+  Wake_line_right(NULL),
+  Water_line_right(NULL),
+  Water_line_left(NULL)
 {
 }
 
 BoatModel::~BoatModel()
 {
-  if (boat_surface_right)
-    delete boat_surface_right;
-  if (boat_surface_left)
-    delete boat_surface_left;
-  if (boat_water_line_right)
-    delete boat_water_line_right;
-  if (boat_water_line_left)
-    delete boat_water_line_left;
-  if (boat_keel)
-    delete boat_keel;
-  if (boat_keel_norm)
-    delete boat_keel_norm;
-  if (boat_transom_left)
-    delete boat_transom_left;
-  if (boat_transom_right)
-    delete boat_transom_right;
-  if (water_line_right)
-    delete water_line_right;
-  if (water_line_left)
-    delete water_line_left;
+
 }
 
 
@@ -155,9 +135,9 @@ TopoDS_Shape BoatModel::ReverseFaceOrientation(const TopoDS_Shape &shape,
                                                const TopoDS_Face &face)
 {
   Handle(BRepTools_ReShape) rebuild = new BRepTools_ReShape();
-  rebuild->ModeConsiderOrientation() = Standard_True;
+  //rebuild->ModeConsiderOrientation() = Standard_True;
   TopoDS_Shape newface = face.Complemented();
-  rebuild->Replace(face, newface, Standard_True );
+  rebuild->Replace(face, newface);
   TopoDS_Shape newshape = rebuild->Apply(shape, TopAbs_FACE );
   return newshape;
 }
@@ -186,7 +166,7 @@ void BoatModel::start_iges_model(std::string igesFileName,
   ///Point<3> norm;
   //double mean_curv;
   //transom_proj.normal_projection_and_diff_forms(proj, norm, mean_curv,degenerate);
-  //cout<<"****Normal: "<<norm<<endl;
+  //cout<<"****Normal: "<<norm<<std::endl;
 
   //TopoDS_Shape top_edge = keel_edge = extract_xz_edges(shape_top,1e-4,30);
 
@@ -214,7 +194,7 @@ void BoatModel::start_iges_model(std::string igesFileName,
       if (norm.Y() > 0)
         {
           to_be_changed.push_back(true);
-          //cout<<"i "<<face_count<<endl;
+          //cout<<"i "<<face_count<<std::endl;
         }
       else if (norm.Y() == 0)
         {
@@ -232,24 +212,30 @@ void BoatModel::start_iges_model(std::string igesFileName,
       faceExplorer.Next();
       ++face_count;
     }
-  //cout<<"size "<<to_be_changed.size()<<endl;
+  //cout<<"size "<<to_be_changed.size()<<std::endl;
   TopoDS_Shape newShape;
   for (unsigned int i=0; i<face_count; ++i)
     {
-      //cout<<"*i "<<i<<"  of "<<face_count<<endl;
+      //cout<<"*i "<<i<<"  of "<<face_count<<std::endl;
       if (to_be_changed.at(i))
         {
-          //cout<<"**i "<<i<<"  of "<<face_count<<endl;
+          //std::cout<<"**i "<<i<<"  of "<<face_count<<std::endl;
           faceExplorer.Init(sh,TopAbs_FACE);
           for (unsigned int j=0; j<i; ++j)
             faceExplorer.Next();
           face = TopoDS::Face(faceExplorer.Current());
           newShape = ReverseFaceOrientation(sh,face);
           sh = newShape;
-          //cout<<"***i "<<i<<"  of "<<face_count<<endl;
+          //std::cout<<"***i "<<i<<"  of "<<face_count<<std::endl;
         }
-      //cout<<"****i "<<i<<"  of "<<face_count<<endl;
+      //std::cout<<"****i "<<i<<"  of "<<face_count<<std::endl;
     }
+    
+   IGESControl_Controller::Init();
+  IGESControl_Writer ICW ("MM", 0);
+  Standard_Boolean ok = ICW.AddShape (sh);
+  ICW.ComputeModel();
+  Standard_Boolean OK = ICW.Write ("shapeReversed.igs");
 //Standard::Purge();
   //let's create the reflected side of the hull
   //this is the y axis definition for planar mirroring
@@ -272,6 +258,7 @@ void BoatModel::start_iges_model(std::string igesFileName,
       double sink;
       double weight = displacement*9.81;
       compute_hydrostatic_sink(sink,weight);
+      std::cout<<"Computed Hull Sink WRT CAD original position:  "<<sink<<std::endl;
       //now we have to use the computed sink to diplace vertically
       //the left and right sides of the hull
 
@@ -297,7 +284,8 @@ void BoatModel::start_iges_model(std::string igesFileName,
 
   Point<3> hs_moment = compute_hydrostatic_moment(0.0,Point<3>(0.0,0.0,0.0));
   hydrostatic_hull_baricenter = Point<3>(-hs_moment(1)/hs_force(2),0.0,0.0);
-  cout<<"Computed Hull Baricenter Position:  "<<hydrostatic_hull_baricenter<<endl;
+  std::cout<<"Computed Hull Baricenter Position:  "<<hydrostatic_hull_baricenter<<std::endl;
+
 
   initial_sink = assigned_sink;
   initial_trim = assigned_trim;
@@ -325,8 +313,8 @@ void BoatModel::start_iges_model(std::string igesFileName,
 
 
 
-  cout<<"The hull has been placed in the requested initial position"<<endl;
-  cout<<"Reference Hull Baricenter Position:  "<<reference_hull_baricenter<<endl;
+  std::cout<<"The hull has been placed in the requested initial position"<<std::endl;
+  std::cout<<"Reference Hull Baricenter Position:  "<<reference_hull_baricenter<<std::endl;
   hs_force = compute_hydrostatic_force(0.0);
   compute_hydrostatic_moment(0.0,reference_hull_baricenter);
   //now the boat is in the correct position
@@ -363,7 +351,7 @@ void BoatModel::start_iges_model(std::string igesFileName,
   //*/
   //here we extract the undisturbed right water line from
   //the hull shape
-  intersect_plane(sh,right_undist_water_line,0.0,0.0,1.0,0.0,1e-4); // 1e-2 tolerance for comacina
+  intersect_plane(sh,right_undist_water_line,0.0,0.0,1.0,0.0,1e-3); // 1e-2 tolerance for comacina
   //here we extract the undisturbed left water line from
   //the hull shape by applying
   //to the right water line the y mirroring transformation
@@ -425,7 +413,7 @@ void BoatModel::start_iges_model(std::string igesFileName,
   TopExp_Explorer edge3Explorer(left_transom_edge, TopAbs_EDGE);
   TopoDS_Edge edge3 =  TopoDS::Edge(edge3Explorer.Current());
   left_transom_bspline = BRep_Tool::Curve(edge3,L,First,Last);
-  //cout<<First<<" "<<Last<<endl;
+  //std::cout<<First<<" "<<Last<<std::endl;
   gp_Pnt pntCtrTrsm;
   if (left_transom_bspline->Value(First).Z() > left_transom_bspline->Value(Last).Z())
     pntCtrTrsm = left_transom_bspline->Value(Last);
@@ -433,8 +421,8 @@ void BoatModel::start_iges_model(std::string igesFileName,
     pntCtrTrsm = left_transom_bspline->Value(First);
   pntCtrTrsm.Transform(L_transformation);
   PointCenterTransom = Pnt(pntCtrTrsm);
-  //cout<<"TTEESSTT1: "<<Pnt(left_transom_bspline->Value(Last))<<endl;
-  //cout<<"TTEESSTT2: "<<Pnt(left_transom_bspline->Value(First))<<endl;
+  //std::cout<<"TTEESSTT1: "<<Pnt(left_transom_bspline->Value(Last))<<std::endl;
+  //std::cout<<"TTEESSTT2: "<<Pnt(left_transom_bspline->Value(First))<<std::endl;
 
 
   TopExp_Explorer edge4Explorer(right_transom_edge, TopAbs_EDGE);
@@ -453,7 +441,7 @@ void BoatModel::start_iges_model(std::string igesFileName,
   GeomAPI_IntCS IntersectorRight(right_transom_bspline, xyPlane);
 
 
-  cout<<"Number of keel intersections with xy plane: "<<npoints<<endl;
+  std::cout<<"Number of keel intersections with xy plane: "<<npoints<<std::endl;
 
   if (npoints == 2)
     {
@@ -487,9 +475,9 @@ void BoatModel::start_iges_model(std::string igesFileName,
       if ( (IntersectorLeft.NbPoints() != 1) || (IntersectorRight.NbPoints() != 1))
         AssertThrow((IntersectorLeft.NbPoints() == 1) && (IntersectorRight.NbPoints() == 1),
                     ExcMessage("Transom edges don't possess a single intersection with horizontal plane!"));
-      cout<<"Transom Point Left: "<<Pnt(IntersectorLeft.Point(1))<<endl;
-      cout<<"Transom Point Right: "<<Pnt(IntersectorRight.Point(1))<<endl;
-      cout<<"Transom Point Center: "<<PointCenterTransom<<endl;
+      std::cout<<"Transom Point Left: "<<Pnt(IntersectorLeft.Point(1))<<std::endl;
+      std::cout<<"Transom Point Right: "<<Pnt(IntersectorRight.Point(1))<<std::endl;
+      std::cout<<"Transom Point Center: "<<PointCenterTransom<<std::endl;
       transomLeft = IntersectorLeft.Point(1);
       transomLeft.Transform(L_transformation);
       transomRight = IntersectorRight.Point(1);
@@ -501,27 +489,27 @@ void BoatModel::start_iges_model(std::string igesFileName,
       Point<3> junction = (Pnt(transomLeft) + Pnt(transomRight))/2.0;
       junction(1) = 0.0;
       junction(0) += Pnt(transomLeft).distance(Pnt(transomRight))/slope;
-      cout<<junction<<endl;
+      std::cout<<junction<<std::endl;
       Point<3> far(50*boatWetLength,0.0,0.0);
       GC_MakeSegment first_wake(Pnt(far), Pnt(junction));
       GC_MakeSegment second_wake_left(Pnt(junction), transomLeft);
       GC_MakeSegment second_wake_right(Pnt(junction), transomRight);
-      Handle(Geom_Curve) first_wake_curve = first_wake.Value();
-      Handle(Geom_Curve) second_wake_left_curve = second_wake_left.Value();
-      Handle(Geom_Curve) second_wake_right_curve = second_wake_right.Value();
-      Handle(Geom_BoundedCurve) first_wake_bcurve = Handle(Geom_BoundedCurve)::DownCast(first_wake_curve);
-      Handle(Geom_BoundedCurve) second_wake_left_bcurve = Handle(Geom_BoundedCurve)::DownCast(second_wake_left_curve);
-      Handle(Geom_BoundedCurve) second_wake_right_bcurve = Handle(Geom_BoundedCurve)::DownCast(second_wake_right_curve);
+      Handle(Geom_TrimmedCurve) first_wake_curve = first_wake.Value();
+      Handle(Geom_TrimmedCurve) second_wake_left_curve = second_wake_left.Value();
+      Handle(Geom_TrimmedCurve) second_wake_right_curve = second_wake_right.Value();
+      //Handle(Geom_BoundedCurve) first_wake_bcurve = Handle(Geom_BoundedCurve)::DownCast(first_wake_curve);
+      //Handle(Geom_BoundedCurve) second_wake_left_bcurve = Handle(Geom_BoundedCurve)::DownCast(second_wake_left_curve);
+      //Handle(Geom_BoundedCurve) second_wake_right_bcurve = Handle(Geom_BoundedCurve)::DownCast(second_wake_right_curve);
       bool check = false;
-      GeomConvert_CompCurveToBSplineCurve convert_left_wake_bspline(first_wake_bcurve,Convert_TgtThetaOver2);
-      GeomConvert_CompCurveToBSplineCurve convert_right_wake_bspline(first_wake_bcurve,Convert_TgtThetaOver2);
-      check = convert_left_wake_bspline.Add(second_wake_left_bcurve,1e-7,0,1,0);
+      GeomConvert_CompCurveToBSplineCurve convert_left_wake_bspline(first_wake_curve,Convert_TgtThetaOver2);
+      GeomConvert_CompCurveToBSplineCurve convert_right_wake_bspline(first_wake_curve,Convert_TgtThetaOver2);
+      check = convert_left_wake_bspline.Add(second_wake_left_curve,1e-7,0,1,0);
       if (check == false)
-        cout<<"Failed joining left wake line"<<endl;
+        std::cout<<"Failed joining left wake line"<<std::endl;
       left_wake_bspline = convert_left_wake_bspline.BSplineCurve();
-      check = convert_right_wake_bspline.Add(second_wake_right_bcurve,1e-7,0,1,0);
+      check = convert_right_wake_bspline.Add(second_wake_right_curve,1e-7,0,1,0);
       if (check == false)
-        cout<<"Failed joining left wake line"<<endl;
+        std::cout<<"Failed joining left wake line"<<std::endl;
       right_wake_bspline = convert_right_wake_bspline.BSplineCurve();
     }
   else
@@ -530,19 +518,21 @@ void BoatModel::start_iges_model(std::string igesFileName,
                   ExcMessage("Keel and has no intersection or too many intersections with horizontal plane!"));
     }
   //we define the keel arclength and normal projection
-  wake_line_left = new ArclengthProjection(BRepBuilderAPI_MakeEdge(left_wake_bspline));
-  wake_line_right = new ArclengthProjection(BRepBuilderAPI_MakeEdge(right_wake_bspline));
+  Wake_line_left =   std::make_shared< dealii::OpenCASCADE::ArclengthProjectionLineManifold<2,3> >(BRepBuilderAPI_MakeEdge(left_wake_bspline),1e-5);
+  Wake_line_right =   std::make_shared< dealii::OpenCASCADE::ArclengthProjectionLineManifold<2,3> >(BRepBuilderAPI_MakeEdge(right_wake_bspline),1e-5);
 
-  cout<<"gpFront: "<<Pnt(gpFront)<<endl;
-  cout<<"gpBack:"<<Pnt(gpBack)<<endl;
-  cout<<"Boat Wet Lenght Lpp: "<<boatWetLength<<endl;
+  std::cout<<"gpFront: "<<Pnt(gpFront)<<std::endl;
+  std::cout<<"gpBack:"<<Pnt(gpBack)<<std::endl;
+  std::cout<<"Boat Wet Lenght Lpp: "<<boatWetLength<<std::endl;
 
   //we define the hull surface normal projections
-  boat_surface_right = new NormalProjection<2>(sh);
-  boat_surface_left = new NormalProjection<2>(refl_sh);
+  Boat_surface_right = std::make_shared< dealii::OpenCASCADE::NormalProjectionManifold<2,3> >(sh,1e-5);
+  Boat_surface_left = std::make_shared< dealii::OpenCASCADE::NormalProjectionManifold<2,3> >(refl_sh,1e-5);
+  
   //we define the hull surface y direction projections
-  boat_water_line_right = new AxisProjection(sh, Point<3>(0,1,0),1e-7,1e-2*boatWetLength);
-  boat_water_line_left = new AxisProjection(refl_sh, Point<3>(0,-1,0),1e-7,1e-2*boatWetLength);
+  Boat_water_line_right = std::make_shared< dealii::OpenCASCADE::DirectionalProjectionManifold<2,3> >(sh, Tensor<1,3>({0,1,0}),1e-2);
+  Boat_water_line_left = std::make_shared< dealii::OpenCASCADE::DirectionalProjectionManifold<2,3> >(refl_sh, Tensor<1,3>({0,-1,0}),1e-2);
+  
   //we define the projection on undisturbed free surface
   //gp_Pln xy_plane(0.,0.,1.,0.);
   double xdim = 20*boatWetLength, ydim = 20*boatWetLength;
@@ -556,38 +546,64 @@ void BoatModel::start_iges_model(std::string igesFileName,
   TopoDS_Wire wire = polygon.Wire();
   BRepBuilderAPI_MakeFace faceBuilder(wire);
   undisturbed_water_surface_face = faceBuilder.Face();
-  undist_water_surf = new AxisProjection(undisturbed_water_surface_face, Point<3>(0,0,-1),1e-7,1e-3*boatWetLength);
+  Undist_water_surf = std::make_shared< dealii::OpenCASCADE::DirectionalProjectionManifold<2,3> >(undisturbed_water_surface_face, Tensor<1,3>({0,0,-1}),1e-3) ;
   //we define the corresponding waterline arclength and projection
-  water_line_right = new ArclengthProjection(right_undist_water_line,1e-5*boatWetLength);
-  water_line_left = new ArclengthProjection(left_undist_water_line,1e-5*boatWetLength);
+  Water_line_right = std::make_shared< dealii::OpenCASCADE::ArclengthProjectionLineManifold<2,3> >(right_undist_water_line,1e-5);
+  Water_line_left = std::make_shared< dealii::OpenCASCADE::ArclengthProjectionLineManifold<2,3> >(left_undist_water_line,1e-5);
   //we define the keel arclength and normal projection
-  boat_keel = new ArclengthProjection(keel_edge,1e-5*boatWetLength);
-  boat_keel_norm = new NormalProjection<1>(keel_edge);
+  Boat_keel = std::make_shared< dealii::OpenCASCADE::ArclengthProjectionLineManifold<2,3> >(keel_edge,1e-5);
+  Boat_keel_norm = std::make_shared< dealii::OpenCASCADE::NormalProjectionManifold<1,3> >(keel_edge,1e-5);
   //we define the left and right transom arclength projection
-  boat_transom_left = new ArclengthProjection(left_transom_edge,1e-5*boatWetLength);
-  boat_transom_right = new ArclengthProjection(right_transom_edge,1e-5*boatWetLength);
+  Boat_transom_left = std::make_shared< dealii::OpenCASCADE::ArclengthProjectionLineManifold<2,3> >(left_transom_edge,1e-5);
+  Boat_transom_right = std::make_shared< dealii::OpenCASCADE::ArclengthProjectionLineManifold<2,3> >(right_transom_edge,1e-5);
 
 
   PointFrontTop = Pnt(gpFront);
-
   PointBackTop= Pnt(gpBack);
-  PointBackBot = boat_keel->arclength_projection(PointBackTop, PointFrontTop,
-                                                 back_keel_length);
+  
+  Point<1> PointFrontTop_arclength_param = Boat_keel->pull_back(PointFrontTop);
+  Point<1> PointBackTop_arclength_param = Boat_keel->pull_back(PointBackTop);
+  
+  if (PointFrontTop_arclength_param(0) < PointBackTop_arclength_param(0))
+     {
+     PointBackBot = Boat_keel->push_forward(PointFrontTop_arclength_param+
+                                            (1.0-back_keel_length)*
+                                            (PointBackTop_arclength_param - PointFrontTop_arclength_param));
+     PointFrontBot = Boat_keel->push_forward(PointFrontTop_arclength_param+
+                                             front_keel_length*
+                                             (PointBackTop_arclength_param - PointFrontTop_arclength_param));
+     PointMidBot = Boat_keel->push_forward(PointFrontTop_arclength_param+
+                                           (1.0-middle_keel_length)*
+                                           (PointBackTop_arclength_param - PointFrontTop_arclength_param));
+     
+     }
+  else
+     {
+     PointBackBot = Boat_keel->push_forward(PointBackTop_arclength_param+
+                                            back_keel_length*
+                                            (PointFrontTop_arclength_param - PointBackTop_arclength_param));
+     PointFrontBot = Boat_keel->push_forward(PointBackTop_arclength_param+
+                                             (1.0-front_keel_length)*
+                                             (PointFrontTop_arclength_param - PointBackTop_arclength_param));
+     PointMidBot = Boat_keel->push_forward(PointBackTop_arclength_param+
+                                             middle_keel_length*
+                                             (PointFrontTop_arclength_param - PointBackTop_arclength_param));
+     }
 
-  PointFrontBot = boat_keel->arclength_projection(PointBackTop, PointFrontTop,
-                                                  1.0-front_keel_length);
+
 
   PointLeftTransom = Pnt(transomLeft);
 
   PointRightTransom = Pnt(transomRight);
 
-  PointMidBot = boat_keel->arclength_projection(PointBackTop, PointFrontTop,
-                                                middle_keel_length);
 
-
-  boat_water_line_right->axis_projection(PointMidTop, Point<3>(0.0,0.0,0.0));
-
-
+  std::vector<Point<3> > surr_points;
+  PointMidTop = Boat_water_line_right->project_to_manifold(surr_points, Point<3>(0.0,0.0,0.0));
+  std::cout<<"****** "<<PointMidTop<<std::endl;
+  Point<1> p1 = Water_line_right->pull_back(PointFrontTop);
+  Point<1> p2 = Water_line_right->pull_back(PointBackTop);
+  Point<3> test = Water_line_right->push_forward((p1+(p2-p1))*0.5);
+  std::cout<<"###### "<<test<<std::endl;
 
 }
 
@@ -676,7 +692,7 @@ Point<3> BoatModel::compute_hydrostatic_force(const double &sink)
           hydrostatic_force += (rho*g*fmax(z_zero-q.Z(),0.0))*Normal*jacobian*ref_fe_v.JxW(i);
           if (q.Z() <= z_zero)
             wet_surface += jacobian*ref_fe_v.JxW(i);
-          //cout<<"q("<<Pnt(q)<<")  p:"<<(rho*g*fmax(z_zero-q.Z(),0.0))<<"  n("<<Normal<<")"<<endl;
+          //std::cout<<"q("<<Pnt(q)<<")  p:"<<(rho*g*fmax(z_zero-q.Z(),0.0))<<"  n("<<Normal<<")"<<std::endl;
         }
       /*
              // LUCA, HERE I PLACED THE PART WHERE I DEFINE THE TRIANGULATION WITH THE BSPLINE SURFACE KNOTS
@@ -685,19 +701,19 @@ Point<3> BoatModel::compute_hydrostatic_force(const double &sink)
              std::vector<Point<2> > bspline_vertices;
              std::vector<CellData<2> > bspline_cells;
              SubCellData bspline_subcelldata;
-      cout<<"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"<<endl;
+      std::cout<<"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"<<std::endl;
              //BRepBuilderAPI_NurbsConvert nurbs_surf(face);
-      cout<<"EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE"<<endl;
+      std::cout<<"EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE"<<std::endl;
              //Handle(Geom_Surface) geom_nurbs_surf = BRepLib_FindSurface(nurbs_surf.Shape()).Surface();
              Handle(Geom_Surface) geom_nurbs_surf = BRep_Tool::Surface(face);
              Handle(Geom_BSplineSurface) bspline_surface = GeomConvert::SurfaceToBSplineSurface(geom_nurbs_surf);
-      cout<<"IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII"<<endl;
+      std::cout<<"IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII"<<std::endl;
              // Set knots and multiplicities
              TColStd_Array1OfReal UK(1, bspline_surface->NbUKnots());
              TColStd_Array1OfInteger UM(1, bspline_surface->NbUKnots());
              TColStd_Array1OfReal VK(1, bspline_surface->NbVKnots());
              TColStd_Array1OfInteger VM(1, bspline_surface->NbVKnots());
-      cout<<"OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO"<<endl;
+      std::cout<<"OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO"<<std::endl;
              // Get all ingredients
              bspline_surface->UKnots(UK);
              bspline_surface->UMultiplicities(UM);
@@ -707,14 +723,14 @@ Point<3> BoatModel::compute_hydrostatic_force(const double &sink)
              bool UPeriodic = bspline_surface->IsUPeriodic();
              int VDegree = bspline_surface->VDegree();
              bool VPeriodic = bspline_surface->IsVPeriodic();
-      cout<<"UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU"<<endl;
+      std::cout<<"UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU"<<std::endl;
              for (int i=0; i<bspline_surface->NbUKnots(); ++i)
                  {
-                 cout<<"UK("<<i<<")= "<<UK(i+1)<<"  U Multiplicity "<<UM(i+1)<<endl;
+                 std::cout<<"UK("<<i<<")= "<<UK(i+1)<<"  U Multiplicity "<<UM(i+1)<<std::endl;
                  }
             for (int i=0; i<bspline_surface->NbVKnots(); ++i)
                  {
-                 cout<<"VK("<<i<<")= "<<VK(i+1)<<"  V Multiplicity "<<VM(i+1)<<endl;
+                 std::cout<<"VK("<<i<<")= "<<VK(i+1)<<"  V Multiplicity "<<VM(i+1)<<std::endl;
                  }
       */
       /*
@@ -738,7 +754,7 @@ Point<3> BoatModel::compute_hydrostatic_force(const double &sink)
 
       faceExplorer.Next();
       ++face_count;
-      //cout<<"Face count: "<<face_count<<endl;
+      //std::cout<<"Face count: "<<face_count<<std::endl;
     }
 
   // we now instead loop over all the CAD faces of refl_sh
@@ -816,7 +832,7 @@ Point<3> BoatModel::compute_hydrostatic_force(const double &sink)
           if (q.Z() <= z_zero)
             wet_surface += jacobian*ref_fe_v.JxW(i);
           //face_force += (rho*g*fmax(z_zero-q.Z(),0.0))*Normal*jacobian*ref_fe_v.JxW(i);
-          //cout<<"q("<<Pnt(q)<<")  p:"<<(rho*g*fmax(z_zero-q.Z(),0.0))<<"  n("<<Normal<<")"<<endl;
+          //std::cout<<"q("<<Pnt(q)<<")  p:"<<(rho*g*fmax(z_zero-q.Z(),0.0))<<"  n("<<Normal<<")"<<std::endl;
         }
 
       //GeomLProp_SLProps props(surf, (umin+umax)/2.0, (vmin+vmax)/2.0, 1, 0.01);          // get surface normal
@@ -824,11 +840,11 @@ Point<3> BoatModel::compute_hydrostatic_force(const double &sink)
 
       reflFaceExplorer.Next();
       ++face_count;
-      //cout<<"Face count: "<<face_count<<"  Face force: "<<face_force<<endl;
+      //std::cout<<"Face count: "<<face_count<<"  Face force: "<<face_force<<std::endl;
     }
 
 
-  cout<<"Current hydrostatic force: "<<hydrostatic_force<<"   Current wet surface: "<<wet_surface<<endl;
+  std::cout<<"Current hydrostatic force: "<<hydrostatic_force<<"   Current wet surface: "<<wet_surface<<std::endl;
   boatWetSurface = wet_surface;
   return hydrostatic_force;
 }
@@ -875,14 +891,14 @@ gp_Trsf BoatModel::set_current_position(const Point<3> &translation_vect,
   // SHOULD WE PRINT THE EULER ANGLES UP HERE? IS THE FACT WE HAVE A X AXIS
   // DIRECTED BOW TO STERN GOING TO CHANGE SOMETHING?
   rot_quaternion.GetEulerAngles(gp_YawPitchRoll, yaw_angle, pitch_angle, roll_angle);
-  cout<<"Current Yaw Angle: "<<yaw_angle<<endl;
-  cout<<"Current Pitch Angle: "<<-pitch_angle+initial_trim<<endl;
-  cout<<"Current Roll Angle: "<<-roll_angle<<endl;
+  std::cout<<"Current Yaw Angle: "<<yaw_angle<<std::endl;
+  std::cout<<"Current Pitch Angle: "<<-pitch_angle+initial_trim<<std::endl;
+  std::cout<<"Current Roll Angle: "<<-roll_angle<<std::endl;
 
   gp_Pnt ref_hull_bar_pos = Pnt(reference_hull_baricenter);
   ref_hull_bar_pos.Transform(this_transf);
   current_hull_baricenter = Pnt(ref_hull_bar_pos);
-  cout<<"Current Baricenter Position: "<<current_hull_baricenter<<endl;
+  std::cout<<"Current Baricenter Position: "<<current_hull_baricenter<<std::endl;
 
   if (is_transom)
     {
@@ -893,7 +909,7 @@ gp_Trsf BoatModel::set_current_position(const Point<3> &translation_vect,
       xyPlane->Transform(current_loc.Inverted());
 
 
-      //cout<<First<<" "<<Last<<endl;
+      //std::cout<<First<<" "<<Last<<std::endl;
       gp_Pnt pntCtrTrsm;
       if (left_transom_bspline->Value(left_transom_bspline->FirstParameter()).Z() >
           left_transom_bspline->Value(left_transom_bspline->LastParameter()).Z())
@@ -939,9 +955,9 @@ gp_Trsf BoatModel::set_current_position(const Point<3> &translation_vect,
       CurrentPointLeftTransom = Pnt(transomLeft);
       CurrentPointRightTransom = Pnt(transomRight);
 
-      cout<<"Curent Hull Transformation Transom Point Left: "<<CurrentPointLeftTransom<<endl;
-      cout<<"Curent Hull Transformation Transom Point Right: "<<CurrentPointRightTransom<<endl;
-      cout<<"Curent Hull Transformation Transom Point Center: "<<CurrentPointCenterTransom<<endl;
+      std::cout<<"Curent Hull Transformation Transom Point Left: "<<CurrentPointLeftTransom<<std::endl;
+      std::cout<<"Curent Hull Transformation Transom Point Right: "<<CurrentPointRightTransom<<std::endl;
+      std::cout<<"Curent Hull Transformation Transom Point Center: "<<CurrentPointCenterTransom<<std::endl;
 
     }
 
@@ -1042,7 +1058,7 @@ Point<3> BoatModel::compute_hydrostatic_moment(const double &sink, const Point<3
           Point<3> Kross(Q(1)*Normal(2)-Q(2)*Normal(1),Q(2)*Normal(0)-Q(0)*Normal(2),Q(0)*Normal(1)-Q(1)*Normal(0));
           hydrostatic_moment += (rho*g*fmax(z_zero-q.Z(),0.0))*Kross*jacobian*ref_fe_v.JxW(i);
           hydrostatic_force += (rho*g*fmax(z_zero-q.Z(),0.0))*Normal*jacobian*ref_fe_v.JxW(i);
-          //cout<<"q("<<Pnt(q)<<")  p:"<<(rho*g*fmax(z_zero-q.Z(),0.0))<<"  n("<<Normal<<")"<<endl;
+          //std::cout<<"q("<<Pnt(q)<<")  p:"<<(rho*g*fmax(z_zero-q.Z(),0.0))<<"  n("<<Normal<<")"<<std::endl;
         }
 
 
@@ -1052,7 +1068,7 @@ Point<3> BoatModel::compute_hydrostatic_moment(const double &sink, const Point<3
 
       faceExplorer.Next();
       ++face_count;
-      //cout<<"Face count: "<<face_count<<endl;
+      //std::cout<<"Face count: "<<face_count<<std::endl;
     }
 
   // we now instead loop over all the CAD faces of refl_sh
@@ -1133,7 +1149,7 @@ Point<3> BoatModel::compute_hydrostatic_moment(const double &sink, const Point<3
           hydrostatic_force += (rho*g*fmax(z_zero-q.Z(),0.0))*Normal*jacobian*ref_fe_v.JxW(i);
 
           //face_force += (rho*g*fmax(z_zero-q.Z(),0.0))*Normal*jacobian*ref_fe_v.JxW(i);
-          //cout<<"q("<<Pnt(q)<<")  p:"<<(rho*g*fmax(z_zero-q.Z(),0.0))<<"  n("<<Normal<<")"<<endl;
+          //std::cout<<"q("<<Pnt(q)<<")  p:"<<(rho*g*fmax(z_zero-q.Z(),0.0))<<"  n("<<Normal<<")"<<std::endl;
         }
 
       //GeomLProp_SLProps props(surf, (umin+umax)/2.0, (vmin+vmax)/2.0, 1, 0.01);          // get surface normal
@@ -1141,12 +1157,12 @@ Point<3> BoatModel::compute_hydrostatic_moment(const double &sink, const Point<3
 
       reflFaceExplorer.Next();
       ++face_count;
-      //cout<<"Face count: "<<face_count<<"  Face force: "<<face_force<<endl;
+      //std::cout<<"Face count: "<<face_count<<"  Face force: "<<face_force<<std::endl;
     }
 
 
-  cout<<"Current hydrostatic moment: "<<hydrostatic_moment<<endl;
-  cout<<"(Force is): "<<hydrostatic_force<<endl;
+  std::cout<<"Current hydrostatic moment: "<<hydrostatic_moment<<std::endl;
+  std::cout<<"(Force is): "<<hydrostatic_force<<std::endl;
   return hydrostatic_moment;
 }
 
@@ -1171,14 +1187,14 @@ void BoatModel::compute_hydrostatic_sink(double &sink, const double &weight)
       hydrostatic_force = compute_hydrostatic_force(z);
       hydrostatic_force_n_minus_2 = hydrostatic_force_n_minus_1;
       hydrostatic_force_n_minus_1 = hydrostatic_force;
-//cout<<"z: "<<z<<"   hydrostatic force: "<<hydrostatic_force<<"   check: "<<fabs(hydrostatic_force(2)-weight)/weight<<endl;
+//cout<<"z: "<<z<<"   hydrostatic force: "<<hydrostatic_force<<"   check: "<<fabs(hydrostatic_force(2)-weight)/weight<<std::endl;
     }
 
   sink = z;
 
 
 
-  cout<<"z: "<<z<<"  hydrostatic force (out): "<<hydrostatic_force<<"  (weight: "<<weight<<")"<<endl;
+  std::cout<<"z: "<<z<<"  hydrostatic force (out): "<<hydrostatic_force<<"  (weight: "<<weight<<")"<<std::endl;
 }
 
 class BoatModel;

@@ -60,6 +60,12 @@ void NumericalTowingTank::full_mesh_treatment()
 //       myfile << support_points[*pos]<<" \n";
 //    }
 //myfile.close();
+//  static unsigned int count_times = 0;
+//  std::ofstream logfile("meshResultTest_"+ Utilities::int_to_string(count_times)+".inp");
+//  GridOut grid_out;
+//  grid_out.write_ucd(tria, logfile);
+//  count_times++;
+
 
   std::cout<<"done full mesh treatment"<<std::endl;
 }
@@ -140,7 +146,7 @@ void NumericalTowingTank::refine_and_resize()
                                             vector_dh, ref_points);
 
   mapping = new MappingQEulerian<2, Vector<double>, 3>
-  (mapping_degree, map_points, vector_dh);
+  (mapping_degree, vector_dh, map_points);
 
   generate_double_nodes_set();
 
@@ -183,7 +189,7 @@ void NumericalTowingTank::refine_and_resize()
       QGauss<2> quad(1);
 
       FEValues<2,3> fe_v(*mapping, fe, quad,
-                         update_values | update_cell_normal_vectors | update_quadrature_points |
+                         update_values | update_normal_vectors | update_quadrature_points |
                          update_JxW_values);
 
       const unsigned int n_q_points = fe_v.n_quadrature_points;
@@ -195,7 +201,7 @@ void NumericalTowingTank::refine_and_resize()
       for (; cell!=endc; ++cell)
         {
           fe_v.reinit (cell);
-          const std::vector<Point<3> > &node_normals = fe_v.get_normal_vectors();
+          const std::vector<Tensor<1,3> > &node_normals = fe_v.get_normal_vectors();
           const std::vector<Point<3> > &quadrature_points = fe_v.get_quadrature_points();
           if ((cell->material_id() == wall_sur_ID1 ||
                cell->material_id() == wall_sur_ID2 ||
@@ -204,9 +210,19 @@ void NumericalTowingTank::refine_and_resize()
               Point<3> proj_node;
               if (quadrature_points[0](1) > 0) //right side
                 {
-                  boat_model.boat_water_line_right->assigned_axis_projection(proj_node,
-                                                                             quadrature_points[0],
-                                                                             node_normals[0]);  // for projection in mesh normal direction
+                 Point<3> right_temp_point = dealii::OpenCASCADE::line_intersection(boat_model.sh,
+                                                                                quadrature_points[0],
+                                                                                node_normals[0],
+                                                                                1e-5);
+                                                                        
+                 std::tuple<Point<3>,  Tensor<1,3>, double, double> right_tuple = 
+                 dealii::OpenCASCADE::closest_point_and_differential_forms(boat_model.sh,
+                                                                           right_temp_point,
+                                                                           1e-5);
+                
+                
+                
+                  proj_node = std::get<0>(right_tuple);
                   //cout<<cell<<"  center:"<<quadrature_points[0]<<" normal: " <<node_normals[0]<<endl;
                   //cout<<"Projection: "<<proj_node<<" distance: "<<proj_node.distance(quadrature_points[0])<<endl;
                   //cout<<endl;
@@ -214,9 +230,17 @@ void NumericalTowingTank::refine_and_resize()
                 }
               else  // left side
                 {
-                  boat_model.boat_water_line_left->assigned_axis_projection(proj_node,
-                                                                            quadrature_points[0],
-                                                                            node_normals[0]);  // for projection in mesh normal direction
+                 Point<3> left_temp_point = dealii::OpenCASCADE::line_intersection(boat_model.refl_sh,
+                                                                                quadrature_points[0],
+                                                                                node_normals[0],
+                                                                                1e-5);
+                                                                        
+                 std::tuple<Point<3>,  Tensor<1,3>, double, double> left_tuple = 
+                 dealii::OpenCASCADE::closest_point_and_differential_forms(boat_model.refl_sh,
+                                                                    left_temp_point,
+                                                                    1e-5);
+                
+                  proj_node = std::get<0>(left_tuple);
                   //cout<<cell<<"  center:"<<quadrature_points[0]<<" normal: " <<node_normals[0]<<endl;
                   //cout<<"Projection: "<<proj_node<<" distance: "<<proj_node.distance(quadrature_points[0])<<endl;
                   //cout<<endl;
@@ -351,85 +375,89 @@ void NumericalTowingTank::read_domain ()
                for (unsigned int f = 0; f < GeometryInfo<2>::faces_per_cell;++f)
                    {
                    if (cell->face(f)->boundary_indicator()==0)
-                      cell->face(f)->set_boundary_indicator(22);
+                      cell->face(f)->set_manifold_indicator(22);
                    }
             }
         }
   */
   if (!no_boat)
     {
-      tria.set_boundary(5, *boat_model.undist_water_surf);
-      tria.set_boundary(6, *boat_model.undist_water_surf);
-      //tria.set_boundary(21, *boat_model.boat_surface_right);
-      tria.set_boundary(21, *boat_model.water_line_right); //tria.set_boundary(21, *boat_model.boat_water_line_right);
-      //tria.set_boundary(23, *boat_model.boat_surface_right);
-      tria.set_boundary(23, *boat_model.water_line_right);//tria.set_boundary(23, *boat_model.boat_water_line_right);
-      //tria.set_boundary(22, *boat_model.boat_surface_left);
-      tria.set_boundary(22, *boat_model.water_line_left);//tria.set_boundary(22, *boat_model.boat_water_line_left);
-      //tria.set_boundary(24, *boat_model.boat_surface_left);
-      tria.set_boundary(24, *boat_model.water_line_left);//tria.set_boundary(22, *boat_model.boat_water_line_left);
-      //tria.set_boundary(26, *boat_model.boat_surface_right);
-      tria.set_boundary(26, *boat_model.water_line_right);//tria.set_boundary(26, *boat_model.boat_water_line_right);
-      //tria.set_boundary(28, *boat_model.boat_surface_right);
-      tria.set_boundary(28, *boat_model.water_line_right);//tria.set_boundary(28, *boat_model.boat_water_line_right);
-      //tria.set_boundary(27, *boat_model.boat_surface_left);
-      tria.set_boundary(27, *boat_model.water_line_left);//tria.set_boundary(27, *boat_model.boat_water_line_left);
-      //tria.set_boundary(29, *boat_model.boat_surface_left);
-      tria.set_boundary(29, *boat_model.water_line_left);//tria.set_boundary(29, *boat_model.boat_water_line_left);
+      tria.set_manifold(5, *boat_model.Undist_water_surf);
+      tria.set_manifold(6, *boat_model.Undist_water_surf);
+      //tria.set_manifold(21, *boat_model.boat_surface_right);
+      tria.set_manifold(21, *boat_model.Water_line_right); //tria.set_manifold(21, *boat_model.boat_water_line_right);
+      //tria.set_manifold(23, *boat_model.boat_surface_right);
+      tria.set_manifold(23, *boat_model.Water_line_right);//tria.set_manifold(23, *boat_model.boat_water_line_right);
+      //tria.set_manifold(22, *boat_model.boat_surface_left);
+      tria.set_manifold(22, *boat_model.Water_line_left);//tria.set_manifold(22, *boat_model.boat_water_line_left);
+      //tria.set_manifold(24, *boat_model.boat_surface_left);
+      tria.set_manifold(24, *boat_model.Water_line_left);//tria.set_manifold(22, *boat_model.boat_water_line_left);
+      //tria.set_manifold(26, *boat_model.boat_surface_right);
+      tria.set_manifold(26, *boat_model.Water_line_right);//tria.set_manifold(26, *boat_model.boat_water_line_right);
+      //tria.set_manifold(28, *boat_model.boat_surface_right);
+      tria.set_manifold(28, *boat_model.Water_line_right);//tria.set_manifold(28, *boat_model.boat_water_line_right);
+      //tria.set_manifold(27, *boat_model.boat_surface_left);
+      tria.set_manifold(27, *boat_model.Water_line_left);//tria.set_manifold(27, *boat_model.boat_water_line_left);
+      //tria.set_manifold(29, *boat_model.boat_surface_left);
+      tria.set_manifold(29, *boat_model.Water_line_left);//tria.set_manifold(29, *boat_model.boat_water_line_left);
       if (boat_model.is_transom)
-        tria.set_boundary(32, *boat_model.boat_transom_left);
+        tria.set_manifold(32, *boat_model.Boat_transom_left);
       else
-        tria.set_boundary(32, *boat_model.boat_keel);
-      tria.set_boundary(31, *boat_model.boat_keel);
-      tria.set_boundary(30, *boat_model.boat_keel);
+        tria.set_manifold(32, *boat_model.Boat_keel);
+      tria.set_manifold(31, *boat_model.Boat_keel);
+      tria.set_manifold(30, *boat_model.Boat_keel);
       if (boat_model.is_transom)
-        tria.set_boundary(37, *boat_model.boat_transom_right);
+        tria.set_manifold(37, *boat_model.Boat_transom_right);
       else
-        tria.set_boundary(37, *boat_model.boat_keel);
-      tria.set_boundary(36, *boat_model.boat_keel);
-      tria.set_boundary(35, *boat_model.boat_keel);
+        tria.set_manifold(37, *boat_model.Boat_keel);
+      tria.set_manifold(36, *boat_model.Boat_keel);
+      tria.set_manifold(35, *boat_model.Boat_keel);
       if (boat_model.is_transom)
         {
-          tria.set_boundary(40, *boat_model.boat_transom_left);
-          tria.set_boundary(41, *boat_model.boat_transom_right);
+          tria.set_manifold(40, *boat_model.Boat_transom_left);
+          tria.set_manifold(41, *boat_model.Boat_transom_right);
         }
 
-      coarse_tria.set_boundary(5, *boat_model.undist_water_surf);
-      coarse_tria.set_boundary(6, *boat_model.undist_water_surf);
-      //coarse_tria.set_boundary(21, *boat_model.boat_surface_right);
-      coarse_tria.set_boundary(21, *boat_model.water_line_right); //coarse_tria.set_boundary(21, *boat_model.boat_water_line_right);
-      //coarse_tria.set_boundary(23, *boat_model.boat_surface_right);
-      coarse_tria.set_boundary(23, *boat_model.water_line_right);//coarse_tria.set_boundary(23, *boat_model.boat_water_line_right);
-      //coarse_tria.set_boundary(22, *boat_model.boat_surface_left);
-      coarse_tria.set_boundary(22, *boat_model.water_line_left);//coarse_tria.set_boundary(22, *boat_model.boat_water_line_left);
-      //coarse_tria.set_boundary(24, *boat_model.boat_surface_left);
-      coarse_tria.set_boundary(24, *boat_model.water_line_left);//coarse_tria.set_boundary(22, *boat_model.boat_water_line_left);
-      //coarse_tria.set_boundary(26, *boat_model.boat_surface_right);
-      coarse_tria.set_boundary(26, *boat_model.water_line_right);//coarse_tria.set_boundary(26, *boat_model.boat_water_line_right);
-      //coarse_tria.set_boundary(28, *boat_model.boat_surface_right);
-      coarse_tria.set_boundary(28, *boat_model.water_line_right);//coarse_tria.set_boundary(28, *boat_model.boat_water_line_right);
-      //coarse_tria.set_boundary(27, *boat_model.boat_surface_left);
-      coarse_tria.set_boundary(27, *boat_model.water_line_left);//coarse_tria.set_boundary(27, *boat_model.boat_water_line_left);
-      //coarse_tria.set_boundary(29, *boat_model.boat_surface_left);
-      coarse_tria.set_boundary(29, *boat_model.water_line_left);//coarse_tria.set_boundary(29, *boat_model.boat_water_line_left);
+      coarse_tria.set_manifold(5, *boat_model.Undist_water_surf);
+      coarse_tria.set_manifold(6, *boat_model.Undist_water_surf);
+      //coarse_tria.set_manifold(21, *boat_model.boat_surface_right);
+      coarse_tria.set_manifold(21, *boat_model.Water_line_right); //coarse_tria.set_manifold(21, *boat_model.boat_water_line_right);
+      //coarse_tria.set_manifold(23, *boat_model.boat_surface_right);
+      coarse_tria.set_manifold(23, *boat_model.Water_line_right);//coarse_tria.set_manifold(23, *boat_model.boat_water_line_right);
+      //coarse_tria.set_manifold(22, *boat_model.boat_surface_left);
+      coarse_tria.set_manifold(22, *boat_model.Water_line_left);//coarse_tria.set_manifold(22, *boat_model.boat_water_line_left);
+      //coarse_tria.set_manifold(24, *boat_model.boat_surface_left);
+      coarse_tria.set_manifold(24, *boat_model.Water_line_left);//coarse_tria.set_manifold(22, *boat_model.boat_water_line_left);
+      //coarse_tria.set_manifold(26, *boat_model.boat_surface_right);
+      coarse_tria.set_manifold(26, *boat_model.Water_line_right);//coarse_tria.set_manifold(26, *boat_model.boat_water_line_right);
+      //coarse_tria.set_manifold(28, *boat_model.boat_surface_right);
+      coarse_tria.set_manifold(28, *boat_model.Water_line_right);//coarse_tria.set_manifold(28, *boat_model.boat_water_line_right);
+      //coarse_tria.set_manifold(27, *boat_model.boat_surface_left);
+      coarse_tria.set_manifold(27, *boat_model.Water_line_left);//coarse_tria.set_manifold(27, *boat_model.boat_water_line_left);
+      //coarse_tria.set_manifold(29, *boat_model.boat_surface_left);
+      coarse_tria.set_manifold(29, *boat_model.Water_line_left);//coarse_tria.set_manifold(29, *boat_model.boat_water_line_left);
       if (boat_model.is_transom)
-        coarse_tria.set_boundary(32, *boat_model.boat_transom_left);
+        coarse_tria.set_manifold(32, *boat_model.Boat_transom_left);
       else
-        coarse_tria.set_boundary(32, *boat_model.boat_keel);
-      coarse_tria.set_boundary(31, *boat_model.boat_keel);
-      coarse_tria.set_boundary(30, *boat_model.boat_keel);
+        coarse_tria.set_manifold(32, *boat_model.Boat_keel);
+      coarse_tria.set_manifold(31, *boat_model.Boat_keel);
+      coarse_tria.set_manifold(30, *boat_model.Boat_keel);
       if (boat_model.is_transom)
-        coarse_tria.set_boundary(37, *boat_model.boat_transom_right);
+        coarse_tria.set_manifold(37, *boat_model.Boat_transom_right);
       else
-        coarse_tria.set_boundary(37, *boat_model.boat_keel);
-      coarse_tria.set_boundary(36, *boat_model.boat_keel);
-      coarse_tria.set_boundary(35, *boat_model.boat_keel);
+        coarse_tria.set_manifold(37, *boat_model.Boat_keel);
+      coarse_tria.set_manifold(36, *boat_model.Boat_keel);
+      coarse_tria.set_manifold(35, *boat_model.Boat_keel);
       if (boat_model.is_transom)
         {
-          coarse_tria.set_boundary(40, *boat_model.boat_transom_left);
-          coarse_tria.set_boundary(41, *boat_model.boat_transom_right);
+          coarse_tria.set_manifold(40, *boat_model.Boat_transom_left);
+          coarse_tria.set_manifold(41, *boat_model.Boat_transom_right);
         }
     }
+  //tria.refine_global();
+  std::ofstream logfile("meshResultTest.inp");
+  GridOut grid_out;
+  grid_out.write_ucd(tria, logfile);
 }
 
 
@@ -440,38 +468,9 @@ NumericalTowingTank::~NumericalTowingTank()
   if (surface_smoother)
     delete surface_smoother;
 
-  //tria.set_boundary(3);
-  //tria.set_boundary(4);
-  tria.set_boundary(21);
-  tria.set_boundary(23);
-  tria.set_boundary(22);
-  tria.set_boundary(24);
-  tria.set_boundary(26);
-  tria.set_boundary(28);
-  tria.set_boundary(27);
-  tria.set_boundary(29);
-  tria.set_boundary(32);
-  tria.set_boundary(31);
-  tria.set_boundary(30);
-  tria.set_boundary(37);
-  tria.set_boundary(36);
-  tria.set_boundary(35);
-  //coarse_tria.set_boundary(3);
-  //coarse_tria.set_boundary(4);
-  coarse_tria.set_boundary(21);
-  coarse_tria.set_boundary(23);
-  coarse_tria.set_boundary(22);
-  coarse_tria.set_boundary(24);
-  coarse_tria.set_boundary(26);
-  coarse_tria.set_boundary(28);
-  coarse_tria.set_boundary(27);
-  coarse_tria.set_boundary(29);
-  coarse_tria.set_boundary(32);
-  coarse_tria.set_boundary(31);
-  coarse_tria.set_boundary(30);
-  coarse_tria.set_boundary(37);
-  coarse_tria.set_boundary(36);
-  coarse_tria.set_boundary(35);
+  tria.reset_all_manifolds();
+  coarse_tria.reset_all_manifolds();
+
 
 
 }
@@ -598,6 +597,9 @@ void NumericalTowingTank::create_initial_mesh(const Point<3> PointFrontTop,
 
   double a = front_mesh_inclination_coeff;
   double b = back_mesh_inclination_coeff;
+  double o_aft = 1.0;//o_grid length x direction aft
+  double o_fore = 1.0;//o_grid length x direction fore
+  double o_side = 1.0;//o_grid width y direction
 
   if (no_boat)
     {
@@ -1177,91 +1179,109 @@ void NumericalTowingTank::create_initial_mesh(const Point<3> PointFrontTop,
           subcelldata.boundary_lines.back().vertices[0] = 32;
           subcelldata.boundary_lines.back().vertices[1] = 40;
           subcelldata.boundary_lines.back().material_id = 29;
+          subcelldata.boundary_lines.back().manifold_id = 29;
 // waterline (on water) front left
           subcelldata.boundary_lines.push_back (CellData<1>());
           subcelldata.boundary_lines.back().vertices[0] = 40;
           subcelldata.boundary_lines.back().vertices[1] = 33;
           subcelldata.boundary_lines.back().material_id = 27;
+          subcelldata.boundary_lines.back().manifold_id = 27;
 // waterline (on water) front right
           subcelldata.boundary_lines.push_back (CellData<1>());
           subcelldata.boundary_lines.back().vertices[0] = 33;
           subcelldata.boundary_lines.back().vertices[1] = 46;
           subcelldata.boundary_lines.back().material_id = 26;
+          subcelldata.boundary_lines.back().manifold_id = 26;
 // waterline (on water) rear right
           subcelldata.boundary_lines.push_back (CellData<1>());
           subcelldata.boundary_lines.back().vertices[0] = 46;
           subcelldata.boundary_lines.back().vertices[1] = 84;
           subcelldata.boundary_lines.back().material_id = 28;
+          subcelldata.boundary_lines.back().manifold_id = 28;
 // waterline (on boat) right front
           subcelldata.boundary_lines.push_back (CellData<1>());
           subcelldata.boundary_lines.back().vertices[0] = 20;
           subcelldata.boundary_lines.back().vertices[1] = 24;
           subcelldata.boundary_lines.back().material_id = 21;
+          subcelldata.boundary_lines.back().manifold_id = 21;
 // waterline (on boat) right rear
           subcelldata.boundary_lines.push_back (CellData<1>());
           subcelldata.boundary_lines.back().vertices[0] = 24;
           subcelldata.boundary_lines.back().vertices[1] = 21;
           subcelldata.boundary_lines.back().material_id = 23;
+          subcelldata.boundary_lines.back().manifold_id = 23;
 // waterline (on boat) left rear
           subcelldata.boundary_lines.push_back (CellData<1>());
           subcelldata.boundary_lines.back().vertices[0] = 26;
           subcelldata.boundary_lines.back().vertices[1] = 30;
           subcelldata.boundary_lines.back().material_id = 24;
+          subcelldata.boundary_lines.back().manifold_id = 24;
 // waterline (on boat) left front
           subcelldata.boundary_lines.push_back (CellData<1>());
           subcelldata.boundary_lines.back().vertices[0] = 30;
           subcelldata.boundary_lines.back().vertices[1] = 27;
           subcelldata.boundary_lines.back().material_id = 22;
+          subcelldata.boundary_lines.back().manifold_id = 22;
 //front part of the keel (region needed for keel smoothing) left
           subcelldata.boundary_lines.push_back (CellData<1>());
           subcelldata.boundary_lines.back().vertices[0] = 29;
           subcelldata.boundary_lines.back().vertices[1] = 27;
           subcelldata.boundary_lines.back().material_id = 30;
+          subcelldata.boundary_lines.back().manifold_id = 30;
 //front part of the keel (region needed for keel smoothing) right
           subcelldata.boundary_lines.push_back (CellData<1>());
           subcelldata.boundary_lines.back().vertices[0] = 20;
           subcelldata.boundary_lines.back().vertices[1] = 22;
           subcelldata.boundary_lines.back().material_id = 35;
+          subcelldata.boundary_lines.back().manifold_id = 35;
 //central/front part of the keel left
           subcelldata.boundary_lines.push_back (CellData<1>());
           subcelldata.boundary_lines.back().vertices[0] = 31;
           subcelldata.boundary_lines.back().vertices[1] = 29;
           subcelldata.boundary_lines.back().material_id = 31;
+          subcelldata.boundary_lines.back().manifold_id = 31;
 //central/front part of the keel right
           subcelldata.boundary_lines.push_back (CellData<1>());
           subcelldata.boundary_lines.back().vertices[0] = 22;
           subcelldata.boundary_lines.back().vertices[1] = 25;
           subcelldata.boundary_lines.back().material_id = 36;
+          subcelldata.boundary_lines.back().manifold_id = 36;
 //central/rear part of the keel left
           subcelldata.boundary_lines.push_back (CellData<1>());
           subcelldata.boundary_lines.back().vertices[0] = 28;
           subcelldata.boundary_lines.back().vertices[1] = 31;
           subcelldata.boundary_lines.back().material_id = 31;
+          subcelldata.boundary_lines.back().manifold_id = 31;
 //central/rear part of the keel right
           subcelldata.boundary_lines.push_back (CellData<1>());
           subcelldata.boundary_lines.back().vertices[0] = 25;
           subcelldata.boundary_lines.back().vertices[1] = 23;
           subcelldata.boundary_lines.back().material_id = 36;
+          subcelldata.boundary_lines.back().manifold_id = 36;
 //rear part of the keel / transom edge on boat (region needed for keel smoothing) left
           subcelldata.boundary_lines.push_back (CellData<1>());
           subcelldata.boundary_lines.back().vertices[0] = 26;
           subcelldata.boundary_lines.back().vertices[1] = 28;
           subcelldata.boundary_lines.back().material_id = 32;
+          subcelldata.boundary_lines.back().manifold_id = 32;
 //rear part of the keel / transom edge on boat (region needed for keel smoothing) right
           subcelldata.boundary_lines.push_back (CellData<1>());
           subcelldata.boundary_lines.back().vertices[0] = 23;
           subcelldata.boundary_lines.back().vertices[1] = 21;
           subcelldata.boundary_lines.back().material_id = 37;
+          subcelldata.boundary_lines.back().manifold_id = 37;
 //transom edge on water left
           subcelldata.boundary_lines.push_back (CellData<1>());
           subcelldata.boundary_lines.back().vertices[0] = 32;
           subcelldata.boundary_lines.back().vertices[1] = 87;
           subcelldata.boundary_lines.back().material_id = 40;
+          subcelldata.boundary_lines.back().manifold_id = 40;
 //transom edge on water right
           subcelldata.boundary_lines.push_back (CellData<1>());
           subcelldata.boundary_lines.back().vertices[0] = 84;
           subcelldata.boundary_lines.back().vertices[1] = 87;
           subcelldata.boundary_lines.back().material_id = 41;
+          subcelldata.boundary_lines.back().manifold_id = 41;
 
         }
 
@@ -1269,11 +1289,11 @@ void NumericalTowingTank::create_initial_mesh(const Point<3> PointFrontTop,
         {
 
           Lx_boat = boat_model.boatWetLength;
-          Lx_domain = Lx_boat*12.0;
-          Ly_domain = Lx_boat*4.0;
-          Lz_domain = Lx_boat*2.0;
+          Lx_domain = Lx_boat*2*12.0;
+          Ly_domain = Lx_boat*2*4.0;
+          Lz_domain = Lx_boat*2*2.0;
 
-          vertices.resize(84);
+          vertices.resize(88);
 
           vertices[0](0)=-Lx_domain/2;
           vertices[0](1)=-Ly_domain/2 ;
@@ -1287,19 +1307,19 @@ void NumericalTowingTank::create_initial_mesh(const Point<3> PointFrontTop,
           vertices[3](0)=Lx_domain/2;
           vertices[3](1)=-Ly_domain/2;
           vertices[3](2)=0;
-          vertices[4](0)=b*PointBackTop(0);
+          vertices[4](0)=b*(o_aft*Lx_boat);
           vertices[4](1)=-Ly_domain/2;
           vertices[4](2)=0;
-          vertices[5](0)=a*PointFrontTop(0);
+          vertices[5](0)=a*(-o_fore*Lx_boat);
           vertices[5](1)=-Ly_domain/2;
           vertices[5](2)=0;
-          vertices[6](0)=b*PointBackTop(0);
+          vertices[6](0)=b*(o_aft*Lx_boat);
           vertices[6](1)=-Ly_domain/2;
           vertices[6](2)=-Lz_domain;
           vertices[7](0)=0;
           vertices[7](1)=-Ly_domain/2;
           vertices[7](2)=-Lz_domain;
-          vertices[8](0)=a*PointFrontTop(0);
+          vertices[8](0)=a*(-o_fore*Lx_boat);
           vertices[8](1)=-Ly_domain/2;
           vertices[8](2)=-Lz_domain;
           vertices[9](0)=0;
@@ -1317,19 +1337,19 @@ void NumericalTowingTank::create_initial_mesh(const Point<3> PointFrontTop,
           vertices[13](0)=-Lx_domain/2;
           vertices[13](1)=Ly_domain/2;
           vertices[13](2)=0;
-          vertices[14](0)=a*PointFrontTop(0);
+          vertices[14](0)=a*(-o_fore*Lx_boat);
           vertices[14](1)=Ly_domain/2;
           vertices[14](2)=0;
-          vertices[15](0)=b*PointBackTop(0);
+          vertices[15](0)=b*(o_aft*Lx_boat);
           vertices[15](1)=Ly_domain/2;
           vertices[15](2)=0;
-          vertices[16](0)=a*PointFrontTop(0);
+          vertices[16](0)=a*(-o_fore*Lx_boat);
           vertices[16](1)=Ly_domain/2;
           vertices[16](2)=-Lz_domain;
           vertices[17](0)=0;
           vertices[17](1)=Ly_domain/2;
           vertices[17](2)=-Lz_domain;
-          vertices[18](0)=b*PointBackTop(0);
+          vertices[18](0)=b*(o_aft*Lx_boat);
           vertices[18](1)=Ly_domain/2;
           vertices[18](2)=-Lz_domain;
           vertices[19](0)=0;
@@ -1383,10 +1403,10 @@ void NumericalTowingTank::create_initial_mesh(const Point<3> PointFrontTop,
           vertices[35](0)=-Lx_domain/2;
           vertices[35](1)=-Ly_domain/2;
           vertices[35](2)=0;
-          vertices[36](0)=a*PointFrontTop(0);
+          vertices[36](0)=a*(-o_fore*Lx_boat);
           vertices[36](1)=-Ly_domain/2;
           vertices[36](2)=0;
-          vertices[37](0)=b*PointBackTop(0);
+          vertices[37](0)=b*(o_aft*Lx_boat);
           vertices[37](1)=-Ly_domain/2;
           vertices[37](2)=0;
           vertices[38](0)=Lx_domain/2;
@@ -1404,10 +1424,10 @@ void NumericalTowingTank::create_initial_mesh(const Point<3> PointFrontTop,
           vertices[42](0)=Lx_domain/2;
           vertices[42](1)=Ly_domain/2;
           vertices[42](2)=0;
-          vertices[43](0)=b*PointBackTop(0);
+          vertices[43](0)=b*(o_aft*Lx_boat);
           vertices[43](1)=Ly_domain/2;
           vertices[43](2)=0;
-          vertices[44](0)=a*PointFrontTop(0);
+          vertices[44](0)=a*(-o_fore*Lx_boat);
           vertices[44](1)=Ly_domain/2;
           vertices[44](2)=0;
           vertices[45](0)=-Lx_domain/2;
@@ -1431,22 +1451,22 @@ void NumericalTowingTank::create_initial_mesh(const Point<3> PointFrontTop,
           vertices[51](0)=Lx_domain/2;
           vertices[51](1)=Ly_domain/2;
           vertices[51](2)=-Lz_domain;
-          vertices[52](0)=a*PointFrontTop(0);
+          vertices[52](0)=a*(-o_fore*Lx_boat);
           vertices[52](1)=0;
           vertices[52](2)=-Lz_domain;
           vertices[53](0)=0;
           vertices[53](1)=0;
           vertices[53](2)=-Lz_domain;
-          vertices[54](0)=b*PointBackTop(0);
+          vertices[54](0)=b*(o_aft*Lx_boat);
           vertices[54](1)=0;
           vertices[54](2)=-Lz_domain;
-          vertices[55](0)=a*PointFrontTop(0);
+          vertices[55](0)=a*(-o_fore*Lx_boat);
           vertices[55](1)=Ly_domain/2;
           vertices[55](2)=-Lz_domain;
           vertices[56](0)=0;
           vertices[56](1)=Ly_domain/2;
           vertices[56](2)=-Lz_domain;
-          vertices[57](0)=b*PointBackTop(0);
+          vertices[57](0)=b*(o_aft*Lx_boat);
           vertices[57](1)=Ly_domain/2;
           vertices[57](2)=-Lz_domain;
           vertices[58](0)=-Lx_domain/2;
@@ -1461,22 +1481,22 @@ void NumericalTowingTank::create_initial_mesh(const Point<3> PointFrontTop,
           vertices[61](0)=-Lx_domain/2;
           vertices[61](1)=-Ly_domain/2;
           vertices[61](2)=-Lz_domain;
-          vertices[62](0)=a*PointFrontTop(0);
+          vertices[62](0)=a*(-o_fore*Lx_boat);
           vertices[62](1)=0;
           vertices[62](2)=-Lz_domain;
           vertices[63](0)=0;
           vertices[63](1)=0;
           vertices[63](2)=-Lz_domain;
-          vertices[64](0)=b*PointBackTop(0);
+          vertices[64](0)=b*(o_aft*Lx_boat);
           vertices[64](1)=0;
           vertices[64](2)=-Lz_domain;
-          vertices[65](0)=b*PointBackTop(0);
+          vertices[65](0)=b*(o_aft*Lx_boat);
           vertices[65](1)=-Ly_domain/2;
           vertices[65](2)=-Lz_domain;
           vertices[66](0)=0;
           vertices[66](1)=-Ly_domain/2;
           vertices[66](2)=-Lz_domain;
-          vertices[67](0)=a*PointFrontTop(0);
+          vertices[67](0)=a*(-o_fore*Lx_boat);
           vertices[67](1)=-Ly_domain/2;
           vertices[67](2)=-Lz_domain;
           vertices[68](0)=-Lx_domain/2;
@@ -1527,8 +1547,22 @@ void NumericalTowingTank::create_initial_mesh(const Point<3> PointFrontTop,
           vertices[83](0)=Lx_domain/2;
           vertices[83](1)=Ly_domain/2;
           vertices[83](2)=0;
+          vertices[84](0)=o_aft*Lx_boat;
+          vertices[84](1)=0;
+          vertices[84](2)=0;
+          vertices[85](0)=-o_fore*Lx_boat;
+          vertices[85](1)=0;
+          vertices[85](2)=0;
+          vertices[86](0)=0;
+          vertices[86](1)=o_side*Lx_boat;
+          vertices[86](2)=0;
+          vertices[87](0)=0;
+          vertices[87](1)=-o_side*Lx_boat;
+          vertices[87](2)=0;
 
-          cells.resize(32);
+
+
+          cells.resize(36);
 
           cells[0].vertices[0]=0;
           cells[0].vertices[1]=1;
@@ -1581,32 +1615,32 @@ void NumericalTowingTank::create_initial_mesh(const Point<3> PointFrontTop,
           cells[12].vertices[0]=34;
           cells[12].vertices[1] =35;
           cells[12].vertices[2] =36;
-          cells[12].vertices[3]=33;
-          cells[13].vertices[0]=33;
+          cells[12].vertices[3]=85;
+          cells[13].vertices[0]=85;
           cells[13].vertices[1] =36;
           cells[13].vertices[2] =41;
-          cells[13].vertices[3]=40;
-          cells[14].vertices[0]=40;
+          cells[13].vertices[3]=87;
+          cells[14].vertices[0]=87;
           cells[14].vertices[1] =41;
           cells[14].vertices[2] =37;
-          cells[14].vertices[3]=32;
-          cells[15].vertices[0]=32;
+          cells[14].vertices[3]=84;
+          cells[15].vertices[0]=84;
           cells[15].vertices[1] =37;
           cells[15].vertices[2] =38;
           cells[15].vertices[3]=39;
           cells[16].vertices[0]=39;
           cells[16].vertices[1] =42;
           cells[16].vertices[2] =43;
-          cells[16].vertices[3]=32;
-          cells[17].vertices[0]=32;
+          cells[16].vertices[3]=84;
+          cells[17].vertices[0]=84;
           cells[17].vertices[1] =43;
           cells[17].vertices[2] =47;
-          cells[17].vertices[3]=46;
-          cells[18].vertices[0]=46;
+          cells[17].vertices[3]=86;
+          cells[18].vertices[0]=86;
           cells[18].vertices[1] =47;
           cells[18].vertices[2] =44;
-          cells[18].vertices[3]=33;
-          cells[19].vertices[0]=33;
+          cells[18].vertices[3]=85;
+          cells[19].vertices[0]=85;
           cells[19].vertices[1] =44;
           cells[19].vertices[2] =45;
           cells[19].vertices[3]=34;
@@ -1657,7 +1691,25 @@ void NumericalTowingTank::create_initial_mesh(const Point<3> PointFrontTop,
           cells[31].vertices[0]=80;
           cells[31].vertices[1] =81;
           cells[31].vertices[2] =82;
-          cells[31].vertices[3]=83;//*/
+          cells[31].vertices[3]=83;
+          cells[32].vertices[0]=84;
+          cells[32].vertices[1] =32;
+          cells[32].vertices[2] =40;
+          cells[32].vertices[3]=87;
+          cells[33].vertices[0]=87;
+          cells[33].vertices[1] =40;
+          cells[33].vertices[2] =33;
+          cells[33].vertices[3]=85;
+          cells[34].vertices[0]=85;
+          cells[34].vertices[1] =33;
+          cells[34].vertices[2] =46;
+          cells[34].vertices[3]=86;
+          cells[35].vertices[0]=86;
+          cells[35].vertices[1] =46;
+          cells[35].vertices[2] =32;
+          cells[35].vertices[3]=84;//*/
+
+
 
           cells[0].material_id = 1;
           cells[1].material_id = 1;
@@ -1690,88 +1742,111 @@ void NumericalTowingTank::create_initial_mesh(const Point<3> PointFrontTop,
           cells[28].material_id = 9;
           cells[29].material_id = 10;
           cells[30].material_id = 11;
-          cells[31].material_id = 12;//*/
+          cells[31].material_id = 12;
+          cells[32].material_id = 5;
+          cells[33].material_id = 5;
+          cells[34].material_id = 6;
+          cells[35].material_id = 6;
+          //*/
 
 // waterline (on water) rear left
           subcelldata.boundary_lines.push_back (CellData<1>());
           subcelldata.boundary_lines.back().vertices[0] = 32;
           subcelldata.boundary_lines.back().vertices[1] = 40;
           subcelldata.boundary_lines.back().material_id = 29;
+          subcelldata.boundary_lines.back().manifold_id = 29;
 // waterline (on water) front left
           subcelldata.boundary_lines.push_back (CellData<1>());
           subcelldata.boundary_lines.back().vertices[0] = 40;
           subcelldata.boundary_lines.back().vertices[1] = 33;
           subcelldata.boundary_lines.back().material_id = 27;
+          subcelldata.boundary_lines.back().manifold_id = 27;
 // waterline (on water) front right
           subcelldata.boundary_lines.push_back (CellData<1>());
           subcelldata.boundary_lines.back().vertices[0] = 33;
           subcelldata.boundary_lines.back().vertices[1] = 46;
           subcelldata.boundary_lines.back().material_id = 26;
+          subcelldata.boundary_lines.back().manifold_id = 26;
+
 // waterline (on water) rear right
           subcelldata.boundary_lines.push_back (CellData<1>());
           subcelldata.boundary_lines.back().vertices[0] = 46;
           subcelldata.boundary_lines.back().vertices[1] = 32;
           subcelldata.boundary_lines.back().material_id = 28;
+          subcelldata.boundary_lines.back().manifold_id = 28;
 // waterline (on boat) right front
           subcelldata.boundary_lines.push_back (CellData<1>());
           subcelldata.boundary_lines.back().vertices[0] = 20;
           subcelldata.boundary_lines.back().vertices[1] = 24;
           subcelldata.boundary_lines.back().material_id = 21;
+          subcelldata.boundary_lines.back().manifold_id = 21;
 // waterline (on boat) right rear
           subcelldata.boundary_lines.push_back (CellData<1>());
           subcelldata.boundary_lines.back().vertices[0] = 24;
           subcelldata.boundary_lines.back().vertices[1] = 21;
           subcelldata.boundary_lines.back().material_id = 23;
+          subcelldata.boundary_lines.back().manifold_id = 23;
 // waterline (on boat) left rear
           subcelldata.boundary_lines.push_back (CellData<1>());
           subcelldata.boundary_lines.back().vertices[0] = 26;
           subcelldata.boundary_lines.back().vertices[1] = 30;
           subcelldata.boundary_lines.back().material_id = 24;
+          subcelldata.boundary_lines.back().manifold_id = 24;
 // waterline (on boat) left front
           subcelldata.boundary_lines.push_back (CellData<1>());
           subcelldata.boundary_lines.back().vertices[0] = 30;
           subcelldata.boundary_lines.back().vertices[1] = 27;
           subcelldata.boundary_lines.back().material_id = 22;
+          subcelldata.boundary_lines.back().manifold_id = 22;
 //front part of the keel (region needed for keel smoothing) left
           subcelldata.boundary_lines.push_back (CellData<1>());
           subcelldata.boundary_lines.back().vertices[0] = 29;
           subcelldata.boundary_lines.back().vertices[1] = 27;
+          subcelldata.boundary_lines.back().manifold_id = 30;
           subcelldata.boundary_lines.back().material_id = 30;
 //front part of the keel (region needed for keel smoothing) right
           subcelldata.boundary_lines.push_back (CellData<1>());
           subcelldata.boundary_lines.back().vertices[0] = 20;
           subcelldata.boundary_lines.back().vertices[1] = 22;
+          subcelldata.boundary_lines.back().manifold_id = 35;
           subcelldata.boundary_lines.back().material_id = 35;
+
 //central/front part of the keel left
           subcelldata.boundary_lines.push_back (CellData<1>());
           subcelldata.boundary_lines.back().vertices[0] = 31;
           subcelldata.boundary_lines.back().vertices[1] = 29;
+          subcelldata.boundary_lines.back().manifold_id = 31;
           subcelldata.boundary_lines.back().material_id = 31;
 //central/front part of the keel right
           subcelldata.boundary_lines.push_back (CellData<1>());
           subcelldata.boundary_lines.back().vertices[0] = 22;
           subcelldata.boundary_lines.back().vertices[1] = 25;
+          subcelldata.boundary_lines.back().manifold_id = 36;
           subcelldata.boundary_lines.back().material_id = 36;
 //central/rear part of the keel left
           subcelldata.boundary_lines.push_back (CellData<1>());
           subcelldata.boundary_lines.back().vertices[0] = 28;
           subcelldata.boundary_lines.back().vertices[1] = 31;
+          subcelldata.boundary_lines.back().manifold_id = 31;
           subcelldata.boundary_lines.back().material_id = 31;
 //central/rear part of the keel right
           subcelldata.boundary_lines.push_back (CellData<1>());
           subcelldata.boundary_lines.back().vertices[0] = 25;
           subcelldata.boundary_lines.back().vertices[1] = 23;
+          subcelldata.boundary_lines.back().manifold_id = 36;
           subcelldata.boundary_lines.back().material_id = 36;
 //rear part of the keel (region needed for keel smoothing) left
           subcelldata.boundary_lines.push_back (CellData<1>());
           subcelldata.boundary_lines.back().vertices[0] = 26;
           subcelldata.boundary_lines.back().vertices[1] = 28;
+          subcelldata.boundary_lines.back().manifold_id = 32;
           subcelldata.boundary_lines.back().material_id = 32;
 //rear part of the keel (region needed for keel smoothing) right
           subcelldata.boundary_lines.push_back (CellData<1>());
           subcelldata.boundary_lines.back().vertices[0] = 23;
           subcelldata.boundary_lines.back().vertices[1] = 21;
           subcelldata.boundary_lines.back().material_id = 37;
+          subcelldata.boundary_lines.back().manifold_id = 37;
 
         }
     }
@@ -1781,7 +1856,11 @@ void NumericalTowingTank::create_initial_mesh(const Point<3> PointFrontTop,
 
   triangulation.create_triangulation_compatibility(vertices, cells, subcelldata );
 
+  tria_it
+  cell = triangulation.begin_active(),
+  endc = triangulation.end();
 
+  
   std::ofstream logfile("meshResult.inp");
   GridOut grid_out;
   grid_out.write_ucd(triangulation, logfile);
@@ -1791,7 +1870,7 @@ void NumericalTowingTank::create_initial_mesh(const Point<3> PointFrontTop,
 
 void NumericalTowingTank::generate_double_nodes_set()
 {
-
+  cout<<"Current amount of dofs: "<<dh.n_dofs()<<endl;
   ComputationalDomain<3>::generate_double_nodes_set();
 
   compute_nodes_flags();
@@ -1830,7 +1909,7 @@ void NumericalTowingTank::generate_double_nodes_set()
     endc = dh.end();
     FEValues<2,3> fe_v(*mapping, fe, *quadrature,
                   update_values | update_gradients |
-            update_cell_normal_vectors |
+            update_normal_vectors |
             update_quadrature_points |
             update_JxW_values);
 
@@ -1845,7 +1924,7 @@ void NumericalTowingTank::generate_double_nodes_set()
            {
            fe_v.reinit(cell);
            const std::vector<Point<3> > &node_positions = fe_v.get_quadrature_points();
-           const std::vector<Point<dim> > &node_normals = fe_v.get_normal_vectors();
+           const std::vector<Tensor<1,dim> > &node_normals = fe_v.get_normal_vectors();
            std::vector<Point<3> > proj_quad_nodes(n_q_points);
            for (unsigned int q=0; q<n_q_points; ++q)
                {
@@ -2404,6 +2483,10 @@ void NumericalTowingTank::initialize_smoother()
   on_curve_option[6] = false;
 
 
+      ref_points.resize(vector_dh.n_dofs());
+      DoFTools::map_dofs_to_support_points<2,3>(StaticMappingQ1<2,3>::mapping,
+                                                vector_dh, ref_points);
+
   for (unsigned int i=0; i<7; ++i)
     {
       extract_boundary_dofs(boundary_dofs[i], boundary_ids[i], vector_dh);
@@ -2412,9 +2495,10 @@ void NumericalTowingTank::initialize_smoother()
       std::set<unsigned int> duplicates = double_nodes_set[moving_point_ids[i]];
       for (std::set<unsigned int>::iterator pos = duplicates.begin(); pos !=duplicates.end(); pos++)
         {
-          //cout<<i<<" mpid"<<*pos<<"  is in?"<<boundary_dofs[i][3*(*pos)]<<endl;
+          //cout<<i<<" mpid"<<*pos<<"  is in "<<boundary_ids[i]<<"?"<<boundary_dofs[i][3*(*pos)]<<endl;
           if (boundary_dofs[i][3*(*pos)] == 1)
             {
+              //cout<<"Moving point: "<<i<<"  id: "<<*pos<<endl;
               moving_point_ids[i] = *pos;
               break;
             }
@@ -2561,7 +2645,6 @@ void NumericalTowingTank::update_smoother()
 
   for (unsigned int i=0; i<7; ++i)
     {
-      //cout<<"smoother "<<i<<endl;
       line_smoothers[i]->update_reference(base_point_ids[i],moving_point_ids[i]);
     }
 
@@ -2656,11 +2739,20 @@ void NumericalTowingTank::perform_surface_projection()
            (flags[i] & right_side) &&
            ((flags[i] & edge)== 0) )
         {
-          boat_model.boat_water_line_right->assigned_axis_projection_and_diff_forms(proj_node,
-              iges_normals[i],
-              iges_mean_curvatures[i],
-              vector_support_points[3*i],
-              node_normals[i]);  // for projection in mesh normal direction
+          Point<3> right_temp_point = dealii::OpenCASCADE::line_intersection(boat_model.sh,
+                                                                             vector_support_points[3*i],
+                                                                             node_normals[i],
+                                                                             1e-5);
+                                                                        
+          std::tuple<Point<3>,  Tensor<1,3>, double, double> right_tuple = 
+          dealii::OpenCASCADE::closest_point_and_differential_forms(boat_model.sh,
+                                                                    right_temp_point,
+                                                                    1e-5);
+
+          proj_node = std::get<0>(right_tuple);
+          iges_normals[i] = std::get<1>(right_tuple);
+          iges_mean_curvatures[i] =(std::get<2>(right_tuple)+std::get<3>(right_tuple))/2.0;
+                  
           for (unsigned int j=0; j<3; ++j)
             map_points(3*i+j) += proj_node(j) - vector_support_points[3*i](j);
         }
@@ -2674,13 +2766,20 @@ void NumericalTowingTank::perform_surface_projection()
            (flags[i] & left_side) &&
            ((flags[i] & edge)== 0) )
         {
-          boat_model.boat_water_line_left->assigned_axis_projection_and_diff_forms(proj_node,
-              iges_normals[i],
-              iges_mean_curvatures[i],
-              vector_support_points[3*i],
-              node_normals[i]);  // for projection in mesh normal direction
-          //iges_normals[i]*=-1.0; // reflected shape has wrong orientation! we should change it instead of acting here
-          //iges_mean_curvatures[i]*=-1.0;
+          Point<3>  left_temp_point = dealii::OpenCASCADE::line_intersection(boat_model.refl_sh,
+                                                                             vector_support_points[3*i],
+                                                                             node_normals[i],
+                                                                             1e-5);
+                                                                        
+          std::tuple<Point<3>,  Tensor<1,3>, double, double> left_tuple = 
+          dealii::OpenCASCADE::closest_point_and_differential_forms(boat_model.refl_sh,
+                                                                    left_temp_point,
+                                                                    1e-5);
+        
+          proj_node = std::get<0>(left_tuple);
+          iges_normals[i] = std::get<1>(left_tuple);
+          iges_mean_curvatures[i] =(std::get<2>(left_tuple)+std::get<3>(left_tuple))/2.0;
+
           for (unsigned int j=0; j<3; ++j)
             map_points(3*i+j) += proj_node(j) - vector_support_points[3*i](j);
         }
@@ -2738,10 +2837,20 @@ void NumericalTowingTank::perform_water_line_nodes_projection()
            (moving_point_ids[5] != i) &&
            (moving_point_ids[6] != i) ) // to avoid the bow and stern node
         {
-          boat_model.boat_water_line_right->axis_projection_and_diff_forms(proj_node,
-              iges_normals[i],
-              iges_mean_curvatures[i],
-              vector_support_points[3*i]);  // y axis projection
+          Tensor<1,3> direction({0,1,0});
+          Point<3> right_temp_point = dealii::OpenCASCADE::line_intersection(boat_model.sh,
+                                                                             vector_support_points[3*i],
+                                                                             direction,
+                                                                             1e-5);
+          std::tuple<Point<3>,  Tensor<1,3>, double, double> right_tuple = 
+          dealii::OpenCASCADE::closest_point_and_differential_forms(boat_model.sh,
+                                                                    right_temp_point,
+                                                                    1e-5);
+
+
+          proj_node = std::get<0>(right_tuple);
+          iges_normals[i] = std::get<1>(right_tuple);
+          iges_mean_curvatures[i] =(std::get<2>(right_tuple)+std::get<3>(right_tuple))/2.0;
           //cout<<i<<" (rw) -->  dist "<<proj_node.distance(vector_support_points[3*i])<<" ("<<proj_node<<") Vs ("<<vector_support_points[3*i]<<")"<<endl;
           // " + n("<<iges_normals[i]<<")"<<endl;
           std::set<unsigned int> duplicates = vector_double_nodes_set[3*i];
@@ -2764,10 +2873,20 @@ void NumericalTowingTank::perform_water_line_nodes_projection()
            (moving_point_ids[5] != i) &&
            (moving_point_ids[6] != i) ) // to avoid the bow and stern node
         {
-          boat_model.boat_water_line_left->axis_projection_and_diff_forms(proj_node,
-              iges_normals[i],
-              iges_mean_curvatures[i],
-              vector_support_points[3*i]);  // y axis direction projection
+          Tensor<1,3> direction({0,-1,0});
+          Point<3>  left_temp_point = dealii::OpenCASCADE::line_intersection(boat_model.refl_sh,
+                                                                             vector_support_points[3*i],
+                                                                             direction,
+                                                                             1e-5);
+                                                                        
+          std::tuple<Point<3>,  Tensor<1,3>, double, double> left_tuple = 
+          dealii::OpenCASCADE::closest_point_and_differential_forms(boat_model.refl_sh,
+                                                                    left_temp_point,
+                                                                    1e-5);
+
+          proj_node = std::get<0>(left_tuple);
+          iges_normals[i] = std::get<1>(left_tuple);
+          iges_mean_curvatures[i] =(std::get<2>(left_tuple)+std::get<3>(left_tuple))/2.0;
           //cout<<i<<" (lw) -->  dist "<<proj_node.distance(vector_support_points[3*i])<<" ("<<proj_node<<") Vs ("<<vector_support_points[3*i]<<")"<<endl;
           // " + n("<<iges_normals[i]<<")"<<endl;
           std::set<unsigned int> duplicates = vector_double_nodes_set[3*i];
@@ -2966,26 +3085,34 @@ void NumericalTowingTank::evaluate_ref_surf_distances(Vector <double> &distances
              (moving_point_ids[5] != i) &&
              (moving_point_ids[6] != i)  ) // to avoid the bow and stern node
           {
-            Point<3> intermadiate_point_pos(ref_points[3*i](0)+smoothing_map_points(3*i),
+            Point<3> intermediate_point_pos(ref_points[3*i](0)+smoothing_map_points(3*i),
                                             ref_points[3*i](1)+smoothing_map_points(3*i+1),
                                             ref_points[3*i](2)+smoothing_map_points(3*i+2));
 
-            Point<3> direction(iges_normals[i](0),iges_normals[i](1),0.0);
-            if (direction.square() < 1e-3)
+            Tensor<1,3> direction({iges_normals[i][0],iges_normals[i][1],0.0});
+            if (direction.norm() < 1e-3)
               {
                 std::set<unsigned int> duplicates = double_nodes_set[i];
                 duplicates.erase(i);
                 unsigned int j = *(duplicates.begin());
-                direction(0) = node_normals[j](0);
-                direction(1) = node_normals[j](1);
-                direction(2) = 0.0;
+                direction[0] = node_normals[j][0];
+                direction[1] = node_normals[j][1];
+                direction[2] = 0.0;
               }
-            //cout<<i<<"(rw) -->  ("<<intermadiate_point_pos<<") and ("<<direction<<")"<<endl;
-            boat_model.boat_water_line_right->assigned_axis_projection_and_diff_forms(proj_node,
-                iges_normals[i],
-                iges_mean_curvatures[i],
-                intermadiate_point_pos,
-                direction);  // hor normal dir projection
+          Point<3> right_temp_point = dealii::OpenCASCADE::line_intersection(boat_model.sh,
+                                                                             intermediate_point_pos,
+                                                                             direction,
+                                                                             1e-5);
+                                                                        
+          std::tuple<Point<3>,  Tensor<1,3>, double, double> right_tuple = 
+          dealii::OpenCASCADE::closest_point_and_differential_forms(boat_model.sh,
+                                                                    right_temp_point,
+                                                                    1e-5);
+
+
+          proj_node = std::get<0>(right_tuple);
+          iges_normals[i] = std::get<1>(right_tuple);
+          iges_mean_curvatures[i] =(std::get<2>(right_tuple)+std::get<3>(right_tuple))/2.0;
             //cout<<i<<"(rw) -->  ("<<proj_node<<") Vs ("<<vector_support_points[3*i]<<") + n("<<iges_normals[i]<<")"<<endl;
             //cout<<i<<"(rw) -->  ("<<proj_node<<") Vs ("<<intermadiate_point_pos<<")"<<endl;
             for (unsigned int j=0; j<2; ++j)
@@ -3019,21 +3146,29 @@ void NumericalTowingTank::evaluate_ref_surf_distances(Vector <double> &distances
             Point<3> intermadiate_point_pos(ref_points[3*i](0)+smoothing_map_points(3*i),
                                             ref_points[3*i](1)+smoothing_map_points(3*i+1),
                                             ref_points[3*i](2)+smoothing_map_points(3*i+2));
-            Point<3> direction(iges_normals[i](0),iges_normals[i](1),0.0);
-            if (direction.square() < 1e-3)
+            Tensor<1,3> direction({iges_normals[i][0],iges_normals[i][1],0.0});
+            if (direction.norm() < 1e-4)
               {
                 std::set<unsigned int> duplicates = double_nodes_set[i];
                 duplicates.erase(i);
                 unsigned int j = *(duplicates.begin());
-                direction(0) = node_normals[j](0);
-                direction(1) = node_normals[j](1);
-                direction(2) = 0.0;
+                direction[0] = node_normals[j][0];
+                direction[1] = node_normals[j][1];
+                direction[2] = 0.0;
               }
-            boat_model.boat_water_line_left->assigned_axis_projection_and_diff_forms(proj_node,
-                iges_normals[i],
-                iges_mean_curvatures[i],
-                intermadiate_point_pos,
-                direction);  // hor normal dir projection
+          Point<3>  left_temp_point = dealii::OpenCASCADE::line_intersection(boat_model.refl_sh,
+                                                                             intermadiate_point_pos,
+                                                                             direction,
+                                                                             1e-5);
+                                                                        
+          std::tuple<Point<3>,  Tensor<1,3>, double, double> left_tuple = 
+          dealii::OpenCASCADE::closest_point_and_differential_forms(boat_model.refl_sh,
+                                                                    left_temp_point,
+                                                                    1e-5);
+
+          proj_node = std::get<0>(left_tuple);
+          iges_normals[i] = std::get<1>(left_tuple);
+          iges_mean_curvatures[i] =(std::get<2>(left_tuple)+std::get<3>(left_tuple))/2.0;
             //cout<<i<<"(lw) -->  ("<<proj_node<<") Vs ("<<vector_support_points[3*i]<<") + n("<<iges_normals[i]<<")"<<endl;
             for (unsigned int j=0; j<2; ++j)
               smoothing_map_points(3*i+j) = proj_node(j) - ref_points[3*i](j);
@@ -3082,6 +3217,20 @@ void NumericalTowingTank::evaluate_ref_surf_distances(Vector <double> &distances
         {
           Point<3> intermediate_point_pos = ref_points[3*i] +
                                             Point<3>(smoothing_map_points(3*i),smoothing_map_points(3*i+1),smoothing_map_points(3*i+2));
+          Point<3> right_temp_point = dealii::OpenCASCADE::line_intersection(boat_model.sh,
+                                                                        intermediate_point_pos,
+                                                                        node_normals[i],
+                                                                        1e-5);
+                                                                        
+          std::tuple<Point<3>,  Tensor<1,3>, double, double> right_tuple = 
+          dealii::OpenCASCADE::closest_point_and_differential_forms(boat_model.sh,
+                                                                    right_temp_point,
+                                                                    1e-5);
+
+          proj_node = std::get<0>(right_tuple);
+          iges_normals[i] = std::get<1>(right_tuple);
+          iges_mean_curvatures[i] =(std::get<2>(right_tuple)+std::get<3>(right_tuple))/2.0;
+          /*
           bool succeed =
             boat_model.boat_water_line_right->assigned_axis_projection_and_diff_forms(proj_node,
                 iges_normals[i],
@@ -3093,7 +3242,7 @@ void NumericalTowingTank::evaluate_ref_surf_distances(Vector <double> &distances
                 iges_normals[i],
                 iges_mean_curvatures[i],
                 intermediate_point_pos);  // for projection in normal direction
-
+          */
           for (unsigned int j=0; j<3; ++j)
             smoothing_map_points(3*i+j) = proj_node(j) - ref_points[3*i](j);
         }
@@ -3108,6 +3257,20 @@ void NumericalTowingTank::evaluate_ref_surf_distances(Vector <double> &distances
         {
           Point<3> intermediate_point_pos = ref_points[3*i] +
                                             Point<3>(smoothing_map_points(3*i),smoothing_map_points(3*i+1),smoothing_map_points(3*i+2));
+          Point<3>  left_temp_point = dealii::OpenCASCADE::line_intersection(boat_model.refl_sh,
+                                                                        intermediate_point_pos,
+                                                                        node_normals[i],
+                                                                        1e-5);
+                                                                        
+          std::tuple<Point<3>,  Tensor<1,3>, double, double> left_tuple = 
+          dealii::OpenCASCADE::closest_point_and_differential_forms(boat_model.refl_sh,
+                                                                    left_temp_point,
+                                                                    1e-5);
+
+          proj_node = std::get<0>(left_tuple);
+          iges_normals[i] = std::get<1>(left_tuple);
+          iges_mean_curvatures[i] =(std::get<2>(left_tuple)+std::get<3>(left_tuple))/2.0;
+          /*
           bool succeed =
             boat_model.boat_water_line_left->assigned_axis_projection_and_diff_forms(proj_node,
                 iges_normals[i],
@@ -3119,7 +3282,7 @@ void NumericalTowingTank::evaluate_ref_surf_distances(Vector <double> &distances
                 iges_normals[i],
                 iges_mean_curvatures[i],
                 intermediate_point_pos);  // for projection in normal direction
-
+          */
           for (unsigned int j=0; j<3; ++j)
             smoothing_map_points(3*i+j) = proj_node(j) - ref_points[3*i](j);
         }
@@ -3188,6 +3351,22 @@ void NumericalTowingTank::evaluate_ref_surf_distances(Vector <double> &distances
         {
           Point<3> intermediate_point_pos = ref_points[3*i] +
                                             Point<3>(smoothing_map_points(3*i),smoothing_map_points(3*i+1),smoothing_map_points(3*i+2));
+          Point<3> right_temp_point = dealii::OpenCASCADE::line_intersection(boat_model.sh,
+                                                                        intermediate_point_pos,
+                                                                        node_normals[i],
+                                                                        1e-5);
+                                                                        
+          std::tuple<Point<3>,  Tensor<1,3>, double, double> right_tuple = 
+          dealii::OpenCASCADE::closest_point_and_differential_forms(boat_model.sh,
+                                                                    right_temp_point,
+                                                                    1e-5);
+
+
+
+          proj_node = std::get<0>(right_tuple);
+          iges_normals[i] = std::get<1>(right_tuple);
+          iges_mean_curvatures[i] =(std::get<2>(right_tuple)+std::get<3>(right_tuple))/2.0;
+          /*
           bool succeed =
             boat_model.boat_water_line_right->assigned_axis_projection_and_diff_forms(proj_node,
                 iges_normals[i],
@@ -3199,6 +3378,7 @@ void NumericalTowingTank::evaluate_ref_surf_distances(Vector <double> &distances
                 iges_normals[i],
                 iges_mean_curvatures[i],
                 intermediate_point_pos);  // for projection in normal direction
+          */
           for (unsigned int j=0; j<3; ++j)
             smoothing_map_points(3*i+j) = proj_node(j) - ref_points[3*i](j);
         }
@@ -3213,6 +3393,20 @@ void NumericalTowingTank::evaluate_ref_surf_distances(Vector <double> &distances
         {
           Point<3> intermediate_point_pos = ref_points[3*i] +
                                             Point<3>(smoothing_map_points(3*i),smoothing_map_points(3*i+1),smoothing_map_points(3*i+2));
+          Point<3>  left_temp_point = dealii::OpenCASCADE::line_intersection(boat_model.refl_sh,
+                                                                        intermediate_point_pos,
+                                                                        node_normals[i],
+                                                                        1e-5);
+                                                                        
+          std::tuple<Point<3>,  Tensor<1,3>, double, double> left_tuple = 
+          dealii::OpenCASCADE::closest_point_and_differential_forms(boat_model.refl_sh,
+                                                                    left_temp_point,
+                                                                    1e-5);
+
+          proj_node = std::get<0>(left_tuple);
+          iges_normals[i] = std::get<1>(left_tuple);
+          iges_mean_curvatures[i] =(std::get<2>(left_tuple)+std::get<3>(left_tuple))/2.0;
+          /*
           bool succeed =
             boat_model.boat_water_line_left->assigned_axis_projection_and_diff_forms(proj_node,
                 iges_normals[i],
@@ -3224,6 +3418,7 @@ void NumericalTowingTank::evaluate_ref_surf_distances(Vector <double> &distances
                 iges_normals[i],
                 iges_mean_curvatures[i],
                 intermediate_point_pos);  // for projection in normal direction
+          */
 
           for (unsigned int j=0; j<3; ++j)
             smoothing_map_points(3*i+j) = proj_node(j) - ref_points[3*i](j);
@@ -3238,10 +3433,19 @@ void NumericalTowingTank::evaluate_ref_surf_distances(Vector <double> &distances
         {
           Point<3> intermediate_point_pos = ref_points[3*i] +
                                             Point<3>(smoothing_map_points(3*i),smoothing_map_points(3*i+1),smoothing_map_points(3*i+2));
+          std::tuple<Point<3>,  Tensor<1,3>, double, double> right_tuple = 
+          dealii::OpenCASCADE::closest_point_and_differential_forms(boat_model.sh,
+                                                                    intermediate_point_pos,
+                                                                    1e-5);
+          proj_node = std::get<0>(right_tuple);
+          iges_normals[i] = std::get<1>(right_tuple);
+          iges_mean_curvatures[i] =(std::get<2>(right_tuple)+std::get<3>(right_tuple))/2.0;
+          /*
           boat_model.boat_surface_right->normal_projection_and_diff_forms(proj_node,
               iges_normals[i],
               iges_mean_curvatures[i],
               intermediate_point_pos);  // for projection in surface normal direction
+          */
         }
     }
 
@@ -3252,10 +3456,20 @@ void NumericalTowingTank::evaluate_ref_surf_distances(Vector <double> &distances
         {
           Point<3> intermediate_point_pos = ref_points[3*i] +
                                             Point<3>(smoothing_map_points(3*i),smoothing_map_points(3*i+1),smoothing_map_points(3*i+2));
+          std::tuple<Point<3>,  Tensor<1,3>, double, double> left_tuple = 
+          dealii::OpenCASCADE::closest_point_and_differential_forms(boat_model.refl_sh,
+                                                                    intermediate_point_pos,
+                                                                    1e-5);
+          proj_node = std::get<0>(left_tuple);
+          iges_normals[i] = std::get<1>(left_tuple);
+          iges_mean_curvatures[i] =(std::get<2>(left_tuple)+std::get<3>(left_tuple))/2.0;
+          /*
           boat_model.boat_surface_left->normal_projection_and_diff_forms(proj_node,
               iges_normals[i],
               iges_mean_curvatures[i],
               intermediate_point_pos);  // for projection in surface normal direction
+
+          */
         }
     }
 //*/
@@ -3286,7 +3500,7 @@ void NumericalTowingTank::evaluate_ref_surf_distances(Vector <double> &distances
 
   distances*=-1;
 
-  distances.add(map_points);
+  distances.add(1.0,map_points);
 
   compute_normals_at_nodes(smoothing_map_points);
   old_iges_normals = iges_normals;
@@ -3362,10 +3576,10 @@ void NumericalTowingTank::compute_normals_at_nodes(Vector<double> &map_points_us
   vector_normals_rhs.reinit(vector_dh.n_dofs());
   vector_normals_solution.reinit(vector_dh.n_dofs());
 
-  MappingQEulerian<2, Vector<double>, 3> mappingg(mapping_degree, map_points_used, vector_dh);
+  MappingQEulerian<2, Vector<double>, 3> mappingg(mapping_degree, vector_dh, map_points_used);
 
   FEValues<2,3> vector_fe_v(mappingg, vector_fe, *quadrature,
-                            update_values | update_cell_normal_vectors |
+                            update_values | update_normal_vectors |
                             update_JxW_values);
 
   const unsigned int vector_n_q_points = vector_fe_v.n_quadrature_points;
@@ -3384,7 +3598,7 @@ void NumericalTowingTank::compute_normals_at_nodes(Vector<double> &map_points_us
       vector_fe_v.reinit (vector_cell);
       local_normals_matrix = 0;
       local_normals_rhs = 0;
-      const std::vector<Point<3> > &vector_node_normals = vector_fe_v.get_normal_vectors();
+      const std::vector<Tensor<1,3> > &vector_node_normals = vector_fe_v.get_normal_vectors();
       unsigned int comp_i, comp_j;
 
       for (unsigned int q=0; q<vector_n_q_points; ++q)
@@ -3402,7 +3616,7 @@ void NumericalTowingTank::compute_normals_at_nodes(Vector<double> &map_points_us
                   }
               }
             local_normals_rhs(i) += (vector_fe_v.shape_value(i, q)) *
-                                    vector_node_normals[q](comp_i) * vector_fe_v.JxW(q);
+                                    vector_node_normals[q][comp_i] * vector_fe_v.JxW(q);
           }
 
       vector_cell->get_dof_indices (vector_local_dof_indices);
@@ -3433,7 +3647,7 @@ void NumericalTowingTank::compute_normals_at_nodes(Vector<double> &map_points_us
 
 
 
-void NumericalTowingTank::compute_constraints(ConstraintMatrix &cc)
+void NumericalTowingTank::compute_constraints(AffineConstraints<double> &cc)
 {
 
   // we start clearing the constraint matrices
@@ -3563,7 +3777,7 @@ void NumericalTowingTank::make_edges_conformal(bool isotropic_ref_on_opposite_si
                   for (unsigned int d=0; d<GeometryInfo<2>::faces_per_cell; ++d)
                     if ((*jt)->face(d)->at_boundary())
                       if ( parent_face_center.distance(((*jt)->face(d)->vertex(0)+(*jt)->face(d)->vertex(1))/2) < tol)
-                        {
+                        { 
                           // if we are on wall or free surf, use isotropic refinement
                           if ( isotropic_ref_on_opposite_side )//(*jt)->material_id() == free_sur_ID1 ||
                             //(*jt)->material_id() == free_sur_ID2 ||
@@ -3586,7 +3800,9 @@ void NumericalTowingTank::make_edges_conformal(bool isotropic_ref_on_opposite_si
     }
 
   //std::cout << "Refined counter: " << refinedCellCounter << std::endl;
+
   tria.execute_coarsening_and_refinement();
+
   dh.distribute_dofs(fe);
   vector_dh.distribute_dofs(vector_fe);
   map_points.reinit(vector_dh.n_dofs());
@@ -3597,6 +3813,7 @@ void NumericalTowingTank::make_edges_conformal(bool isotropic_ref_on_opposite_si
   ref_points.resize(vector_dh.n_dofs());
   DoFTools::map_dofs_to_support_points<2,3>(StaticMappingQ1<2,3>::mapping,
                                             vector_dh, ref_points);
+
   generate_double_nodes_set();
   full_mesh_treatment();
 
@@ -4002,13 +4219,14 @@ void NumericalTowingTank::refine_global_on_boat(const unsigned int num_refinemen
 }
 
 
-void NumericalTowingTank::extract_boundary_dofs(std::vector<bool> &dofs, unsigned int id,
+void NumericalTowingTank::extract_boundary_dofs(std::vector<bool> &dofs, types::boundary_id id,
                                                 DoFHandler<2,3> &vector_dh)
 {
   std::vector<bool> comp_sel(3, true);
-  std::set<unsigned char> ids;
+  ComponentMask comp_mask(comp_sel); 
+  std::set<types::boundary_id> ids;
   ids.insert(id);
-  DoFTools::extract_boundary_dofs(vector_dh, comp_sel, dofs, ids);
+  DoFTools::extract_boundary_dofs(vector_dh, comp_mask, dofs, ids);
 }
 
 
